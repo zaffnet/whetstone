@@ -55,7 +55,7 @@ repos:
     rev: v0.49.1
     hooks:
       - id: markdownlint
-        exclude: ^(template/project/|skills/|home/)
+        exclude: ^(template/project/|skills/|agents/|home/)
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.4

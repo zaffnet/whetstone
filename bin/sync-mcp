@@ -1,0 +1,252 @@
+#!/usr/bin/env python3
+"""Copy ~/.agents/mcp.json into Cursor, Claude Code, and Codex user configs."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+import sys
+import tempfile
+import tomllib
+from pathlib import Path
+
+HOME = Path.home()
+AGENTS_MCP = HOME / ".agents" / "mcp.json"
+CURSOR_MCP = HOME / ".cursor" / "mcp.json"
+CLAUDE_JSON = HOME / ".claude.json"
+CODEX_TOML = HOME / ".codex" / "config.toml"
+
+CODEX_PRIVATE = frozenset({"node_repl", "computer-use", "event-stream"})
+TABLE_HEADER = re.compile(r"^\[([^]]+)\]\s*$")
+ENV_PLACEHOLDER = re.compile(r"^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
+BEARER_PLACEHOLDER = re.compile(r"^Bearer \$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
+
+
+def die(message: str) -> None:
+    print(f"sync-mcp: {message}", file=sys.stderr)  # noqa: T201  -- CLI diagnostics
+    raise SystemExit(1)
+
+
+def load_managed() -> dict[str, dict]:
+    try:
+        payload = json.loads(AGENTS_MCP.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        die(f"cannot read {AGENTS_MCP}: {exc}")
+    servers = payload.get("mcpServers")
+    if not isinstance(servers, dict) or not servers:
+        die(f"{AGENTS_MCP} must contain a non-empty mcpServers object")
+    for name, spec in servers.items():
+        if not isinstance(spec, dict):
+            die(f"{name} must be an object")
+        refuse_literal_secrets(name, spec)
+    return servers
+
+
+def refuse_literal_secrets(name: str, spec: dict) -> None:
+    headers = spec.get("headers") or {}
+    if not isinstance(headers, dict):
+        die(f"{name}.headers must be an object")
+    for header, value in headers.items():
+        if not isinstance(value, str):
+            die(f"{name}.headers.{header} must be a string")
+        if ENV_PLACEHOLDER.match(value) or BEARER_PLACEHOLDER.match(value):
+            continue
+        die(
+            f"{name}.headers.{header} must be ${{VAR}} or Bearer ${{VAR}}; "
+            "refusing a literal secret"
+        )
+
+
+def backup(path: Path) -> None:
+    if not path.exists() or path.is_symlink():
+        return
+    dest = path.with_name(path.name + ".bak-before-agents-sync")
+    if not dest.exists():
+        shutil.copy2(path, dest)
+
+
+def sync_cursor() -> None:
+    CURSOR_MCP.parent.mkdir(parents=True, exist_ok=True)
+    if CURSOR_MCP.is_symlink() and CURSOR_MCP.resolve() == AGENTS_MCP.resolve():
+        return
+    if CURSOR_MCP.exists() and not CURSOR_MCP.is_symlink():
+        backup(CURSOR_MCP)
+        CURSOR_MCP.unlink()
+    elif CURSOR_MCP.is_symlink():
+        CURSOR_MCP.unlink()
+    CURSOR_MCP.symlink_to(AGENTS_MCP)
+
+
+def sync_claude(servers: dict[str, dict]) -> int:
+    """Replace Claude user-scope servers and empty every project's local scope.
+
+    Returns the number of local-scope server entries removed.
+    """
+    if not CLAUDE_JSON.exists():
+        die(f"missing {CLAUDE_JSON}")
+    backup(CLAUDE_JSON)
+    try:
+        data = json.loads(CLAUDE_JSON.read_text())
+    except json.JSONDecodeError as exc:
+        die(f"cannot parse {CLAUDE_JSON}: {exc}")
+    data["mcpServers"] = servers
+    removed = 0
+    for project in (data.get("projects") or {}).values():
+        local = project.pop("mcpServers", None)
+        if local:
+            removed += len(local)
+    fd, tmp = tempfile.mkstemp(prefix="claude.json.", dir=CLAUDE_JSON.parent)
+    try:
+        with os.fdopen(fd, "w") as handle:
+            json.dump(data, handle, indent=2, ensure_ascii=False)
+            handle.write("\n")
+        Path(tmp).replace(CLAUDE_JSON)
+    except Exception:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+    written = json.loads(CLAUDE_JSON.read_text())
+    if set(written["mcpServers"]) != set(servers):
+        die("Claude mcpServers keys do not match ~/.agents/mcp.json")
+    leftover = [
+        path
+        for path, project in (written.get("projects") or {}).items()
+        if project.get("mcpServers")
+    ]
+    if leftover:
+        die(f"Claude local-scope servers survived in: {leftover}")
+    return removed
+
+
+def toml_string(value: str) -> str:
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def env_var_name(value: str) -> str:
+    match = BEARER_PLACEHOLDER.match(value) or ENV_PLACEHOLDER.match(value)
+    if match is None:
+        die(f"expected ${{VAR}} placeholder, got {value!r}")
+    return match.group(1)
+
+
+def server_to_toml(name: str, spec: dict) -> str:
+    lines = [f"[mcp_servers.{name}]"]
+    headers = spec.get("headers") or {}
+    if "url" in spec:
+        lines.append(f"url = {toml_string(spec['url'])}")
+        authorization = headers.get("Authorization")
+        if authorization:
+            lines.append(f"bearer_token_env_var = {toml_string(env_var_name(authorization))}")
+        extra = {key: value for key, value in headers.items() if key != "Authorization"}
+        if extra:
+            lines.append("")
+            lines.append(f"[mcp_servers.{name}.env_http_headers]")
+            for key, value in extra.items():
+                lines.append(f"{key} = {toml_string(env_var_name(value))}")
+    else:
+        command = spec.get("command")
+        if not command:
+            die(f"{name} needs command or url")
+        lines.append(f"command = {toml_string(command)}")
+        args = spec.get("args") or []
+        if args:
+            rendered = ", ".join(toml_string(arg) for arg in args)
+            lines.append(f"args = [{rendered}]")
+        env = spec.get("env") or {}
+        if env:
+            lines.append("")
+            lines.append(f"[mcp_servers.{name}.env]")
+            for key, value in env.items():
+                lines.append(f"{key} = {toml_string(str(value))}")
+    return "\n".join(lines) + "\n"
+
+
+def split_toml_tables(text: str) -> list[tuple[str | None, str]]:
+    chunks: list[tuple[str | None, str]] = []
+    current_header: str | None = None
+    current_lines: list[str] = []
+    for line in text.splitlines(keepends=True):
+        match = TABLE_HEADER.match(line.rstrip("\n"))
+        if match:
+            chunks.append((current_header, "".join(current_lines)))
+            current_header = match.group(1)
+            current_lines = [line]
+        else:
+            current_lines.append(line)
+    chunks.append((current_header, "".join(current_lines)))
+    return chunks
+
+
+def mcp_server_name(header: str | None) -> str | None:
+    if header is None or not header.startswith("mcp_servers."):
+        return None
+    return header.split(".")[1]
+
+
+def sync_codex(servers: dict[str, dict]) -> None:
+    if not CODEX_TOML.exists():
+        die(f"missing {CODEX_TOML}")
+    backup(CODEX_TOML)
+    original = CODEX_TOML.read_text()
+    chunks = split_toml_tables(original)
+    private_chunks = [body for header, body in chunks if mcp_server_name(header) in CODEX_PRIVATE]
+    managed_block = "".join(server_to_toml(name, spec) + "\n" for name, spec in servers.items())
+    output: list[str] = []
+    inserted = False
+    for header, body in chunks:
+        name = mcp_server_name(header)
+        if name is None:
+            output.append(body)
+            continue
+        if inserted:
+            continue
+        output.extend(private_chunks)
+        output.append(managed_block)
+        inserted = True
+    if not inserted:
+        output.extend(private_chunks)
+        output.append(managed_block)
+    text = "".join(output)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    if not text.endswith("\n"):
+        text += "\n"
+    fd, tmp = tempfile.mkstemp(prefix="config.toml.", dir=CODEX_TOML.parent)
+    try:
+        with os.fdopen(fd, "w") as handle:
+            handle.write(text)
+        Path(tmp).replace(CODEX_TOML)
+    except Exception:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+    validate_codex(servers)
+
+
+def validate_codex(servers: dict[str, dict]) -> None:
+    parsed = tomllib.loads(CODEX_TOML.read_text())
+    found = parsed.get("mcp_servers") or {}
+    missing_private = CODEX_PRIVATE - set(found)
+    if missing_private:
+        die(f"Codex lost private servers: {sorted(missing_private)}")
+    missing_managed = set(servers) - set(found)
+    if missing_managed:
+        die(f"Codex missing managed servers: {sorted(missing_managed)}")
+    extras = set(found) - set(servers) - CODEX_PRIVATE
+    if extras:
+        die(f"Codex still has unmanaged servers: {sorted(extras)}")
+
+
+def main() -> None:
+    servers = load_managed()
+    sync_cursor()
+    removed = sync_claude(servers)
+    sync_codex(servers)
+    print(f"synced {len(servers)} MCP servers from {AGENTS_MCP}")  # noqa: T201  -- CLI report
+    print(f"  Cursor: {CURSOR_MCP} -> {AGENTS_MCP}")  # noqa: T201  -- CLI report
+    print(f"  Claude: {CLAUDE_JSON} mcpServers; removed {removed} local-scope servers")  # noqa: T201  -- CLI report
+    print(f"  Codex:  {CODEX_TOML} [mcp_servers.*]")  # noqa: T201  -- CLI report
+
+
+if __name__ == "__main__":
+    main()
