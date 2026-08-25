@@ -31,5 +31,5 @@
       "Bash(cat)"
     ]
   },
-  "plansDirectory": "$CLAUDE_PROJECT_DIR/.claude/plans"
+  "plansDirectory": ".claude/plans"
 }
