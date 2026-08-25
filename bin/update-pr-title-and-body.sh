@@ -8,7 +8,7 @@
 #
 # Environment:
 #   CODEX_MODEL      Model name passed to `codex exec` (default: gpt-5.5).
-#   CODEX_BASE_URL   OpenAI-compatible proxy; OPENAI_API_KEY is the credential.
+#   CODEX_BASE_URL   OpenAI-compatible proxy (falls back to OPENAI_BASE_URL); OPENAI_API_KEY is the credential.
 set -euo pipefail
 
 SCHEMA=$(
@@ -131,7 +131,8 @@ readonly ASSUME_YES PR_NUMBER
 
 # Optional OpenAI-compatible proxy. Empty array means Codex uses its default provider.
 PROVIDER_ARGS=()
-if [[ -n "${CODEX_BASE_URL:-}" ]]; then
+CODEX_BASE_URL="${CODEX_BASE_URL:-${OPENAI_BASE_URL:-}}"
+if [[ -n "$CODEX_BASE_URL" ]]; then
   PROVIDER_ARGS=(
     --config 'model_provider="proxy"'
     --config "model_providers.proxy={name=\"Proxy\",base_url=\"$CODEX_BASE_URL\",env_key=\"OPENAI_API_KEY\",wire_api=\"responses\",supports_websockets=false}"
@@ -320,7 +321,7 @@ if ! codex exec \
   --disable multi_agent \
   --disable browser_use \
   --disable computer_use \
-  --disable web_search_request \
+  --config 'web_search="disabled"' \
   --disable image_generation \
   --disable tool_suggest \
   --disable workspace_dependencies \

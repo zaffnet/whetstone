@@ -7,7 +7,7 @@
 #                      GitHub login from `gh api user`, else the git user name,
 #                      lower-cased with spaces as hyphens).
 #   CODEX_MODEL        Model name passed to `codex exec` (default: gpt-5.5).
-#   CODEX_BASE_URL     OpenAI-compatible proxy; OPENAI_API_KEY is the credential.
+#   CODEX_BASE_URL     OpenAI-compatible proxy (falls back to OPENAI_BASE_URL); OPENAI_API_KEY is the credential.
 set -euo pipefail
 
 CODEX_MODEL="${CODEX_MODEL:-gpt-5.5}"
@@ -71,7 +71,8 @@ SCHEMA="$(
 readonly SCHEMA
 
 PROVIDER_ARGS=()
-if [[ -n "${CODEX_BASE_URL:-}" ]]; then
+CODEX_BASE_URL="${CODEX_BASE_URL:-${OPENAI_BASE_URL:-}}"
+if [[ -n "$CODEX_BASE_URL" ]]; then
   PROVIDER_ARGS=(
     --config 'model_provider="proxy"'
     --config "model_providers.proxy={name=\"Proxy\",base_url=\"$CODEX_BASE_URL\",env_key=\"OPENAI_API_KEY\",wire_api=\"responses\",supports_websockets=false}"
