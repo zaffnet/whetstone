@@ -24,7 +24,7 @@ apply:
 
 # Show what `apply` would change.
 diff:
-    chezmoi --source . diff
+    chezmoi --source . --no-pager diff
 
 # First-time setup on this machine (asks name, email, role, src_dir).
 # First run on a machine: answer the prompts, write ~/.config/chezmoi/chezmoi.toml, apply nothing.
