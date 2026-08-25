@@ -16,6 +16,12 @@ active="$(mktemp)"
 trap 'rm -f "$active"' EXIT
 grep -Ev '^\s*(#|$)' "$patterns" >"$active" || true
 [[ -s $active ]] || exit 0
+# grep exits 1 for no match and 2 for a pattern it cannot compile. One bad line
+# would otherwise turn every match below into a silent pass.
+grep -E -f "$active" /dev/null || [[ $? -eq 1 ]] || {
+  printf 'forbid-private-patterns: invalid regex in %s\n' "$patterns" >&2
+  exit 2
+}
 
 status=0
 for file in "$@"; do
