@@ -96,7 +96,6 @@
   },
   "enabledPlugins": {
     "chrome-devtools-mcp@claude-plugins-official": false,
-    "document-skills@anthropic-agent-skills": true,
     "github@claude-plugins-official": true,
     "playwright@claude-plugins-official": false,
     "pyright-lsp@claude-plugins-official": true,
@@ -120,12 +119,6 @@
       "source": {
         "source": "github",
         "repo": "aws/agent-toolkit-for-aws"
-      }
-    },
-    "whetstone": {
-      "source": {
-        "source": "github",
-        "repo": "zaffnet/whetstone"
       }
     }
   },

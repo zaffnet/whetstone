@@ -3,8 +3,6 @@
 # Adopt apps that were installed by hand (Cursor, iTerm2) instead of failing.
 cask_args adopt: true
 
-tap "asmvik/formulae", "https://github.com/asmvik/homebrew-formulae.git" # yabai, skhd
-
 # Shell and terminal
 brew "zsh-syntax-highlighting" # Fish-like syntax highlighting for zsh
 brew "fzf"                     # Fuzzy finder
@@ -21,7 +19,7 @@ brew "git-delta"               # Side-by-side diffs with syntax highlighting
 brew "gitleaks"                # Secret scanning, pre-commit and CI
 brew "commitlint"              # Conventional-commit linting
 brew "gnupg"
-brew "smimesign"               # S/MIME commit signing (work machines)
+brew "smimesign"               # S/MIME commit signing
 
 # Dotfiles and task running
 brew "chezmoi"

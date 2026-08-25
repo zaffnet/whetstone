@@ -13,11 +13,14 @@ Library
 # CI applies the tree into a throwaway HOME; skip installs that need network or a GUI.
 .chezmoiscripts/05-oh-my-zsh.sh
 .chezmoiscripts/10-brew-bundle.sh
+.chezmoiscripts/20-macos-defaults.sh
 .chezmoiscripts/30-agent-skills.sh
+.chezmoiscripts/40-sync-mcp.sh
 {{- end }}
 
 {{ if eq .role "work" -}}
-# Managed Macs rewrite ~/.gitconfig (signing key, x509 program) on every git call, which
-# would show as permanent drift. Keep the work copy by hand; ~/.gitconfig.local still applies.
+# Some machines have tooling that rewrites ~/.gitconfig (signing key, x509 program) on
+# every git call, which would show as permanent drift. Under the work profile the file is
+# kept by hand; ~/.gitconfig.local still applies.
 .gitconfig
 {{- end }}

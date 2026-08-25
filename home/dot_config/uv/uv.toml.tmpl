@@ -9,6 +9,10 @@
 # answer for names it cannot actually serve, so public packages would never
 # reach PyPI. unsafe-first-match keeps the private index's precedence for
 # internal names and falls through to PyPI for everything else.
+#
+# The trade-off: any name published to the private index wins over PyPI for every project
+# on this machine, so whoever can publish there can shadow a public package. It stays
+# global because tools installed with `uv tool install` read no project pyproject.toml.
 index-strategy = "unsafe-first-match"
 
 [[index]]
@@ -18,6 +22,6 @@ url = {{ get $work "pypi_index_url" | quote }}
 publish-url = {{ get $work "pypi_publish_url" | quote }}
 {{- end }}
 {{- else -}}
-# No extra indexes on personal machines. Work machines add a private index via
+# No extra indexes by default. A machine that needs a private index sets it in
 # [data.work] in ~/.config/chezmoi/chezmoi.toml.
 {{- end }}

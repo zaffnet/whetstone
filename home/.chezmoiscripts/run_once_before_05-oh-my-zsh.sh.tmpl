@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # Installs Oh My Zsh, Powerlevel10k, and zsh-autosuggestions into ~/.oh-my-zsh.
-# `run_once_`: runs on the first `chezmoi apply` on a machine, never again.
+# `run_once_`: runs on the first `chezmoi apply` on a machine, never again, so a failed
+# download must abort the apply rather than be recorded as done.
+#
+# The installers are fetched from each project's default branch, unpinned, which is the
+# install method each project documents. Pinning them would break as soon as they move.
 set -euo pipefail
 
 zsh_dir="$HOME/.oh-my-zsh"
 custom="${ZSH_CUSTOM:-$zsh_dir/custom}"
 
 if [[ ! -d $zsh_dir ]]; then
-  ZSH="$zsh_dir" RUNZSH=no CHSH=no KEEP_ZSHRC=yes \
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+  installer="$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+  ZSH="$zsh_dir" RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$installer"
 fi
 [[ -d $custom/themes/powerlevel10k ]] \
   || git clone --depth=1 -q https://github.com/romkatv/powerlevel10k.git "$custom/themes/powerlevel10k"

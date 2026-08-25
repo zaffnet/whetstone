@@ -12,6 +12,8 @@ Claude follows `~/.claude/skills` → `~/.agents/skills`. Codex reads `~/.agents
 
 ## MCP
 
+Every stdio server is pinned to a version (`pkg@X.Y.Z`). Bump the pin by hand, then run `~/.agents/bin/sync-mcp`.
+
 Shared raw servers live in `~/.agents/mcp.json`. Secrets are environment variable names, never values. `${VAR}` is the Claude and Codex syntax; Cursor expands `${env:VAR}`. No shared server needs a secret today, so this only matters when one is added.
 
 Add:

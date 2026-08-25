@@ -9,13 +9,14 @@
   # Git identity.
   name = {{ $name | quote }}
   email = {{ $email | quote }}
-  # personal | work. Work machines add employer-only values under [data.work].
+  # personal | work. The work profile adds values for a machine that needs a proxy,
+  # a private package index, or a branch prefix; they live in [data.work] below.
   role = {{ $role | quote }}
   # Where repositories live, relative to $HOME.
   src_dir = {{ $srcDir | quote }}
 
-# Work-only values. Leave the table empty on personal machines. Fill it by hand
-# on a work machine; this file is outside the repo, so nothing here is published.
+# Values for the work profile. Leave the table empty otherwise. This file is outside
+# the repo, so nothing here is published.
 #
 #   [data.work]
 #     openai_base_url = "https://llm-proxy.example.internal/v1"  # Codex: openai_base_url

@@ -1,6 +1,6 @@
 [user]
-	name = {{ .name }}
-	email = {{ .email }}
+	name = {{ .name | quote }}
+	email = {{ .email | quote }}
 [pull]
 	rebase = true
 [core]
@@ -32,15 +32,7 @@
 	diff-words = diff --word-diff=color
 [init]
 	defaultBranch = main
-{{- if eq .role "work" }}
-# Work machines: signing program, certificate, and CA bundle belong in
-# ~/.gitconfig.local (never committed). Example:
-#   [gpg] format = x509
-#   [gpg "x509"] program = smimesign
-#   [user] signingkey = <certificate-id>
-#   [commit] gpgsign = true
-#   [http] sslCAInfo = /path/to/corporate-ca-bundle.pem
-#   [includeIf "gitdir:~/src/personal/"] path = ~/.gitconfig-personal
-{{- end }}
+# Machine-specific settings (signing, proxies, CA bundles) live in ~/.gitconfig.local,
+# which is never committed.
 [include]
 	path = ~/.gitconfig.local

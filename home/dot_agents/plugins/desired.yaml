@@ -1,28 +1,27 @@
-# Plugin inventory. Tick names when you enable or disable them in a product.
-# Do not also add plugin-provided servers to ../mcp.json.
+# Plugin inventory, kept in step with home/dot_claude/settings.json (enabledPlugins) and
+# home/dot_codex/config.toml.tmpl ([plugins.*]). Tick a name here when you enable or
+# disable it in a product. Do not also add a plugin-provided server to ../mcp.json.
 #
-# Not plugins on purpose: chrome-devtools and context7 are raw servers in
-# ../mcp.json. The chrome-devtools plugin cannot pass --autoConnect; context7
-# needs no plugin. playwright is disabled in Claude and Codex because it
-# launches its own Chrome profile.
+# Not plugins on purpose: chrome-devtools and context7 are raw servers in ../mcp.json.
+# The chrome-devtools plugin cannot pass --autoConnect; context7 needs no plugin.
+# playwright is disabled in both products because it launches its own Chrome profile.
 
-portable_capability:
-  - github
-  - figma
-  - superpowers
+claude_code:
+  enabled:
+    - github@claude-plugins-official
+    - pyright-lsp@claude-plugins-official
+    - typescript-lsp@claude-plugins-official
+    - claude-md-management@claude-plugins-official
+  disabled:
+    - chrome-devtools-mcp@claude-plugins-official
+    - playwright@claude-plugins-official
 
-claude_and_codex:
-  - github@claude-plugins-official
-  - figma@claude-plugins-official
-  - superpowers@claude-plugins-official
-
-cursor_equivalents:
-  - github
-  - playwright
-  - figma
-
-product_locked:
-  - computer-use@openai-bundled
-  - chrome@openai-bundled
-  - docs-canvas
-  - explanatory-output-style@claude-plugins-official
+codex:
+  enabled:
+    - github@claude-plugins-official
+    - pyright-lsp@claude-plugins-official
+    - typescript-lsp@claude-plugins-official
+    - claude-md-management@claude-plugins-official
+    - superpowers@claude-plugins-official
+  disabled:
+    - playwright@claude-plugins-official

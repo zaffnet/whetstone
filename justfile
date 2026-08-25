@@ -10,7 +10,7 @@ default:
 # Tooling venv and git hooks.
 install:
     uv sync -q --all-groups
-    # Some managed Macs set a system-level core.hooksPath that chains to .git/hooks;
+    # Some Macs set a system-level core.hooksPath that chains to .git/hooks;
     # pre-commit refuses to install when it sees it, so hide the system gitconfig.
     GIT_CONFIG_NOSYSTEM=1 uv run pre-commit install
 
@@ -37,9 +37,12 @@ bootstrap:
     chezmoi init --apply --source .
 
 # Pull edits made directly in $HOME back into the repo and refresh the Brewfile.
+# Pull edits back into home/ and diff the Brewfile against what brew has installed.
 sync:
     chezmoi --source . re-add
-    brew bundle dump --describe --force --file=home/dot_config/homebrew/Brewfile
+    brew bundle dump --force --file=/tmp/whetstone-brewfile
+    @echo "lines with > are installed but not in the Brewfile; add them by hand:"
+    -diff <(grep -E '^(brew|cask|tap|uv|npm|go) ' home/dot_config/homebrew/Brewfile | sort) <(grep -E '^(brew|cask|tap|uv|npm|go) ' /tmp/whetstone-brewfile | sort)
     git status --short
 
 # bats suite against $HOME (or WHETSTONE_HOME).
@@ -56,7 +59,7 @@ test-home:
 
 # Generate a Python project from template/ into DEST.
 new DEST:
-    uv run copier copy --trust . {{DEST}}
+    uv run copier copy --vcs-ref HEAD . {{DEST}}
 
 # Plugin manifest and secret scan.
 validate:

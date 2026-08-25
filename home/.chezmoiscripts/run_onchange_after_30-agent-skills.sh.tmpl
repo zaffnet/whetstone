@@ -1,13 +1,24 @@
 #!/usr/bin/env bash
-# Installs third-party agent skills pinned in ~/.agents/.skill-lock.json and the
-# gh extensions the shell prompt and scripts rely on. Hand-written skills are
-# symlinked into ~/.agents/skills by chezmoi itself (see home/dot_agents/skills).
-# lock hash: {{ include "dot_agents/dot_skill-lock.json" | sha256sum }}
+# Installs the third-party agent skills listed in ~/.agents/skills.txt (npx skills add, global
+# scope) and the gh extension the prompt relies on. Hand-written skills are linked by
+# 25-link-skills.sh. Re-runs when skills.txt changes.
+# skills.txt hash: {{ include "dot_agents/skills.txt" | sha256sum }}
 set -euo pipefail
 
+list="{{ .chezmoi.homeDir }}/.agents/skills.txt"
 if command -v npx >/dev/null; then
-  # `npx skills` reads the lock file and installs every source it lists.
-  (cd "$HOME/.agents" && npx -y skills@latest update -y 2>/dev/null) || echo "skills: install skipped (npx skills unavailable)"
+  while read -r repo skills; do
+    [[ -z $repo || $repo == \#* ]] && continue
+    if [[ -n $skills ]]; then
+      npx -y skills@latest add "$repo" -g -y -a claude-code -s "${skills// /,}" \
+        || echo "skills: failed to add $repo" >&2
+    else
+      npx -y skills@latest add "$repo" -g -y -a claude-code -s '*' \
+        || echo "skills: failed to add $repo" >&2
+    fi
+  done <"$list"
+else
+  echo "skills: npx not found, skipping third-party skills" >&2
 fi
 
 if command -v gh >/dev/null && gh auth status >/dev/null 2>&1; then

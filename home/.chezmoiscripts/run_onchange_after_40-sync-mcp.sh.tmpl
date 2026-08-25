@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Copies ~/.agents/mcp.json into Cursor, Claude Code, and Codex after every apply that
+# changed it. sync-mcp is the only writer of Codex's [mcp_servers.*]; chezmoi leaves that
+# section alone. Skipped until Claude Code has run once (~/.claude.json does not exist yet).
+# mcp hash: {{ include "dot_agents/mcp.json.tmpl" | sha256sum }}
+set -euo pipefail
+
+sync="{{ .chezmoi.homeDir }}/.agents/bin/sync-mcp"
+[[ -x $sync ]] || { echo "sync-mcp: not installed, skipping" >&2; exit 0; }
+[[ -f "{{ .chezmoi.homeDir }}/.claude.json" ]] || { echo "sync-mcp: ~/.claude.json absent (Claude Code not run yet), skipping" >&2; exit 0; }
+"$sync"

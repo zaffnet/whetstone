@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Most variables are assigned by the jq-driven eval below, which shellcheck cannot follow.
+# shellcheck disable=SC2154
 # Two-line Claude Code status line.
 # Line 1: p10k Pure identity (dir, vcs, PR, venv)
 # Line 2: session HUD (model, effort, context, cost, last turn, quota, diff)
@@ -17,6 +19,8 @@ BAR_EMPTY='\033[38;5;250m'
 RESET='\033[0m'
 SEP="${GREY} · ${RESET}"
 
+# Every variable the rest of the script reads (cwd, model, cost_usd, ctx_size, ...) is
+# assigned here; each value passes through jq's @sh, so it is quoted.
 eval "$(printf '%s' "$input" | jq -r '
   def s: (. // "") | tostring | @sh;
   def n: (. // 0) | tostring | @sh;
@@ -51,6 +55,8 @@ eval "$(printf '%s' "$input" | jq -r '
 abbrev_path() {
   local p="${1/#$HOME/~}"
   local prefix="" rest="$p"
+  # The literal "~" is the display prefix, not a path to expand.
+  # shellcheck disable=SC2088
   if [[ "$p" == "~/"* ]]; then
     prefix="~"
     rest="${p:2}"
@@ -61,8 +67,8 @@ abbrev_path() {
     printf '%s' "$p"
     return
   fi
-  local IFS=/
-  local -a segs=($rest)
+  local -a segs
+  IFS=/ read -r -a segs <<<"$rest"
   local n=${#segs[@]}
   if ((n <= 2)); then
     printf '%s' "$p"
@@ -193,7 +199,9 @@ int_pct() {
 # Last completed user-prompt → assistant turn from the session transcript.
 last_ms="" last_end_epoch=""
 if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
-  turn_cache="/tmp/cc-sl-turn-$(printf '%s' "$transcript_path" | shasum -a 256 | awk '{print substr($1,1,16)}')"
+  sl_cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline"
+  mkdir -p "$sl_cache_dir" && chmod 700 "$sl_cache_dir"
+  turn_cache="$sl_cache_dir/turn-$(printf '%s' "$transcript_path" | shasum -a 256 | awk '{print substr($1,1,16)}')"
   tx_mtime=$(stat -f %m "$transcript_path" 2>/dev/null || echo 0)
   cache_tx_mtime=0
   if [[ -f "$turn_cache" ]]; then
@@ -291,7 +299,9 @@ fi
 
 branch="" dirty="" arrows=""
 if [[ -n "$cwd" ]]; then
-  git_cache="/tmp/cc-sl-git-$(printf '%s' "$cwd" | shasum -a 256 | awk '{print substr($1,1,16)}')"
+  sl_cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline"
+  mkdir -p "$sl_cache_dir" && chmod 700 "$sl_cache_dir"
+  git_cache="$sl_cache_dir/git-$(printf '%s' "$cwd" | shasum -a 256 | awk '{print substr($1,1,16)}')"
   cache_mtime=$(stat -f %m "$git_cache" 2>/dev/null || echo 0)
   now_s=$(date +%s)
   if [[ -f "$git_cache" ]] && ((now_s - cache_mtime < 3)); then

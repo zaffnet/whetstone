@@ -4,7 +4,7 @@
     "aws-mcp": {
       "command": "uvx",
       "args": [
-        "mcp-proxy-for-aws@latest",
+        "mcp-proxy-for-aws@1.6.4",
         "https://aws-mcp.us-east-1.api.aws/mcp",
         "--metadata",
         "INSTALL_SOURCE=aws-cli"
@@ -18,7 +18,7 @@
     },
     "awslabs-aws-iac-mcp": {
       "command": "uvx",
-      "args": ["awslabs.aws-iac-mcp-server@latest"],
+      "args": ["awslabs.aws-iac-mcp-server@1.0.23"],
       "env": {
 {{- if hasKey $work "aws_profile" }}
         "AWS_PROFILE": {{ get $work "aws_profile" | quote }},
@@ -33,11 +33,11 @@
     },
     "ms365": {
       "command": "npx",
-      "args": ["-y", "@softeria/ms-365-mcp-server", "--org-mode"]
+      "args": ["-y", "@softeria/ms-365-mcp-server@0.146.1", "--org-mode"]
     },
     "primevue": {
       "command": "npx",
-      "args": ["-y", "@primevue/mcp"]
+      "args": ["-y", "@primevue/mcp@5.0.1"]
     },
     "chrome-devtools": {
       "command": "npx",
