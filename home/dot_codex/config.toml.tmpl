@@ -1,3 +1,4 @@
+{{- $work := get . "work" | default (dict) -}}
 # Managed by chezmoi from {{ .chezmoi.workingTree }}.
 # Codex appends its own runtime sections ([projects.*], [marketplaces.*], bundled
 # MCP servers) after first launch; `chezmoi apply` rewrites this file from the
@@ -13,8 +14,8 @@ hide_agent_reasoning = false
 model_reasoning_summary = "detailed"
 model_verbosity = "high"
 file_opener = "cursor"
-{{- if hasKey .work "openai_base_url" }}
-openai_base_url = {{ get .work "openai_base_url" | quote }}
+{{- if hasKey $work "openai_base_url" }}
+openai_base_url = {{ get $work "openai_base_url" | quote }}
 {{- end }}
 
 [features]
@@ -65,7 +66,7 @@ notifications-turn-mode = "always"
 conversationDetailMode = "STEPS_COMMANDS"
 appearanceTheme = "system"
 reviewDelivery = "inline"
-git-branch-prefix = {{ get .work "branch_prefix" | default (printf "%s/" .chezmoi.username) | quote }}
+git-branch-prefix = {{ get $work "branch_prefix" | default (printf "%s/" .chezmoi.username) | quote }}
 git-worktree-root = {{ printf "%s/%s/" .chezmoi.homeDir .src_dir | quote }}
 git-create-pull-request-as-draft = true
 show-context-window-usage = true

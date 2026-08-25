@@ -1,4 +1,5 @@
-{{- if hasKey .work "pypi_index_url" -}}
+{{- $work := get . "work" | default (dict) -}}
+{{- if hasKey $work "pypi_index_url" -}}
 # A private index that holds internally published packages. It is not a mirror
 # of PyPI, so it must supplement the default index rather than replace it:
 # setting default = true would make every public package unresolvable.
@@ -12,9 +13,9 @@ index-strategy = "unsafe-first-match"
 
 [[index]]
 name = "private"
-url = {{ get .work "pypi_index_url" | quote }}
-{{- if hasKey .work "pypi_publish_url" }}
-publish-url = {{ get .work "pypi_publish_url" | quote }}
+url = {{ get $work "pypi_index_url" | quote }}
+{{- if hasKey $work "pypi_publish_url" }}
+publish-url = {{ get $work "pypi_publish_url" | quote }}
 {{- end }}
 {{- else -}}
 # No extra indexes on personal machines. Work machines add a private index via

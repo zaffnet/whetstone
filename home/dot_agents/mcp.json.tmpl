@@ -1,3 +1,4 @@
+{{- $work := get . "work" | default (dict) -}}
 {
   "mcpServers": {
     "aws-mcp": {
@@ -9,8 +10,8 @@
         "INSTALL_SOURCE=aws-cli"
       ],
       "env": {
-{{- if hasKey .work "aws_profile" }}
-        "AWS_PROFILE": {{ get .work "aws_profile" | quote }},
+{{- if hasKey $work "aws_profile" }}
+        "AWS_PROFILE": {{ get $work "aws_profile" | quote }},
 {{- end }}
         "AWS_REGION": "us-east-1"
       }
@@ -19,8 +20,8 @@
       "command": "uvx",
       "args": ["awslabs.aws-iac-mcp-server@latest"],
       "env": {
-{{- if hasKey .work "aws_profile" }}
-        "AWS_PROFILE": {{ get .work "aws_profile" | quote }},
+{{- if hasKey $work "aws_profile" }}
+        "AWS_PROFILE": {{ get $work "aws_profile" | quote }},
 {{- end }}
         "AWS_REGION": "us-east-1",
         "FASTMCP_LOG_LEVEL": "ERROR"

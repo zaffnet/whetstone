@@ -27,7 +27,13 @@ diff:
     chezmoi --source . diff
 
 # First-time setup on this machine (asks name, email, role, src_dir).
+# First run on a machine: answer the prompts, write ~/.config/chezmoi/chezmoi.toml, apply nothing.
+# Then `just diff` to review and `just apply` to write.
 init:
+    chezmoi init --source .
+
+# Fresh machine, no review: init and apply in one step.
+bootstrap:
     chezmoi init --apply --source .
 
 # Pull edits made directly in $HOME back into the repo and refresh the Brewfile.

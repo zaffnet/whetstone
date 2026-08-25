@@ -44,7 +44,7 @@ From a fresh macOS install to a working shell, editor, and agents.
 | Task | Command |
 | --- | --- |
 | Edit a managed file | `chezmoi edit ~/.zshrc` then `chezmoi apply`, or edit in the repo and `just apply` |
-| See what apply would change | `just diff` |
+| See what apply would change | `just diff` (run `just init` first on a new machine; it only writes the config) |
 | Pull edits made directly in `$HOME` back into the repo | `just sync` |
 | Re-run the Brewfile after editing it | `just apply` (the script re-runs on Brewfile change) |
 | Update the repo from GitHub and apply | `chezmoi update` |

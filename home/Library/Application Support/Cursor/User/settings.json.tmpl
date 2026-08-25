@@ -1,5 +1,6 @@
+{{- $work := get . "work" | default (dict) -}}
 {
-  "git.branchPrefix": {{ get .work "branch_prefix" | default (printf "%s/" .chezmoi.username) | quote }},
+  "git.branchPrefix": {{ get $work "branch_prefix" | default (printf "%s/" .chezmoi.username) | quote }},
   "git.defaultCloneDirectory": {{ joinPath .chezmoi.homeDir .src_dir | quote }},
   "git.scanRepositories": [{{ joinPath .chezmoi.homeDir .src_dir | quote }}],
   "accessibility.dimUnfocused.enabled": false,
