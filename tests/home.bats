@@ -32,10 +32,10 @@ chezmoi_managed() {
 
 @test ".gitconfig is managed on personal machines only" {
   if [ "$(chezmoi_role)" = personal ]; then
-    chezmoi_managed | grep -qx '.gitconfig'
+    chezmoi_managed | grep -qxF '.gitconfig'
     [ -f "$H/.gitconfig" ]
   else
-    run ! bash -c "HOME='$H' chezmoi --source '$REPO' managed | grep -qx .gitconfig"
+    run ! bash -c "HOME='$H' chezmoi --source '$REPO' managed | grep -qxF .gitconfig"
   fi
 }
 
@@ -51,18 +51,25 @@ chezmoi_managed() {
   done
 }
 
-@test "scripts in bin/ are linked into ~/.local/bin" {
-  for s in clean.sh commit.sh remove-worktrees.sh resolve-pr-comments.sh run-coding-agent.sh \
-    run_claude_code.sh suggest-branch-name.sh sync-mcp update-pr-title-and-body.sh; do
+@test "every symlink_* under home/dot_local/bin resolves to an executable in bin/" {
+  for tmpl in "$REPO"/home/dot_local/bin/symlink_*.tmpl; do
+    s="$(basename "$tmpl" .tmpl)"
+    s="${s#symlink_}"
     resolves_to "$H/.local/bin/$s" "$REPO/bin/$s"
     [ -x "$H/.local/bin/$s" ]
   done
+  resolves_to "$H/.agents/bin/sync-mcp" "$REPO/bin/sync-mcp"
 }
 
 @test "agent instruction files resolve to the repo AGENTS.md and handbook" {
   resolves_to "$H/.codex/AGENTS.md" "$REPO/AGENTS.md"
   resolves_to "$H/.claude/CLAUDE.md" "$REPO/AGENTS.md"
   resolves_to "$H/.agents/handbook" "$REPO/docs/handbook"
+}
+
+@test "reviewer subagents are linked for Claude Code and Codex" {
+  resolves_to "$H/.claude/agents" "$REPO/agents"
+  resolves_to "$H/.codex/agents" "$REPO/codex/agents"
 }
 
 @test "statusline scripts arrive executable" {

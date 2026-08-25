@@ -116,7 +116,7 @@ home/                 chezmoi source state for $HOME (.chezmoiroot points here)
   Library/            Cursor user settings and keybindings
 skills/               Agent Skills (SKILL.md), installable with npx skills
 agents/               Claude Code reviewer subagents
-codex/agents/         The same reviewers as Codex TOML
+codex/agents/         The same reviewers as Codex TOML (linked to ~/.codex/agents)
 hooks/                Claude Code hooks: ruff on edit, worktree setup
 bin/                  Scripts: AI commit messages, PR descriptions, worktree cleanup, sync-mcp
 template/             Copier template for a Python project (copier.yml is at the root)
