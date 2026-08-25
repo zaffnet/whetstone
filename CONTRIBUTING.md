@@ -20,3 +20,13 @@ just test-home # apply the chezmoi tree into a throwaway HOME and run the bats s
   checks this; `docs/redaction.md` explains what and why.
 - A disabled rule, an unusual flag, or a pinned version carries a comment that says why.
 - Design changes get a short note in `docs/decisions/` in the same PR.
+
+## Releasing and updating projects
+
+- Fix the template here, never in a generated project. A project takes the fix with
+  `uvx copier update`.
+- Ship with `just release vX.Y.Z`. It refuses a dirty tree, an unpushed `main`, or an existing
+  tag. Tags are immutable on GitHub; a bad release is followed by the next version, never
+  re-pointed.
+- Edit `$HOME` through `home/` and `just apply`, or edit the real file and `just sync`. Never
+  hand-edit a managed file as a fix.

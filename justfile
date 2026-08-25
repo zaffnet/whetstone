@@ -69,3 +69,18 @@ validate:
 # Remove caches and the throwaway HOME.
 clean:
     rm -rf {{ci_home}} .ruff_cache .pytest_cache
+
+# Release the template: tag a new version on a clean, pushed main. Tags are immutable on
+# GitHub (ruleset "released-tags-are-immutable"); to fix a release, cut the next one.
+# Downstream projects pick it up with `uvx copier update`.
+release VERSION:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [[ "{{VERSION}}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "use vMAJOR.MINOR.PATCH"; exit 2; }
+    [[ -z "$(git status --porcelain)" ]] || { echo "working tree is dirty"; exit 1; }
+    git fetch -q origin --tags
+    [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]] || { echo "push main first"; exit 1; }
+    ! git rev-parse -q --verify "refs/tags/{{VERSION}}" >/dev/null || { echo "{{VERSION}} exists; pick the next version"; exit 1; }
+    git tag -a "{{VERSION}}" -m "whetstone {{VERSION}}"
+    git push origin "{{VERSION}}"
+    echo "released {{VERSION}}; projects update with: uvx copier update"

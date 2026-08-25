@@ -46,6 +46,9 @@ jobs:
           uv run pytest -qq
           actionlint
           test -f LICENSE
+          # A WorktreeCreate hook has no fallback and fails inside the Claude desktop app's
+          # session sandbox; generated projects must not ship one (docs/decisions/0010).
+          jq -e '.hooks | has("WorktreeCreate") | not' .claude/settings.json
       - name: Build the image and run the Compose stack
         if: matrix.use_docker == 'true'
         working-directory: /tmp/demo
