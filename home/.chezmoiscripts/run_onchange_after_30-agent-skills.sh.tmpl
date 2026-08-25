@@ -10,7 +10,10 @@ if command -v npx >/dev/null; then
   while read -r repo skills; do
     [[ -z $repo || $repo == \#* ]] && continue
     if [[ -n $skills ]]; then
-      npx -y skills@latest add "$repo" -g -y -a claude-code -s "${skills// /,}" \
+      # One -s flag per skill; the tool does not split a comma list.
+      flags=()
+      for skill in $skills; do flags+=(-s "$skill"); done
+      npx -y skills@latest add "$repo" -g -y -a claude-code "${flags[@]}" \
         || echo "skills: failed to add $repo" >&2
     else
       npx -y skills@latest add "$repo" -g -y -a claude-code -s '*' \

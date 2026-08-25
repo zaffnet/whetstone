@@ -1,8 +1,8 @@
 {{- $work := get . "work" | default (dict) -}}
-# Managed by chezmoi from {{ .chezmoi.workingTree }}.
-# Codex appends its own runtime sections ([projects.*], [marketplaces.*], bundled
-# MCP servers) after first launch; `chezmoi apply` rewrites this file from the
-# template, so keep machine-only additions in `[data.work]` or accept the re-prompt.
+# Managed by chezmoi from {{ .chezmoi.workingTree }} (home/.chezmoitemplates/codex-config.toml.tmpl).
+# Everything above the "preserved sections" marker is rewritten on every apply. The
+# [mcp_servers.*] tables (written by bin/sync-mcp from ~/.agents/mcp.json) and Codex's own
+# [projects.*] and [marketplaces.*] tables are carried over unchanged.
 
 model = "gpt-5.5"
 approval_policy = "never"

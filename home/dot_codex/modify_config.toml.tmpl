@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# chezmoi modify script: receives the current ~/.codex/config.toml on stdin and prints the
+# new file. The managed part comes from the template; sections owned by other writers are
+# kept verbatim so an apply never drops Codex's MCP servers or project trust decisions.
+set -euo pipefail
+
+managed=$(
+  cat <<'MANAGED'
+{{ template "codex-config.toml.tmpl" . }}
+MANAGED
+)
+
+current=$(cat)
+
+MANAGED="$managed" CURRENT="$current" python3 - <<'PY'
+import os
+import re
+import sys
+
+KEEP = ("mcp_servers", "projects", "marketplaces", "tui.model_availability_nux")
+MARKER = "# --- preserved sections (owned by Codex and bin/sync-mcp; chezmoi keeps them as-is) ---"
+
+managed = os.environ["MANAGED"].rstrip("\n")
+current = os.environ["CURRENT"]
+
+header = re.compile(r"^\[\[?([^\]]+)\]\]?\s*$")
+kept: list[str] = []
+block: list[str] = []
+keep_block = False
+
+
+def flush() -> None:
+    if keep_block and block:
+        kept.extend(block)
+        if block[-1].strip():
+            kept.append("")
+
+
+for line in current.splitlines():
+    m = header.match(line)
+    if m:
+        flush()
+        block = []
+        name = m.group(1).strip().strip('"')
+        keep_block = any(name == k or name.startswith(k + ".") for k in KEEP)
+    if line.strip() == MARKER:
+        continue
+    block.append(line)
+flush()
+
+out = managed + "\n"
+if kept:
+    out += "\n" + MARKER + "\n\n" + "\n".join(kept).rstrip("\n") + "\n"
+sys.stdout.write(out)
+PY

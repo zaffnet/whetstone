@@ -1,5 +1,5 @@
 # Plugin inventory, kept in step with home/dot_claude/settings.json (enabledPlugins) and
-# home/dot_codex/config.toml.tmpl ([plugins.*]). Tick a name here when you enable or
+# home/.chezmoitemplates/codex-config.toml.tmpl ([plugins.*]). Tick a name here when you enable or
 # disable it in a product. Do not also add a plugin-provided server to ../mcp.json.
 #
 # Not plugins on purpose: chrome-devtools and context7 are raw servers in ../mcp.json.
