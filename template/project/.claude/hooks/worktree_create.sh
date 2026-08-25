@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # WorktreeCreate hook. Replaces Claude Code's default worktree logic entirely.
 # Instead of `git worktree add` into .claude/worktrees/<name>/, worktrees are
-# placed as siblings of the repository (<parent of repo>/<name>/) and set up in
-# full, so editors and tools see them like any other checkout.
+# placed as siblings of the repository (or under WORKTREE_ROOT) and set up in full.
 #
 # WorktreeCreate does not support matchers; it fires on every worktree creation
 # (--worktree, EnterWorktree, agent isolation: "worktree", background sessions).
@@ -13,9 +12,12 @@
 #          to stderr so the path parse stays clean.
 #   exit   0 on success; any non-zero aborts creation and shows stderr.
 #
-# Setup itself is delegated to setup-working-tree.sh, which creates the branch
-# from HEAD, copies the .worktreeinclude files (Claude Code no longer does this
-# once a hook is present), and rebuilds the virtualenv.
+# Setup itself is delegated to setup-working-tree.sh next to this file, which
+# creates the branch from HEAD, copies the .worktreeinclude paths (Claude Code no
+# longer does this once a hook is present), and rebuilds the virtualenv.
+#
+# Environment:
+#   WORKTREE_ROOT  Parent directory for new worktrees (default: the repo's parent).
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
 
@@ -28,8 +30,11 @@ if [[ -z "$base_path" || -z "$worktree_name" ]]; then
 fi
 
 safe_name="${worktree_name//\//-}"
-target="$(dirname "$base_path")/$safe_name"
+target="${WORKTREE_ROOT:-$(dirname "$base_path")}/$safe_name"
 
-bash "$base_path/.claude/hooks/setup-working-tree.sh" --new "$worktree_name" "$target" 1>&2
+mkdir -p "$(dirname "$target")"
 
-( cd "$target" && pwd )
+bash "${BASH_SOURCE[0]%/*}/setup-working-tree.sh" \
+  --source "$base_path" --new "$worktree_name" "$target" 1>&2
+
+(cd "$target" && pwd)

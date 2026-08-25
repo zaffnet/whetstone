@@ -6,10 +6,25 @@ name = "{{ project_name }}"
 [setup]
 script = '''
 #!/bin/bash
+set -euo pipefail
 
-while IFS= read -r line; do
+# Entries are copied into the worktree; an absolute path or a .. component could
+# reach outside it, so such lines are skipped.
+unsafe_entry() {
+  case "/$1/" in
+    //* | /~* | */../*) return 0 ;;
+  esac
+  return 1
+}
+
+while IFS= read -r line || [ -n "$line" ]; do
+  line="${line%%#*}"
+  line="${line%"${line##*[![:space:]]}"}"
   [ -z "$line" ] && continue
-  case "$line" in \#*) continue ;; esac
+  if unsafe_entry "$line"; then
+    echo "warning: skipping unsafe .worktreeinclude entry $line" >&2
+    continue
+  fi
   src="${CODEX_SOURCE_TREE_PATH}/${line}"
   dst="${CODEX_WORKTREE_PATH}/${line}"
   if [ ! -e "$src" ]; then
@@ -17,13 +32,14 @@ while IFS= read -r line; do
     continue
   fi
   mkdir -p "$(dirname "$dst")"
-  cp -R "$src" "$dst"
+  rm -rf -- "$dst"
+  cp -Rp "$src" "$dst"
 done < "${CODEX_SOURCE_TREE_PATH}/.worktreeinclude"
 
 cd "$CODEX_WORKTREE_PATH"
 
-# AGENTS.md is the source of truth (tracked). CLAUDE.md is @AGENTS.md.
-# Machine-local extra context is CLAUDE.local.md; Codex reads it as AGENTS.override.md.
+# AGENTS.md is the tracked source of truth. Machine-local extra context is
+# CLAUDE.local.md; Codex reads the same text as AGENTS.override.md.
 if [ -f CLAUDE.local.md ]; then
   cp CLAUDE.local.md AGENTS.override.md
 fi
@@ -35,16 +51,27 @@ pre-commit install'''
 [cleanup]
 script = '''
 #!/bin/bash
+set -euo pipefail
 
-mapfile -t entries < "${CODEX_WORKTREE_PATH}/.worktreeinclude"
-for line in "${entries[@]}"; do
+unsafe_entry() {
+  case "/$1/" in
+    //* | /~* | */../*) return 0 ;;
+  esac
+  return 1
+}
+
+while IFS= read -r line || [ -n "$line" ]; do
+  line="${line%%#*}"
+  line="${line%"${line##*[![:space:]]}"}"
   [ -z "$line" ] && continue
-  case "$line" in \#*) continue ;; esac
   [ "$line" = ".codex" ] && continue
+  if unsafe_entry "$line"; then
+    echo "warning: skipping unsafe .worktreeinclude entry $line" >&2
+    continue
+  fi
   target="${CODEX_WORKTREE_PATH}/${line}"
   if [ ! -e "$target" ]; then
-    echo "warning: $target does not exist, skipping" >&2
     continue
   fi
   rm -rf -- "$target" || echo "warning: failed to delete $target" >&2
-done'''
+done < "${CODEX_WORKTREE_PATH}/.worktreeinclude"'''

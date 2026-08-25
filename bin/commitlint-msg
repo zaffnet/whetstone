@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# commit-msg hook: lint the message with commitlint using the user-level config
+# chezmoi writes to ~/.config/commitlint/commitlint.config.mjs. A machine without
+# commitlint or the config is not blocked; the hook says so and passes.
+set -euo pipefail
+
+config="${COMMITLINT_CONFIG:-$HOME/.config/commitlint/commitlint.config.mjs}"
+if ! command -v commitlint >/dev/null 2>&1; then
+  echo "commitlint-msg: commitlint not installed (brew install commitlint); skipping" >&2
+  exit 0
+fi
+if [[ ! -f $config ]]; then
+  echo "commitlint-msg: $config not found; skipping" >&2
+  exit 0
+fi
+exec commitlint --config "$config" --edit "$1"

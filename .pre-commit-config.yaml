@@ -1,5 +1,7 @@
 # Runs on every commit. CI runs the same config (`pre-commit run --all-files`).
-# Install: `uv run pre-commit install` (or `just install`).
+# Install: `uv run pre-commit install` (or `just install`); this also installs the
+# commit-msg stage, which runs commitlint against ~/.config/commitlint.
+default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -34,15 +36,15 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
-        # home/ holds zsh files and chezmoi templates; bin/ and hooks/ get the full check.
-        exclude: ^(template/project/|home/)
+        # zsh files and chezmoi templates cannot be parsed as bash; every plain .sh is checked.
+        exclude: ^(template/project/|home/.*\.tmpl$|home/dot_zsh|home/dot_zprofile|home/dot_p10k\.zsh|home/\.chezmoiscripts/)
 
   - repo: https://github.com/scop/pre-commit-shfmt
     rev: v3.13.1-1
     hooks:
       - id: shfmt
         args: [--indent=2, --case-indent, --binary-next-line, --write]
-        exclude: ^(template/project/|home/)
+        exclude: ^(template/project/|home/.*\.tmpl$|home/dot_zsh|home/dot_zprofile|home/dot_p10k\.zsh|home/\.chezmoiscripts/)
 
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.12
@@ -68,7 +70,7 @@ repos:
 
   - repo: local
     hooks:
-      # Matches lines against a machine-local denylist of employer hostnames,
+      # Matches lines against a machine-local denylist of private hostnames,
       # ids, and names. The file is never committed; when it is absent (CI, a
       # fresh clone) the hook is a no-op. See docs/redaction.md.
       - id: forbid-private-patterns
@@ -77,3 +79,19 @@ repos:
         language: script
         types: [text]
         exclude: ^\.gitleaks\.toml$
+
+      # Each reviewer subagent exists as Claude markdown and Codex TOML; the
+      # bodies must stay identical.
+      - id: check-agents-sync
+        name: agents md/toml in sync
+        entry: python3 tools/check-agents-sync.py
+        language: system
+        pass_filenames: false
+        files: ^(agents|codex/agents|template/project/\.(claude|codex)/agents)/
+
+      # commit-msg stage: conventional commits via the user-level commitlint config.
+      - id: commitlint
+        name: commitlint
+        entry: bin/commitlint-msg
+        language: script
+        stages: [commit-msg]

@@ -13,6 +13,7 @@ SRC_DIR="${SRC_DIR:-$(dirname "$REPO_DIR")}"
 REPO_NAME="$(basename "$REPO_DIR")"
 
 ADD_DIRS=()
+shopt -s nullglob # an empty SRC_DIR must not pass the literal pattern as a directory
 for dir in "$SRC_DIR"/*/; do
   dir_name="$(basename "$dir")"
   [[ "$dir_name" == "$REPO_NAME" ]] && continue
@@ -22,7 +23,7 @@ done
 
 cd "$REPO_DIR"
 exec claude \
-  --permission-mode auto \
+  --permission-mode bypassPermissions \
   --verbose \
   --effort "${CLAUDE_EFFORT:-high}" \
   --model "${CLAUDE_MODEL:-opus}" \

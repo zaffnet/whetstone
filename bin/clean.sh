@@ -130,8 +130,9 @@ build_name_group "${junk_files[@]}"
 file_group=("${name_group[@]}")
 
 # Junk directories are pruned as well as printed, so a doomed tree is named once
-# and never descended into. Log files are junk; the logs/ directory itself is
-# not, so it survives the empty-directory pass below.
+# and never descended into. Under logs/ only log-shaped files are junk: notes,
+# fixtures, and anything else someone parked there are kept, and the logs/
+# directory itself survives.
 select_junk() {
   local root=$1
 
@@ -143,7 +144,8 @@ select_junk() {
   # -not excludes what the pass above already selected, so the two never name
   # the same path and a dry-run counts exactly what --apply removes.
   find "$root" "${protect[@]}" -o \
-    -path '*/logs/*' -type f -not "${file_group[@]}" -print0
+    -path '*/logs/*' -type f \( -name '*.log' -o -name '*.log.*' \) \
+    -not "${file_group[@]}" -print0
 }
 
 human_size() {
@@ -165,6 +167,7 @@ fi
 
 total_kb=0
 count=0
+parents=()
 
 for root in "${roots[@]}"; do
   while IFS= read -r -d '' path; do
@@ -172,27 +175,27 @@ for root in "${roots[@]}"; do
     total_kb=$((total_kb + size_kb))
     count=$((count + 1))
     printf '  %-60s %8s\n' "$path" "$(human_size "$size_kb")"
-    ((apply == 0)) || rm -rf -- "$path"
+    if ((apply == 1)); then
+      rm -rf -- "$path"
+      parents+=("$(dirname -- "$path")|$root")
+    fi
   done < <(select_junk "$root")
 done
 
-# Removing __pycache__ can leave a directory holding nothing else. find caches
-# directory state, so a parent emptied during a pass is only noticed by the
-# next one; repeat until a pass finds nothing. -depth would report the whole
-# nest at once but disables -prune, which the protected paths depend on.
+# Removing __pycache__ can leave a directory holding nothing else. Only the
+# parents of paths removed above are candidates; a directory that was already
+# empty before the run (tests/fixtures/, a mount point) is left alone. Each
+# candidate is removed while empty, then its parent, stopping at the root.
 if ((apply == 1)); then
-  for root in "${roots[@]}"; do
-    while :; do
-      pruned=0
-      while IFS= read -r -d '' path; do
-        [[ $path == "$root" ]] && continue
-        rmdir "$path"
-        printf '  %-60s %8s\n' "$path" 'empty'
-        count=$((count + 1))
-        pruned=1
-      done < <(find "$root" "${protect[@]}" -o \
-        -type d -empty -not -name logs -print0)
-      ((pruned == 1)) || break
+  for entry in ${parents[@]+"${parents[@]}"}; do
+    dir=${entry%|*}
+    root=${entry##*|}
+    while [[ -d $dir && $dir != "$root" && $dir != . && $dir != / ]]; do
+      [[ $(basename -- "$dir") != logs ]] || break
+      rmdir -- "$dir" 2>/dev/null || break
+      printf '  %-60s %8s\n' "$dir" 'empty'
+      count=$((count + 1))
+      dir=$(dirname -- "$dir")
     done
   done
 fi

@@ -2,18 +2,29 @@
 # PostToolUse hook. After Claude edits a Python file, apply ruff lint fixes and
 # formatting so problems surface at edit time instead of at pre-commit time.
 # Claude Code passes the tool-call payload as JSON on stdin.
-# This hook never blocks: it always exits 0 and lets pre-commit be the gate.
+# This hook never blocks: every failure path exits 0 and lets pre-commit be the gate.
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
 
-file_path="$(hook_field '.tool_input.file_path // empty')"
+file_path="$(hook_field '.tool_input.file_path // empty')" || exit 0
 
 case "$file_path" in
-  *.py | *.pyi)
-    # Send any remaining (unfixable) lint output to stderr so Claude sees it.
-    uv run ruff check --fix "$file_path" 1>&2 || true
-    uv run ruff format "$file_path" >/dev/null 2>&1 || true
-    ;;
+  *.py | *.pyi) ;;
+  *) exit 0 ;;
 esac
+
+# Run ruff from the project that owns the file, so a file in another repository
+# (reachable through --add-dir) is formatted under its own pyproject.toml, not
+# this one's. No pyproject.toml above the file means no opinion: do nothing.
+project_root="$(dirname -- "$file_path")"
+while [[ ! -f $project_root/pyproject.toml ]]; do
+  [[ $project_root != / && $project_root != . ]] || exit 0
+  project_root="$(dirname -- "$project_root")"
+done
+cd "$project_root" || exit 0
+
+# Send any remaining (unfixable) lint output to stderr so Claude sees it.
+uv run ruff check --fix "$file_path" 1>&2 || true
+uv run ruff format "$file_path" >/dev/null 2>&1 || true
 
 exit 0

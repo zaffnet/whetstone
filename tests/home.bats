@@ -15,11 +15,28 @@ resolves_to() {
   [ "$(readlink "$link")" = "$expected" ]
 }
 
+chezmoi_role() {
+  sed -nE 's/^ *role = "([a-z]+)"$/\1/p' "$H/.config/chezmoi/chezmoi.toml"
+}
+
+chezmoi_managed() {
+  HOME="$H" chezmoi --source "$REPO" managed
+}
+
 @test "managed files exist" {
-  for f in .zshrc .gitconfig .p10k.zsh .claude/settings.json .codex/config.toml \
+  for f in .zshrc .p10k.zsh .claude/settings.json .codex/config.toml \
     .agents/mcp.json .config/homebrew/Brewfile .cursor/cli-config.json; do
     [ -f "$H/$f" ]
   done
+}
+
+@test ".gitconfig is managed on personal machines only" {
+  if [ "$(chezmoi_role)" = personal ]; then
+    chezmoi_managed | grep -qx '.gitconfig'
+    [ -f "$H/.gitconfig" ]
+  else
+    run ! bash -c "HOME='$H' chezmoi --source '$REPO' managed | grep -qx .gitconfig"
+  fi
 }
 
 @test ".claude/skills points at ~/.agents/skills" {
@@ -27,35 +44,53 @@ resolves_to() {
 }
 
 @test "each hand-written skill resolves into the repo and has a SKILL.md" {
-  for s in address-pr-comments-sequential deep-claude-code-review deep-pr-review deslop \
-    fastapi fix-design-implementation-discrepancies simplify-english sqlmodel teach-me \
-    verification-before-completion writing-whip; do
+  for dir in "$REPO"/skills/*/; do
+    s="$(basename "$dir")"
     resolves_to "$H/.agents/skills/$s" "$REPO/skills/$s"
     [ -f "$H/.agents/skills/$s/SKILL.md" ]
   done
 }
 
-@test "agent instruction files resolve to the repo AGENTS.md" {
+@test "scripts in bin/ are linked into ~/.local/bin" {
+  for s in clean.sh commit.sh remove-worktrees.sh resolve-pr-comments.sh run-coding-agent.sh \
+    run_claude_code.sh suggest-branch-name.sh sync-mcp update-pr-title-and-body.sh; do
+    resolves_to "$H/.local/bin/$s" "$REPO/bin/$s"
+    [ -x "$H/.local/bin/$s" ]
+  done
+}
+
+@test "agent instruction files resolve to the repo AGENTS.md and handbook" {
   resolves_to "$H/.codex/AGENTS.md" "$REPO/AGENTS.md"
   resolves_to "$H/.claude/CLAUDE.md" "$REPO/AGENTS.md"
+  resolves_to "$H/.agents/handbook" "$REPO/docs/handbook"
+}
+
+@test "statusline scripts arrive executable" {
+  [ -x "$H/.claude/statusline-command.sh" ]
+  [ -x "$H/.claude/subagent-statusline.sh" ]
 }
 
 @test "Claude settings carry no env block" {
   jq -e 'has("env") | not' "$H/.claude/settings.json"
 }
 
-@test ".zshrc has no corporate CA bundle export" {
-  run ! grep -q 'system-certs' "$H/.zshrc"
+@test ".zshrc exports no CA bundle" {
+  run ! grep -Eq '(SSL_CERT_FILE|REQUESTS_CA_BUNDLE|NODE_EXTRA_CA_CERTS|CURL_CA_BUNDLE)=' "$H/.zshrc"
 }
 
 @test "git identity comes from chezmoi data (CI home only)" {
   if [ "$H" = "$HOME" ]; then skip "real home uses the machine's own identity"; fi
-  grep -q 'name = T' "$H/.gitconfig"
-  grep -q 'email = t@example.com' "$H/.gitconfig"
+  if [ "$(chezmoi_role)" = work ]; then skip ".gitconfig is unmanaged when role is work"; fi
+  [ "$(git config -f "$H/.gitconfig" user.name)" = T ]
+  [ "$(git config -f "$H/.gitconfig" user.email)" = t@example.com ]
 }
 
-@test "Codex config renders the shared MCP servers" {
-  grep -q '^\[mcp_servers.context7\]' "$H/.codex/config.toml"
+@test "Codex config parses as TOML" {
+  python3 -c 'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$H/.codex/config.toml"
+}
+
+@test "shared MCP config parses as JSON with a non-empty server map" {
+  jq -e '.mcpServers | type == "object" and length > 0' "$H/.agents/mcp.json"
 }
 
 @test "the secrets file is not managed" {

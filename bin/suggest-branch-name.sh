@@ -46,28 +46,28 @@ resolve_prefix() {
 
 PREFIX="$(resolve_prefix)"
 readonly PREFIX
-# Escape the prefix for use inside a regular expression.
-PREFIX_REGEX="$(printf '%s' "$PREFIX" | sed -e 's/[][\\.^$*+?(){}|/]/\\&/g')"
-readonly PREFIX_REGEX
 
-SCHEMA=$(
-  cat <<JSON
-{
-  "type": "object",
-  "properties": {
-    "branch_name": {
-      "type": "string",
-      "minLength": $((${#PREFIX} + 2)),
-      "maxLength": 60,
-      "pattern": "^${PREFIX_REGEX}[a-z0-9]([a-z0-9-]*[a-z0-9])?\$",
-      "description": "A git branch name starting with ${PREFIX}"
-    }
-  },
-  "required": ["branch_name"],
-  "additionalProperties": false
-}
-JSON
-)
+# jq builds the schema so the prefix is escaped once for the regex (inside jq) and
+# once for JSON (by jq's encoder). Escaping by hand mixed the two: a prefix such as
+# "j.smith/" produced "\." and "\/", which JSON rejects.
+SCHEMA="$(
+  jq -n --arg prefix "$PREFIX" --argjson min "$((${#PREFIX} + 2))" '
+    ($prefix | gsub("(?<c>[\\\\^$.|?*+()\\[\\]{}/])"; "\\" + .c)) as $escaped
+    | {
+        type: "object",
+        properties: {
+          branch_name: {
+            type: "string",
+            minLength: $min,
+            maxLength: 60,
+            pattern: ("^" + $escaped + "[a-z0-9]([a-z0-9-]*[a-z0-9])?$"),
+            description: ("A git branch name starting with " + $prefix)
+          }
+        },
+        required: ["branch_name"],
+        additionalProperties: false
+      }'
+)"
 readonly SCHEMA
 
 PROVIDER_ARGS=()

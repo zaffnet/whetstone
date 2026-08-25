@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # pre-commit hook: fail when a staged text file matches any regex in the
-# machine-local denylist. The denylist holds employer hostnames, account ids,
+# machine-local denylist. The denylist holds private hostnames, account ids,
 # colleague names, and similar strings that must never reach a public repo.
 # It lives outside the repo on purpose; the hook is a no-op without it.
 #

@@ -22,6 +22,9 @@ CODEX_PRIVATE = frozenset({"node_repl", "computer-use", "event-stream"})
 TABLE_HEADER = re.compile(r"^\[([^]]+)\]\s*$")
 ENV_PLACEHOLDER = re.compile(r"^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
 BEARER_PLACEHOLDER = re.compile(r"^Bearer \$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
+# env keys whose values are configuration, not credentials, and may be literal.
+PLAIN_ENV_KEYS = frozenset({"AWS_PROFILE", "AWS_REGION", "AWS_DEFAULT_REGION", "LOG_LEVEL"})
+PLAIN_ENV_SUFFIXES = ("_REGION", "_LOG_LEVEL")
 
 
 def die(message: str) -> None:
@@ -57,6 +60,20 @@ def refuse_literal_secrets(name: str, spec: dict) -> None:
             f"{name}.headers.{header} must be ${{VAR}} or Bearer ${{VAR}}; "
             "refusing a literal secret"
         )
+    env = spec.get("env") or {}
+    if not isinstance(env, dict):
+        die(f"{name}.env must be an object")
+    for key, value in env.items():
+        if not isinstance(value, str):
+            die(f"{name}.env.{key} must be a string")
+        if ENV_PLACEHOLDER.match(value) or is_plain_env_key(key):
+            continue
+        die(f"{name}.env.{key} must be ${{VAR}}; refusing a literal secret")
+
+
+def is_plain_env_key(key: str) -> bool:
+    """Whether an env key carries configuration (region, profile, log level), not a secret."""
+    return key in PLAIN_ENV_KEYS or key.endswith(PLAIN_ENV_SUFFIXES)
 
 
 def backup(path: Path) -> None:
@@ -228,7 +245,11 @@ def validate_codex(servers: dict[str, dict]) -> None:
     found = parsed.get("mcp_servers") or {}
     missing_private = CODEX_PRIVATE - set(found)
     if missing_private:
-        die(f"Codex lost private servers: {sorted(missing_private)}")
+        # Codex writes these itself on first launch; absent is normal on a fresh machine.
+        print(  # noqa: T201  -- CLI diagnostics
+            f"sync-mcp: Codex private servers not present yet: {sorted(missing_private)}",
+            file=sys.stderr,
+        )
     missing_managed = set(servers) - set(found)
     if missing_managed:
         die(f"Codex missing managed servers: {sorted(missing_managed)}")

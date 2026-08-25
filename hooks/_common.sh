@@ -5,8 +5,8 @@
 #   source "${BASH_SOURCE[0]%/*}/_common.sh"
 #
 # It enables strict mode, reads the JSON hook payload from stdin once into
-# HOOK_INPUT, precomputes HOOK_SESSION_ID, and exposes hook_field for pulling
-# further fields out of the payload without re-reading stdin.
+# HOOK_INPUT, and exposes hook_field for pulling fields out of the payload
+# without re-reading stdin.
 set -euo pipefail
 
 HOOK_INPUT="$(cat)"
@@ -18,7 +18,3 @@ HOOK_INPUT="$(cat)"
 hook_field() {
   printf '%s' "$HOOK_INPUT" | jq -r "$1"
 }
-
-# Consumed by scripts that source this file, not within it.
-# shellcheck disable=SC2034
-HOOK_SESSION_ID="$(hook_field '.session_id // "nosession"')"

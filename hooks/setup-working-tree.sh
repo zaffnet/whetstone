@@ -11,7 +11,8 @@
 #                   TARGET must already be a worktree (or any checkout).
 #
 # .worktreeinclude: one path per line, relative to the repo root, no trailing
-# slash on directories; blank lines and #-comments are ignored.
+# slash on directories; blank lines and #-comments are ignored. Absolute paths
+# and paths with a .. component are skipped with a warning.
 set -euo pipefail
 
 usage() {
@@ -87,6 +88,14 @@ if [[ -f $include_list ]]; then
     entry="${entry%%#*}"
     entry="${entry%"${entry##*[![:space:]]}"}"
     [[ -n $entry ]] || continue
+    # Entries are copied into TARGET and the destination is removed first, so an
+    # absolute path or a .. component could reach outside the worktree. Refuse.
+    case "/$entry/" in
+      //* | /~* | */../*)
+        printf 'setup-working-tree: skipping unsafe .worktreeinclude entry %s\n' "$entry" >&2
+        continue
+        ;;
+    esac
     src="$source_repo/$entry"
     dst="$target/$entry"
     [[ -e $src || -L $src ]] || continue
