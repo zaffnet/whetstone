@@ -15,3 +15,9 @@ Library
 .chezmoiscripts/10-brew-bundle.sh
 .chezmoiscripts/30-agent-skills.sh
 {{- end }}
+
+{{ if eq .role "work" -}}
+# Managed Macs rewrite ~/.gitconfig (signing key, x509 program) on every git call, which
+# would show as permanent drift. Keep the work copy by hand; ~/.gitconfig.local still applies.
+.gitconfig
+{{- end }}

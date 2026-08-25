@@ -3,7 +3,7 @@
 - Machine: MacBook Pro (Apple silicon), macOS.
 - Terminal: iTerm2, zsh, Oh My Zsh, Powerlevel10k in the Pure style with an added segment for
   the branch's open PR number. Font: MesloLGS NF in the terminal.
-- Editors: Cursor for day-to-day work, VS Code for the extensions Cursor lacks. Editor font:
+- Editor: Cursor. Editor font:
   Fira Code; terminal font inside the editor: JetBrainsMono Nerd Font. Theme: Quiet Light.
 - Python: uv, ruff, mypy, basedpyright, pyrefly, pytest.
 - Git: `git-delta` for diffs, `gh` with the `gh-stack` extension for stacked PRs, commitlint

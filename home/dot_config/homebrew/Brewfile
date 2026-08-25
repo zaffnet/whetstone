@@ -1,6 +1,6 @@
 # Installed by .chezmoiscripts/run_onchange_before_10-brew-bundle.sh.tmpl whenever this
 # file changes. Refresh from a machine with `just sync` (brew bundle dump --describe).
-# Adopt apps that were installed by hand (Cursor, iTerm2, VS Code) instead of failing.
+# Adopt apps that were installed by hand (Cursor, iTerm2) instead of failing.
 cask_args adopt: true
 
 tap "asmvik/formulae", "https://github.com/asmvik/homebrew-formulae.git" # yabai, skhd
@@ -53,7 +53,6 @@ brew "azure-cli"
 # Apps
 cask "iterm2"
 cask "cursor"
-cask "visual-studio-code"
 cask "codex"                   # OpenAI Codex desktop app
 cask "beekeeper-studio"        # SQL client
 cask "dbeaver-community"

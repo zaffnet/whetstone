@@ -39,7 +39,7 @@ writes files into your home directory. Fork the repo, read `home/.chezmoiscripts
 | Shell | zsh + Oh My Zsh | Default on macOS; the plugin system covers completion and suggestions without a framework rewrite |
 | Prompt | Powerlevel10k, Pure style | Instant prompt, async git status, and a custom segment that shows the open PR number for the branch |
 | Terminal | iTerm2 | Shell integration, split panes, and a CLI (`it2`) |
-| Editor | Cursor and VS Code | Same settings file shape, so one template covers both; ruff formats on save |
+| Editor | Cursor | Settings and keybindings are managed; ruff formats on save |
 | Package manager | Homebrew with a Brewfile | `brew bundle` is idempotent and the Brewfile is the inventory |
 | Python toolchain | uv, ruff, mypy, basedpyright, pyrefly | uv replaces pip, venv, and pyenv; ruff owns style; three checkers because each catches what the others miss (see `docs/decisions/0004`) |
 | Task runner | just | One file of recipes, readable without knowing make |
@@ -70,7 +70,7 @@ home/                 chezmoi source state for $HOME (.chezmoiroot points here)
   dot_claude/         settings, statuslines, theme; skills and agents are symlinks
   dot_codex/          config.toml rendered from the same mcp.json
   dot_config/         git, gh, uv, commitlint, homebrew/Brewfile
-  Library/            Cursor and VS Code user settings
+  Library/            Cursor user settings and keybindings
 skills/               Agent Skills (SKILL.md), installable with npx skills
 agents/               Claude Code reviewer subagents
 codex/agents/         The same reviewers as Codex TOML
