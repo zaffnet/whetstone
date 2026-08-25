@@ -1,0 +1,79 @@
+# Runs on every commit. CI runs the same config (`pre-commit run --all-files`).
+# Install: `uv run pre-commit install` (or `just install`).
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        exclude: ^template/project/
+      - id: check-json
+        exclude: ^template/project/
+      - id: check-toml
+        exclude: ^template/project/
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: check-symlinks
+      - id: destroyed-symlinks
+      - id: detect-private-key
+      - id: detect-aws-credentials
+        args: [--allow-missing-credentials]
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        # home/ holds zsh files and chezmoi templates; bin/ and hooks/ get the full check.
+        exclude: ^(template/project/|home/)
+
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.13.1-1
+    hooks:
+      - id: shfmt
+        args: [--indent=2, --case-indent, --binary-next-line, --write]
+        exclude: ^(template/project/|home/)
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+        # Template workflows contain Jinja and are validated after rendering (template.yml).
+        exclude: ^template/project/
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.49.1
+    hooks:
+      - id: markdownlint
+        exclude: ^(template/project/|skills/|home/)
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.4
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        exclude: ^template/project/
+      - id: ruff-format
+        exclude: ^template/project/
+
+  - repo: local
+    hooks:
+      # Matches lines against a machine-local denylist of employer hostnames,
+      # ids, and names. The file is never committed; when it is absent (CI, a
+      # fresh clone) the hook is a no-op. See docs/redaction.md.
+      - id: forbid-private-patterns
+        name: forbid private patterns
+        entry: bin/forbid-private-patterns
+        language: script
+        types: [text]
+        exclude: ^\.gitleaks\.toml$

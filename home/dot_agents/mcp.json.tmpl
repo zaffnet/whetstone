@@ -1,0 +1,54 @@
+{
+  "mcpServers": {
+    "aws-mcp": {
+      "command": "uvx",
+      "args": [
+        "mcp-proxy-for-aws@latest",
+        "https://aws-mcp.us-east-1.api.aws/mcp",
+        "--metadata",
+        "INSTALL_SOURCE=aws-cli"
+      ],
+      "env": {
+{{- if hasKey .work "aws_profile" }}
+        "AWS_PROFILE": {{ get .work "aws_profile" | quote }},
+{{- end }}
+        "AWS_REGION": "us-east-1"
+      }
+    },
+    "awslabs-aws-iac-mcp": {
+      "command": "uvx",
+      "args": ["awslabs.aws-iac-mcp-server@latest"],
+      "env": {
+{{- if hasKey .work "aws_profile" }}
+        "AWS_PROFILE": {{ get .work "aws_profile" | quote }},
+{{- end }}
+        "AWS_REGION": "us-east-1",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    "langfuse-docs": {
+      "type": "http",
+      "url": "https://langfuse.com/api/mcp"
+    },
+    "ms365": {
+      "command": "npx",
+      "args": ["-y", "@softeria/ms-365-mcp-server", "--org-mode"]
+    },
+    "primevue": {
+      "command": "npx",
+      "args": ["-y", "@primevue/mcp"]
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@1.8.0", "--autoConnect"]
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "mrc-mcp": {
+      "type": "http",
+      "url": "https://www.microsoft.com/releasecommunications/mcp"
+    }
+  }
+}

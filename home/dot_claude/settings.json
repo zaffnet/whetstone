@@ -1,0 +1,161 @@
+{
+  "respectGitignore": false,
+  "skillListingMaxDescChars": 2048,
+  "skillListingBudgetFraction": 0.05,
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "includeGitInstructions": false,
+  "permissions": {
+    "defaultMode": "dontAsk"
+  },
+  "model": "opus[1m]",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$CLAUDE_ENV_FILE\" ] && [ -f \"$CLAUDE_PROJECT_DIR/.venv/bin/activate\" ]; then printf 'export VIRTUAL_ENV=\"%s/.venv\"\\nexport PATH=\"%s/.venv/bin:$PATH\"\\n' \"$CLAUDE_PROJECT_DIR\" \"$CLAUDE_PROJECT_DIR\" >> \"$CLAUDE_ENV_FILE\"; fi"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Glass.aiff",
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "elicitation_dialog",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Glass.aiff",
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Glass.aiff",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Funk.aiff",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "afplay /System/Library/Sounds/Sosumi.aiff",
+            "async": true
+          }
+        ]
+      }
+    ]
+  },
+  "worktree": {
+    "baseRef": "fresh"
+  },
+  "respondToBashCommands": false,
+  "allowAllClaudeAiMcps": true,
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/statusline-command.sh",
+    "refreshInterval": 15
+  },
+  "subagentStatusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/subagent-statusline.sh"
+  },
+  "enabledPlugins": {
+    "chrome-devtools-mcp@claude-plugins-official": false,
+    "document-skills@anthropic-agent-skills": true,
+    "github@claude-plugins-official": true,
+    "playwright@claude-plugins-official": false,
+    "pyright-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "chrome-devtools-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "ChromeDevTools/chrome-devtools-mcp"
+      }
+    },
+    "claude-community": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-community"
+      }
+    },
+    "agent-toolkit-for-aws": {
+      "source": {
+        "source": "github",
+        "repo": "aws/agent-toolkit-for-aws"
+      }
+    },
+    "whetstone": {
+      "source": {
+        "source": "github",
+        "repo": "zaffnet/whetstone"
+      }
+    }
+  },
+  "outputStyle": "Concise",
+  "spinnerTipsEnabled": true,
+  "alwaysThinkingEnabled": true,
+  "effortLevel": "xhigh",
+  "showClearContextOnPlanAccept": false,
+  "askUserQuestionTimeout": "never",
+  "dialogExpiry": "never",
+  "tui": "fullscreen",
+  "voice": {
+    "enabled": false,
+    "mode": "hold"
+  },
+  "autoMemoryEnabled": true,
+  "showThinkingSummaries": true,
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "custom:solarized-light",
+  "editorMode": "normal",
+  "preferredNotifChannel": "auto",
+  "switchModelsOnFlag": false,
+  "terminalProgressBarEnabled": true,
+  "teammateMode": "in-process",
+  "remoteControlAtStartup": false,
+  "crossSessionInbound": "accept",
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true,
+  "voiceEnabled": false,
+  "autoUpdate": true,
+  "useAutoModeDuringPlanAccept": true
+}

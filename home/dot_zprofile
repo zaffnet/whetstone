@@ -1,0 +1,2 @@
+# Login-shell PATH. Interactive setup lives in .zshrc.
+export PATH="$HOME/.local/bin:$PATH"

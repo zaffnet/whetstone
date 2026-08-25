@@ -1,0 +1,28 @@
+# Local overlays and secrets never enter the repo.
+*.local
+*.local.*
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Tool state
+.venv/
+__pycache__/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.copier-answers.yml
+uv.lock.bak
+
+# Editors and agents (runtime state; config lives under home/)
+.claude/
+.codex/
+.cursor/
+.vscode/
+CLAUDE.local.md
+AGENTS.override.md
+
+# macOS
+.DS_Store

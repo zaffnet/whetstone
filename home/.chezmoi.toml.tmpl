@@ -1,0 +1,33 @@
+{{- /* Asked once; answers live in ~/.config/chezmoi/chezmoi.toml. Non-interactive:
+       chezmoi init --promptString name=...,email=...,src_dir=Desktop/src --promptChoice role=personal */ -}}
+{{- $name := promptStringOnce . "name" "name" -}}
+{{- $email := promptStringOnce . "email" "email" -}}
+{{- $role := promptChoiceOnce . "role" "role" (list "personal" "work") "personal" -}}
+{{- $srcDir := promptStringOnce . "src_dir" "src_dir" "Desktop/src" -}}
+
+[data]
+  # Git identity.
+  name = {{ $name | quote }}
+  email = {{ $email | quote }}
+  # personal | work. Work machines add employer-only values under [data.work].
+  role = {{ $role | quote }}
+  # Where repositories live, relative to $HOME.
+  src_dir = {{ $srcDir | quote }}
+
+# Work-only values. Leave the table empty on personal machines. Fill it by hand
+# on a work machine; this file is outside the repo, so nothing here is published.
+#
+#   [data.work]
+#     openai_base_url = "https://llm-proxy.example.internal/v1"  # Codex: openai_base_url
+#     aws_profile = "my-team-preprod"                             # MCP servers: AWS_PROFILE
+#     pypi_index_url = "https://artifacts.example.internal/api/pypi/simple"
+#     pypi_publish_url = "https://artifacts.example.internal/api/pypi"
+#     branch_prefix = "yourhandle/"                               # Cursor git.branchPrefix, Codex git-branch-prefix
+[data.work]
+
+[diff]
+  pager = "delta"
+
+[edit]
+  command = "cursor"
+  args = ["--wait"]

@@ -1,0 +1,17 @@
+# Rendered as a template: paths listed here are never written to $HOME.
+.zsh_secrets.example
+
+# The real secrets file is created by hand from the example and never managed.
+.zsh_secrets
+
+{{ if ne .chezmoi.os "darwin" -}}
+Library
+.chezmoiscripts/20-macos-defaults.sh
+{{- end }}
+
+{{ if env "CI" -}}
+# CI applies the tree into a throwaway HOME; skip installs that need network or a GUI.
+.chezmoiscripts/05-oh-my-zsh.sh
+.chezmoiscripts/10-brew-bundle.sh
+.chezmoiscripts/30-agent-skills.sh
+{{- end }}

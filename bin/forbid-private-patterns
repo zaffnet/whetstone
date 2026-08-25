@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# pre-commit hook: fail when a staged text file matches any regex in the
+# machine-local denylist. The denylist holds employer hostnames, account ids,
+# colleague names, and similar strings that must never reach a public repo.
+# It lives outside the repo on purpose; the hook is a no-op without it.
+#
+# Denylist: ${WHETSTONE_PRIVATE_PATTERNS:-$HOME/.config/whetstone/private-patterns.txt}
+# Format: one extended regex per line; blank lines and #-comments are ignored.
+set -euo pipefail
+
+patterns="${WHETSTONE_PRIVATE_PATTERNS:-$HOME/.config/whetstone/private-patterns.txt}"
+[[ -r $patterns ]] || exit 0
+[[ $# -gt 0 ]] || exit 0
+
+active="$(mktemp)"
+trap 'rm -f "$active"' EXIT
+grep -Ev '^\s*(#|$)' "$patterns" >"$active" || true
+[[ -s $active ]] || exit 0
+
+status=0
+for file in "$@"; do
+  [[ -f $file ]] || continue
+  if hits="$(grep -EnHi -f "$active" -- "$file")"; then
+    printf '%s\n' "$hits" | sed 's/^/private pattern: /'
+    status=1
+  fi
+done
+exit $status

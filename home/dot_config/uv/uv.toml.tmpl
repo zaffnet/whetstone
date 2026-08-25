@@ -1,0 +1,22 @@
+{{- if hasKey .work "pypi_index_url" -}}
+# A private index that holds internally published packages. It is not a mirror
+# of PyPI, so it must supplement the default index rather than replace it:
+# setting default = true would make every public package unresolvable.
+#
+# unsafe-first-match is required alongside it. uv's default first-index strategy
+# stops at whichever index first answers for a package, and a private index can
+# answer for names it cannot actually serve, so public packages would never
+# reach PyPI. unsafe-first-match keeps the private index's precedence for
+# internal names and falls through to PyPI for everything else.
+index-strategy = "unsafe-first-match"
+
+[[index]]
+name = "private"
+url = {{ get .work "pypi_index_url" | quote }}
+{{- if hasKey .work "pypi_publish_url" }}
+publish-url = {{ get .work "pypi_publish_url" | quote }}
+{{- end }}
+{{- else -}}
+# No extra indexes on personal machines. Work machines add a private index via
+# [data.work] in ~/.config/chezmoi/chezmoi.toml.
+{{- end }}

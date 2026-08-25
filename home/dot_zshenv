@@ -1,0 +1,5 @@
+# argcomplete (installed with `uv tool install argcomplete`) registers zsh completions here.
+for _argcomplete_dir in "$HOME"/.local/share/uv/tools/argcomplete/lib/python3.*/site-packages/argcomplete/bash_completion.d; do
+  [[ -d $_argcomplete_dir ]] && fpath=("$_argcomplete_dir" "${fpath[@]}")
+done
+unset _argcomplete_dir

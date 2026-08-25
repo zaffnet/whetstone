@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# A small, curated set of macOS defaults. Re-runs after every OS upgrade because the
+# build version below changes (Apple resets some preferences on major updates).
+# macOS build: {{ output "sw_vers" "--buildVersion" | trim }}
+set -euo pipefail
+
+# Keyboard: fast repeat, no press-and-hold accent popup (matters in editors).
+defaults write NSGlobalDomain KeyRepeat -int 2
+defaults write NSGlobalDomain InitialKeyRepeat -int 15
+defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
+
+# Finder: show extensions, path bar, and hidden files; no .DS_Store on network shares.
+defaults write NSGlobalDomain AppleShowAllExtensions -bool true
+defaults write com.apple.finder ShowPathbar -bool true
+defaults write com.apple.finder AppleShowAllFiles -bool true
+defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true
+
+# Dock: autohide, no recent apps, group windows in Mission Control.
+defaults write com.apple.dock autohide -bool true
+defaults write com.apple.dock show-recents -bool false
+defaults write com.apple.dock expose-group-apps -bool true
+
+# Screenshots: PNG into ~/Screenshots, no window shadow.
+mkdir -p "$HOME/Screenshots"
+defaults write com.apple.screencapture location -string "$HOME/Screenshots"
+defaults write com.apple.screencapture type -string "png"
+defaults write com.apple.screencapture disable-shadow -bool true
+
+killall Finder Dock 2>/dev/null || true

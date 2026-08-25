@@ -1,0 +1,44 @@
+# Extends the default gitleaks rules with patterns that matter for a public
+# dotfiles repo: absolute home paths, employer-style identifiers, and cloud
+# account numbers. Real secret formats (AWS keys, GitHub PATs, API keys) come
+# from the built-in ruleset via `useDefault`.
+title = "whetstone"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "absolute-home-path"
+description = "Absolute /Users/<name>/ or /home/<name>/ path; use $HOME or a chezmoi template variable"
+regex = '''(?:/Users|/home)/[A-Za-z0-9._-]+/'''
+[[rules.allowlists]]
+paths = ['''^docs/redaction\.md$''', '''^\.gitleaks\.toml$''']
+
+[[rules]]
+id = "employee-style-id"
+description = "Employee-style identifier (letter followed by 7 digits, or u + 7 digits)"
+regex = '''\b[aAuU][0-9]{7}\b'''
+
+[[rules]]
+id = "aws-account-id"
+description = "12-digit number that looks like an AWS account id"
+regex = '''\b[0-9]{12}\b'''
+[[rules.allowlists]]
+regexes = ['''100000000000''']
+
+[[rules]]
+id = "internal-hostname"
+description = "Hostname on an internal-looking domain"
+regex = '''\b[a-z0-9.-]+\.(?:int|internal|corp|local|intranet)\.[a-z0-9.-]+\.[a-z]{2,}\b'''
+
+[[rules]]
+id = "corporate-ca-bundle"
+description = "Corporate CA bundle path exported into TLS env vars"
+regex = '''(?:SSL_CERT_FILE|REQUESTS_CA_BUNDLE|NODE_EXTRA_CA_CERTS|CURL_CA_BUNDLE|AWS_CA_BUNDLE)=\S+\.pem'''
+
+[allowlist]
+description = "Files that legitimately mention the patterns above"
+paths = [
+  '''^tests/.*\.bats$''',
+  '''^template/project/\.env\.example$''',
+]

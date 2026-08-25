@@ -1,0 +1,72 @@
+# Installed by .chezmoiscripts/run_onchange_before_10-brew-bundle.sh.tmpl whenever this
+# file changes. Refresh from a machine with `just sync` (brew bundle dump --describe).
+tap "asmvik/formulae", "https://github.com/asmvik/homebrew-formulae.git" # yabai, skhd
+
+# Shell and terminal
+brew "zsh-syntax-highlighting" # Fish-like syntax highlighting for zsh
+brew "fzf"                     # Fuzzy finder
+brew "tmux"                    # Terminal multiplexer
+brew "tree"
+brew "watch"
+brew "htop"
+brew "ripgrep"                 # grep, but fast (rg)
+brew "jq"                      # JSON processor; hooks and scripts depend on it
+
+# Git and GitHub
+brew "gh"                      # GitHub CLI (gh stack extension installed by a run_once script)
+brew "git-delta"               # Side-by-side diffs with syntax highlighting
+brew "gitleaks"                # Secret scanning, pre-commit and CI
+brew "commitlint"              # Conventional-commit linting
+brew "gnupg"
+brew "smimesign"               # S/MIME commit signing (work machines)
+
+# Dotfiles and task running
+brew "chezmoi"
+brew "just"
+brew "bats-core"               # Shell test framework used by tests/
+
+# Shell script quality
+brew "shellcheck"
+brew "shfmt"
+brew "actionlint"              # GitHub Actions workflow linter
+
+# Languages and runtimes
+brew "uv"                      # Python packaging; also manages Python versions
+brew "go"
+brew "rbenv"
+brew "ruby-build"
+brew "ruby", link: false
+brew "nvm"                     # Node version manager
+
+# Documents and media
+brew "pandoc"
+brew "poppler"                 # pdftotext, pdftoppm
+brew "tesseract"               # OCR
+brew "ffmpeg"
+
+# Cloud
+brew "azure-cli"
+
+# Apps
+cask "iterm2"
+cask "cursor"
+cask "visual-studio-code"
+cask "codex"                   # OpenAI Codex desktop app
+cask "beekeeper-studio"        # SQL client
+cask "dbeaver-community"
+cask "caffeine"                # Keep the Mac awake
+cask "maccy"                   # Clipboard manager
+cask "font-fira-code"
+cask "font-meslo-lg-nerd-font" # Powerlevel10k glyphs
+cask "font-jetbrains-mono-nerd-font"
+
+# Python CLIs kept outside any project (uv tool install)
+uv "argcomplete"
+uv "basedpyright"
+uv "pyrefly"
+uv "ruff"
+uv "playwright"
+uv "it2"                       # iTerm2 CLI
+
+npm "corepack"
+npm "mermaid-filter"

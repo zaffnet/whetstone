@@ -1,0 +1,2 @@
+#!/usr/bin/env sh
+yabai -m config focus_follows_mouse autofocus

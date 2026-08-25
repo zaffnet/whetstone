@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Installs Homebrew if missing, then converges on the Brewfile. `run_onchange_`
+# re-runs only when this rendered script changes, and the Brewfile hash below
+# makes any Brewfile edit count as a change.
+# Brewfile hash: {{ include "dot_config/homebrew/Brewfile" | sha256sum }}
+set -euo pipefail
+
+if ! command -v brew >/dev/null; then
+  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
+
+brew bundle install --no-upgrade --file="{{ .chezmoi.homeDir }}/.config/homebrew/Brewfile"

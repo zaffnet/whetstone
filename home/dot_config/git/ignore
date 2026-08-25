@@ -1,0 +1,5 @@
+# Global excludes: per-machine agent settings that must not land in any repo.
+**/.claude/settings.local.json
+**/CLAUDE.local.md
+**/AGENTS.override.md
+.DS_Store

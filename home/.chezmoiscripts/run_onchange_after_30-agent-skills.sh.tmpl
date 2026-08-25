@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Installs third-party agent skills pinned in ~/.agents/.skill-lock.json and the
+# gh extensions the shell prompt and scripts rely on. Hand-written skills are
+# symlinked into ~/.agents/skills by chezmoi itself (see home/dot_agents/skills).
+# lock hash: {{ include "dot_agents/dot_skill-lock.json" | sha256sum }}
+set -euo pipefail
+
+if command -v npx >/dev/null; then
+  # `npx skills` reads the lock file and installs every source it lists.
+  (cd "$HOME/.agents" && npx -y skills@latest update -y 2>/dev/null) || echo "skills: install skipped (npx skills unavailable)"
+fi
+
+if command -v gh >/dev/null && gh auth status >/dev/null 2>&1; then
+  gh extension list 2>/dev/null | grep -q 'github/gh-stack' || gh extension install github/gh-stack || true
+fi

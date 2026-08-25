@@ -1,0 +1,27 @@
+# Tooling environment for the repo itself (not for the Copier template's output).
+# `uv sync` then `uv run pre-commit install`.
+[project]
+name = "whetstone"
+version = "0.1.0"
+description = "Sharpen the tools: macOS dotfiles, a Python project template, and agent skills."
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "copier>=9.17.2",
+    "pre-commit>=4.6.1",
+    "ruff>=0.16.0",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["template/project"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D203", "D213", "COM812", "FIX", "TD", "TRY003", "CPY001"]
+
+[tool.ruff.lint.per-file-ignores]
+"*_test.py" = ["S101", "PLR2004"]
