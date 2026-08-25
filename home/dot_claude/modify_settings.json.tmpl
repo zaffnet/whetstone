@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# chezmoi modify script for ~/.claude/settings.json: keys in the template are managed; keys
+# Claude Code writes at runtime (model picker, plugin toggles) are carried over from the
+# current file so an apply never undoes a choice made inside Claude.
+set -euo pipefail
+current=$(cat)
+MANAGED=$(cat <<'MANAGED'
+{{ template "claude-settings.json" . }}
+MANAGED
+)
+CURRENT="$current" MANAGED="$MANAGED" python3 - <<'PY'
+import json
+import os
+
+PRESERVE = ("model", "enabledPlugins", "extraKnownMarketplaces")
+managed = json.loads(os.environ["MANAGED"])
+try:
+    current = json.loads(os.environ["CURRENT"] or "{}")
+except json.JSONDecodeError:
+    current = {}
+for key in PRESERVE:
+    if key in current:
+        managed[key] = current[key]
+print(json.dumps(managed, indent=2))
+PY
