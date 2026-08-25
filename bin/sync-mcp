@@ -11,6 +11,7 @@ import sys
 import tempfile
 import tomllib
 from pathlib import Path
+from typing import NoReturn
 
 HOME = Path.home()
 AGENTS_MCP = HOME / ".agents" / "mcp.json"
@@ -27,7 +28,7 @@ PLAIN_ENV_KEYS = frozenset({"AWS_PROFILE", "AWS_REGION", "AWS_DEFAULT_REGION", "
 PLAIN_ENV_SUFFIXES = ("_REGION", "_LOG_LEVEL")
 
 
-def die(message: str) -> None:
+def die(message: str) -> NoReturn:
     print(f"sync-mcp: {message}", file=sys.stderr)  # noqa: T201  -- CLI diagnostics
     raise SystemExit(1)
 
@@ -77,11 +78,10 @@ def is_plain_env_key(key: str) -> bool:
 
 
 def backup(path: Path) -> None:
+    """Keep the state before this run. Every run rewrites project-local servers."""
     if not path.exists() or path.is_symlink():
         return
-    dest = path.with_name(path.name + ".bak-before-agents-sync")
-    if not dest.exists():
-        shutil.copy2(path, dest)
+    shutil.copy2(path, path.with_name(path.name + ".bak-before-agents-sync"))
 
 
 def sync_cursor() -> None:
@@ -229,6 +229,10 @@ def sync_codex(servers: dict[str, dict]) -> None:
     text = re.sub(r"\n{3,}", "\n\n", text)
     if not text.endswith("\n"):
         text += "\n"
+    try:
+        tomllib.loads(text)
+    except tomllib.TOMLDecodeError as exc:
+        die(f"refusing to write {CODEX_TOML}: generated text is not valid TOML: {exc}")
     fd, tmp = tempfile.mkstemp(prefix="config.toml.", dir=CODEX_TOML.parent)
     try:
         with os.fdopen(fd, "w") as handle:
