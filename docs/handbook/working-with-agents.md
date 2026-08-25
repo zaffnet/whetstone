@@ -58,3 +58,13 @@ action and the assertions, and does not branch on backend type.
 
 Do not re-test validation constraints one at a time. One invalid input is enough. Type
 checkers do not see JSON that arrives at runtime, so that one test earns its place.
+
+## Generated projects and managed files
+
+- A project created with Copier records its template version in `.copier-answers.yml`. When a
+  template bug shows up there, fix the template, release a new version, and let the project
+  owner run `uvx copier update`. Do not edit, stage, or commit inside someone else's project
+  to deliver a template fix.
+- A file under `$HOME` that chezmoi manages is edited in `home/` and applied, or edited in
+  place and pulled back with `just sync`. Patching it directly is overwritten by the next apply.
+- A published `v*` tag is immutable. A bad release is followed by the next version.

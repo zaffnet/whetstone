@@ -49,3 +49,10 @@ Run `gh stack list` to see the stack. Use `/gh-stack` to work with GitHub Stack.
 ## Machine-local facts
 
 Put machine-specific context (local clone paths, internal URLs, credentials location) in `CLAUDE.local.md`. It is ignored by git; Codex reads it as `AGENTS.override.md`.
+
+## This project comes from a template
+
+`.copier-answers.yml` records the whetstone version this project was generated from. Files
+that came from the template (tooling config, `.claude/`, `.codex/`, CI) take fixes through
+the template: change `zaffnet/whetstone`, release a version, then run `uvx copier update`
+here and commit. Project code and docs are edited here as usual.

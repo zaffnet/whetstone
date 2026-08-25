@@ -31,3 +31,10 @@ Conventional commits, imperative mood, first line of 72 characters or fewer.
 ## Skills
 
 Check `~/.agents/skills` at the start of a task and load the ones that match.
+
+## Templates and dotfiles
+
+Projects generated from whetstone and files managed by chezmoi are never patched in place.
+A template fix goes into whetstone, ships with `just release vX.Y.Z`, and reaches a project
+when its owner runs `uvx copier update` and commits. A dotfile fix goes into `home/` and
+`just apply`. Published tags are never moved. Detail: `~/.agents/handbook/working-with-agents.md`.
