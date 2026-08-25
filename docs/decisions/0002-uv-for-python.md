@@ -16,7 +16,7 @@ uv for everything: `uv python install`, `uv sync`, `uv lock`, `uv run`, `uv tool
 - Dependabot updates `uv.lock` natively.
 - Global CLIs (ruff, basedpyright, pyrefly) are `uv tool install`ed and listed in the
   Brewfile under `uv`.
-- A private index on a work machine needs `index-strategy = "unsafe-first-match"`; the
+- A machine with a private index needs `index-strategy = "unsafe-first-match"`; the
   reason is written in `home/dot_config/uv/uv.toml.tmpl`.
 
 ## Alternatives considered

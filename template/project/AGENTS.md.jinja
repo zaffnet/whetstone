@@ -2,7 +2,7 @@
 
 {{ description }}
 
-# Code style
+## Code style
 
 Python follows the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html) for judgment calls. Ruff (pre-commit) owns naming, formatting, and imports.
 
@@ -18,12 +18,12 @@ Test files are `*_test.py`, never `test_*.py`. Correct: `memory_store_test.py`. 
 
 Do not add tests that only assert a constant or a fact ruff, mypy, or basedpyright already prove. No section-separator comments. No template docstrings that restate the function name.
 
-# Writing style
+## Writing style
 
 - Write for humans, not agents.
 - If the code, the doc, or the user already named it, use that exact word. Do not paraphrase a technical term, and do not coin a near-synonym or near-homophone of one.
 
-# How to run the tests
+## How to run the tests
 
 - One file: `uv run pytest {{ package_name }}/<module>_test.py -qq --tb=short --no-header`
 - Everything pre-commit runs: `uv run pre-commit run --all-files`
@@ -38,14 +38,14 @@ Color flags per command, never via env:
 
 Never strip ANSI with regex after the fact.
 
-# Parallel tool calling in agent loops
+## Parallel tool calling in agent loops
 
 When the next independent reads or checks are only implied by the task, list what you need next, then request every item that does not depend on another's result in one response.
 
-# Stacked pull requests
+## Stacked pull requests
 
 Run `gh stack list` to see the stack. Use `/gh-stack` to work with GitHub Stack.
 
-# Machine-local facts
+## Machine-local facts
 
 Put machine-specific context (local clone paths, internal URLs, credentials location) in `CLAUDE.local.md`. It is ignored by git; Codex reads it as `AGENTS.override.md`.

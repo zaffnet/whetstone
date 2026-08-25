@@ -9,7 +9,9 @@ services:
     ports:
       - "8080:8080"
 {%- else %}
+    # Runs the module once and exits; replace with the real entry point.
     command: [ "uv", "run", "python", "-m", "{{ package_name }}" ]
+    restart: "no"
 {%- endif %}
     depends_on:
       postgres:
@@ -34,7 +36,8 @@ services:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      # postgres:18 images keep PGDATA in a version subdirectory under this mount.
+      - pgdata:/var/lib/postgresql
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U app -d app" ]
       interval: 5s

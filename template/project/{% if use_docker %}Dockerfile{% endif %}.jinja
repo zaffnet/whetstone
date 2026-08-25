@@ -30,3 +30,11 @@ COPY . .
 
 RUN chown -R app:app /app
 USER app
+{%- if use_fastapi %}
+
+EXPOSE 8080
+CMD ["uv", "run", "--no-sync", "uvicorn", "{{ package_name }}.app:app", "--host", "0.0.0.0", "--port", "8080"]
+{%- else %}
+
+CMD ["uv", "run", "--no-sync", "python", "-m", "{{ package_name }}"]
+{%- endif %}

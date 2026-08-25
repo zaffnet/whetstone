@@ -9,7 +9,7 @@ reader looks for a module's tests and how files sort in a directory listing.
 
 `memory_store.py` has its tests in `memory_store_test.py` in the same directory. No
 `tests/` tree mirroring the package. `python_files = "*_test.py"` is set explicitly in
-`pyproject.toml` so the convention is a decision, not an accident.
+`pyproject.toml` so the convention is recorded.
 
 ## Consequences
 

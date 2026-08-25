@@ -86,3 +86,9 @@ license:
     - MIT
     - Apache-2.0
     - Proprietary
+
+author:
+  type: str
+  help: Copyright holder named in LICENSE
+  default: "{{ github_owner }}"
+  when: "{{ license != 'Proprietary' }}"

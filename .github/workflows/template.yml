@@ -14,26 +14,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [minimal, full]
+        use_docker: ["false", "true"]
+        use_fastapi: ["false", "true"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
       - name: Install actionlint
+        # The download script is pinned to the same tag as the binary it fetches.
         run: |
-          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) 1.7.12 /usr/local/bin
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12 /usr/local/bin
       - name: Render the template
         env:
-          VARIANT: ${{ matrix.variant }}
+          USE_DOCKER: ${{ matrix.use_docker }}
+          USE_FASTAPI: ${{ matrix.use_fastapi }}
+        # --vcs-ref HEAD: copier defaults to the latest tag, which would test the last
+        # release instead of this commit.
         run: |
-          extra=()
-          if [ "$VARIANT" = full ]; then
-            extra=(-d use_docker=true -d use_fastapi=true)
-          fi
-          uvx copier copy --defaults --trust \
+          uvx copier copy --defaults --vcs-ref HEAD \
             -d project_name=demo-app -d description=Demo -d github_owner=octocat \
-            "${extra[@]}" . /tmp/demo
+            -d "use_docker=$USE_DOCKER" -d "use_fastapi=$USE_FASTAPI" . /tmp/demo
       - name: Check the generated project
         working-directory: /tmp/demo
         run: |
@@ -44,3 +45,20 @@ jobs:
           SKIP=check-container-version,diff-cover uv run pre-commit run --all-files --show-diff-on-failure
           uv run pytest -qq
           actionlint
+          test -f LICENSE
+      - name: Build the image and run the Compose stack
+        if: matrix.use_docker == 'true'
+        working-directory: /tmp/demo
+        env:
+          USE_FASTAPI: ${{ matrix.use_fastapi }}
+          IMAGE_TAG: local
+          PULL_POLICY: never
+        run: |
+          docker compose build
+          if [ "$USE_FASTAPI" = true ]; then
+            docker compose up -d
+            curl --retry 20 --retry-delay 2 --retry-all-errors -fsS localhost:8080/health
+          else
+            docker compose run --rm app
+          fi
+          docker compose down -v

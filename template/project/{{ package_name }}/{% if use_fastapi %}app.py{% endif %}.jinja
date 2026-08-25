@@ -1,0 +1,11 @@
+"""HTTP entry point. `uvicorn {{ package_name }}.app:app` serves it."""
+
+from fastapi import FastAPI
+
+app = FastAPI(title="{{ project_name }}")
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    """Liveness probe for Compose and load balancers."""
+    return {"status": "ok"}

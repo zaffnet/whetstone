@@ -74,6 +74,7 @@
 ## Background
 
 [Context a new reader needs to understand the design. No design decisions here. This section can include:]
+
 - [Current state of the system and how it works today]
 - [The problem being solved and why it matters]
 - [Existing workflows or manual processes being replaced]
@@ -205,7 +206,6 @@
 ### Security Considerations
 
 [Authentication, authorization, data encryption, threat model.]
-
 
 ---
 

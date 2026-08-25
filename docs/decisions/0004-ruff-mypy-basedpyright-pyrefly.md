@@ -3,7 +3,7 @@
 ## Context
 
 Static analysis catches the bugs tests miss. Ruff covers linting and formatting. No single
-type checker covers the Python typing spec, the Pydantic ecosystem, and editor latency at
+type checker covers the Python typing spec, Pydantic models, and editor latency at
 once.
 
 ## Decision

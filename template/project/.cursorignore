@@ -1,5 +1,6 @@
-# Re-include local paths from .worktreeinclude for Cursor access + indexing.
-# Overrides .gitignore / exclude / default ignores. See:
+# .worktreeinclude lists local-only files that new worktrees copy over. This file
+# re-includes the same paths for Cursor access and indexing, except secrets: .env
+# stays ignored on purpose. Overrides .gitignore and the default ignores. See
 # https://cursor.com/docs/reference/ignore-file
 !.claude/
 !.claude/**

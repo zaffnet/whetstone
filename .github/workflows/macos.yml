@@ -13,16 +13,37 @@ permissions:
 jobs:
   bootstrap:
     runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        role: [personal, work]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: brew install chezmoi bats-core jq
+      - name: Write the chezmoi config
+        env:
+          ROLE: ${{ matrix.role }}
+        run: |
+          chezmoi init --source "$GITHUB_WORKSPACE" \
+            --promptString "name=T,email=t@example.com,src_dir=src" \
+            --promptChoice "role=$ROLE"
+          if [ "$ROLE" = work ]; then
+            # The generated config has an empty [data.work] table; fill it in place.
+            perl -0pi -e 's/^\[data\.work\]\n/[data.work]\n  branch_prefix = "ci\/"\n  openai_base_url = "https:\/\/proxy.example\/v1"\n  aws_profile = "example"\n  pypi_index_url = "https:\/\/pypi.example\/simple"\n/m' \
+              ~/.config/chezmoi/chezmoi.toml
+          fi
       - name: Apply the chezmoi tree into the runner home
         env:
           CI: "1"
         run: |
           start=$SECONDS
-          chezmoi init --apply --source "$GITHUB_WORKSPACE" \
-            --promptString "name=CI,email=ci@example.com,src_dir=src" \
-            --promptChoice role=personal
-          echo "Bootstrap (CI mode, no installs): $((SECONDS - start))s" >> "$GITHUB_STEP_SUMMARY"
+          chezmoi apply --source "$GITHUB_WORKSPACE"
+          echo "Apply (CI mode, no package installs): $((SECONDS - start))s" >> "$GITHUB_STEP_SUMMARY"
       - run: bats tests/
+      - name: Rendered config parses and carries the work values
+        if: matrix.role == 'work'
+        run: |
+          python3 -c 'import tomllib, pathlib; tomllib.loads(pathlib.Path.home().joinpath(".codex/config.toml").read_text())'
+          jq -e '.mcpServers["aws-mcp"].env.AWS_PROFILE == "example"' ~/.agents/mcp.json
+          grep -q 'proxy.example' ~/.codex/config.toml
+          grep -q 'pypi.example' ~/.config/uv/uv.toml

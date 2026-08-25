@@ -1,13 +1,15 @@
 # New Python project
 
 ```bash
-uvx copier copy --trust gh:zaffnet/whetstone my-project
+uvx copier copy gh:zaffnet/whetstone my-project
 cd my-project
+git init -b main
 uv sync --all-groups
 uv run pre-commit install
 ```
 
-`--trust` lets the template run its post-generation tasks (`uv lock`, `git init`).
+Copier renders the latest tagged release of the template. Add `--vcs-ref HEAD` for the tip
+of `main`.
 
 ## Questions
 
@@ -20,8 +22,9 @@ uv run pre-commit install
 | `python_version` | `requires-python`, `.python-version`, `target-version` for ruff, mypy, basedpyright |
 | `line_length` | ruff and editor rulers |
 | `use_docker` | Adds `Dockerfile`, `docker-compose.yaml`, the override file, `.dockerignore`, the image-version pre-commit hook, and the image build job in CI |
-| `use_fastapi` | Adds FastAPI, uvicorn, and pydantic-settings to dependencies and the async-safety reviewer agent |
-| `license` | `LICENSE` file and the `license` field |
+| `use_fastapi` | Adds FastAPI, uvicorn, pydantic-settings, and httpx2; a `/health` app with a test; the async-safety reviewer agent |
+| `license` | `LICENSE` text (MIT or Apache-2.0) and the `license` field; `Proprietary` writes neither |
+| `author` | Copyright holder named in `LICENSE`; asked only when a license text is written |
 
 ## What you get
 
@@ -37,12 +40,15 @@ uv run pre-commit install
 - `.claude/` with hooks (ruff on every edit, worktree setup), rules, reviewer agents, and
   `.codex/` with the same agents in TOML.
 - `.vscode/settings.json` pinned to the project's `.venv` ruff and basedpyright.
-- `CLAUDE.md`, `AGENTS.md`, `docs/DEVELOPMENT.md`, a design-doc template, `.env.example`.
+- `AGENTS.md` (and a `CLAUDE.md` that imports it), `docs/DEVELOPMENT.md`, a design-doc
+  template, `.env.example`.
+- With Docker: a Compose stack that builds, starts, and answers `/health` (FastAPI) or runs
+  the module once.
 
 ## Later: pulling template changes
 
 ```bash
-uvx copier update --trust
+uvx copier update
 ```
 
 Copier reads `.copier-answers.yml`, fetches the template version recorded there and the

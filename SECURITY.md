@@ -2,14 +2,14 @@
 
 ## Reporting
 
-Email <zafar@zafarmahmood.com>. Do not open a public issue for a leaked credential or an
-employer-identifying string; email gets it removed and the key rotated first.
+Email <zafar@zafarmahmood.com>. Do not open a public issue for a leaked credential or a
+private hostname; email gets it removed and the key rotated first.
 
 ## What this repo promises
 
 - No secrets in any commit. gitleaks runs in pre-commit and over the full history in CI
   (`.github/workflows/secrets.yml`); GitHub push protection is on.
-- No employer hostnames, account ids, or personal identifiers. A machine-local denylist
+- No private hostnames, account ids, or personal identifiers. A machine-local denylist
   hook enforces this at commit time (`docs/redaction.md`).
 - Scripts under `bin/` and `hooks/` pass shellcheck and are reviewed before merge.
 - GitHub Actions are pinned to commit SHAs and run with `contents: read`.

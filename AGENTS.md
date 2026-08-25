@@ -26,7 +26,7 @@ a turn is a stop, not a wait. Design docs are guidelines, and drift from code is
 ## Git
 
 Follow `~/.agents/handbook/git.md`. Small PRs, one logical change each.
-Conventional commits, imperative mood, 50-character first line.
+Conventional commits, imperative mood, first line of 72 characters or fewer.
 
 ## Skills
 

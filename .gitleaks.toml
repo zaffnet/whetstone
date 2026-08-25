@@ -1,5 +1,5 @@
 # Extends the default gitleaks rules with patterns that matter for a public
-# dotfiles repo: absolute home paths, employer-style identifiers, and cloud
+# dotfiles repo: absolute home paths, organization-style identifiers, and cloud
 # account numbers. Real secret formats (AWS keys, GitHub PATs, API keys) come
 # from the built-in ruleset via `useDefault`.
 title = "whetstone"
@@ -32,15 +32,15 @@ description = "Hostname on an internal-looking domain"
 regex = '''\b[a-z0-9.-]+\.(?:int|internal|corp|local|intranet)\.[a-z0-9.-]+\.[a-z]{2,}\b'''
 
 [[rules]]
-id = "corporate-ca-bundle"
-description = "Corporate CA bundle path exported into TLS env vars"
+id = "ca-bundle-env"
+description = "CA bundle path exported into TLS env vars"
 regex = '''(?:SSL_CERT_FILE|REQUESTS_CA_BUNDLE|NODE_EXTRA_CA_CERTS|CURL_CA_BUNDLE|AWS_CA_BUNDLE)=\S+\.pem'''
 
 [allowlist]
 description = "Files that legitimately mention the patterns above"
 paths = [
   '''^tests/.*\.bats$''',
-  '''^template/project/\.env\.example$''',
+  '''^template/project/\.env\.example\.jinja$''',
   # Local tool state, never committed; `gitleaks dir` would otherwise flag venv shebangs.
   '''(^|/)\.venv/''',
   '''(^|/)\.ruff_cache/''',
