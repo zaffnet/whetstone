@@ -1,15 +1,15 @@
 # whetstone
 
+[![lint](https://github.com/zaffnet/whetstone/actions/workflows/lint.yml/badge.svg)](https://github.com/zaffnet/whetstone/actions/workflows/lint.yml)
+[![template](https://github.com/zaffnet/whetstone/actions/workflows/template.yml/badge.svg)](https://github.com/zaffnet/whetstone/actions/workflows/template.yml)
+[![macos](https://github.com/zaffnet/whetstone/actions/workflows/macos.yml/badge.svg)](https://github.com/zaffnet/whetstone/actions/workflows/macos.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 This is how I set up a Mac and a Python project. The repo holds my shell, git, and editor
 config as a chezmoi source tree, a Copier template for new Python projects, and the skills,
 subagents, and hooks I use with Claude Code, Codex, and Cursor.
 
 I don't currently expect this to be useful for anyone but myself. Maybe eventually!
-
-[![lint](https://github.com/zaffnet/whetstone/actions/workflows/lint.yml/badge.svg)](https://github.com/zaffnet/whetstone/actions/workflows/lint.yml)
-[![template](https://github.com/zaffnet/whetstone/actions/workflows/template.yml/badge.svg)](https://github.com/zaffnet/whetstone/actions/workflows/template.yml)
-[![macos](https://github.com/zaffnet/whetstone/actions/workflows/macos.yml/badge.svg)](https://github.com/zaffnet/whetstone/actions/workflows/macos.yml)
-[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ## Requirements
 
