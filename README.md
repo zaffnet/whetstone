@@ -11,8 +11,6 @@ Cursor. One repo, one source of truth, tested in CI.
 
 ![terminal](docs/img/terminal.png)
 
-<!-- docs/img/terminal.png is a placeholder. Replace it with a screenshot of the prompt. -->
-
 ## Four commands
 
 ```bash
