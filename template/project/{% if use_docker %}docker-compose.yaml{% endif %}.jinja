@@ -15,7 +15,8 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://app:app@postgres:5432/app
+      # Local-only development credentials; override with POSTGRES_PASSWORD in .env.
+      DATABASE_URL: postgresql://app:${POSTGRES_PASSWORD:-app}@postgres:5432/app
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
 {%- if use_fastapi %}
     healthcheck:
@@ -31,7 +32,7 @@ services:
     environment:
       POSTGRES_DB: app
       POSTGRES_USER: app
-      POSTGRES_PASSWORD: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
