@@ -1,8 +1,8 @@
 # Working conventions
 
 Read once per session. Detail lives in `docs/handbook/` of the whetstone repo, which chezmoi
-links to `~/.agents/handbook/`. This file is symlinked to `~/.claude/CLAUDE.md` and
-`~/.codex/AGENTS.md`, so it applies everywhere.
+links to `~/.agents/handbook/`. This file is symlinked to `~/.claude/CLAUDE.md`,
+`~/.codex/AGENTS.md`, and `~/.kiro/steering/AGENTS.md`, so it applies everywhere.
 
 ## Writing
 
