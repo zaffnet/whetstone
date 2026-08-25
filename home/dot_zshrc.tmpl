@@ -12,15 +12,22 @@ if [[ -x /opt/homebrew/bin/brew ]]; then
 elif [[ -x /usr/local/bin/brew ]]; then
   eval "$(/usr/local/bin/brew shellenv)"
 fi
-export PATH="$HOME/.local/bin:$HOME/go/bin:$PATH"
 
 # Language runtimes
 if command -v rbenv >/dev/null; then
   export PATH="${HOMEBREW_PREFIX:-/opt/homebrew}/opt/ruby/bin:$PATH"
   eval "$(rbenv init - zsh)"
 fi
+# Homebrew's nvm formula keeps nvm.sh under its own prefix; a standard install puts it in
+# $NVM_DIR. Either way $NVM_DIR is where versions go.
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+for nvm_sh in "${HOMEBREW_PREFIX:-/opt/homebrew}/opt/nvm/nvm.sh" "$NVM_DIR/nvm.sh"; do
+  if [ -s "$nvm_sh" ]; then
+    \. "$nvm_sh"
+    break
+  fi
+done
+unset nvm_sh
 
 # Oh My Zsh
 export ZSH="$HOME/.oh-my-zsh"
@@ -51,8 +58,8 @@ command -v codex >/dev/null && eval "$(codex completion zsh)"
 bindkey '^F' autosuggest-accept
 
 # Powerlevel10k segment: the open PR number for the current branch, refreshed
-# in the background at most once a minute per branch. Wire it into ~/.p10k.zsh
-# by adding `ghpr` to POWERLEVEL9K_LEFT_PROMPT_ELEMENTS or the right side.
+# in the background at most once a minute per branch. ~/.p10k.zsh lists `ghpr`
+# in POWERLEVEL9K_LEFT_PROMPT_ELEMENTS.
 zmodload zsh/datetime
 typeset -gA GHPR_REFRESH_STARTED
 
@@ -125,7 +132,7 @@ alias python=python3
 test -e ~/.iterm2_shell_integration.zsh && source ~/.iterm2_shell_integration.zsh
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-# API keys and tokens. Create from ~/.zsh_secrets.example; never commit.
+# API keys and tokens. Copy home/dot_zsh_secrets.example from the chezmoi source; never commit.
 [ -s "$HOME/.zsh_secrets" ] && source "$HOME/.zsh_secrets"
 
 # Machine-local overrides (proxies, CA bundles, extra CLIs). Never commit.

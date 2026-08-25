@@ -53,7 +53,8 @@ eval "$(printf '%s' "$input" | jq -r '
 # --- helpers ---------------------------------------------------------------
 
 abbrev_path() {
-  local p="${1/#$HOME/~}"
+  local p="${1/#$HOME\//~/}"
+  [[ $1 != "$HOME" ]] || p="~"
   local prefix="" rest="$p"
   # The literal "~" is the display prefix, not a path to expand.
   # shellcheck disable=SC2088
@@ -387,9 +388,9 @@ else
 fi
 
 cost_color="$GREY"
-if awk "BEGIN { exit !($cost_usd >= 5) }" 2>/dev/null; then
+if awk -v c="$cost_usd" 'BEGIN { exit !(c + 0 >= 5) }' 2>/dev/null; then
   cost_color="$RED"
-elif awk "BEGIN { exit !($cost_usd >= 1) }" 2>/dev/null; then
+elif awk -v c="$cost_usd" 'BEGIN { exit !(c + 0 >= 1) }' 2>/dev/null; then
   cost_color="$YELLOW"
 fi
 if awk "BEGIN { exit !($cost_usd > 0) }" 2>/dev/null; then

@@ -323,5 +323,5 @@
 	"cursor.general.reduceTransparency": true,
 	"scm.inputFontSize": 12,
 	"cursor.composer.textSizeScale": 0.85,
-	"snyk.advanced.cliPath": "{{ .chezmoi.homeDir }}/Library/Application Support/snyk/vscode-cli/snyk-macos-arm64"
+	"snyk.advanced.cliPath": {{ joinPath .chezmoi.homeDir "Library/Application Support/snyk/vscode-cli/snyk-macos-arm64" | quote }}
 }

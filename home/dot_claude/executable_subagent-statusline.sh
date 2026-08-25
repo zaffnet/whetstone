@@ -122,6 +122,10 @@ now_ms=$(($(date +%s) * 1000))
 while IFS= read -r task; do
   [[ -z "$task" ]] && continue
 
+  # jq aborts the whole eval on a non-numeric field; start clean so a bad task
+  # cannot borrow the previous one's values.
+  id='' name='' task_status='' description='' label='' start_time='' model='' effort=''
+  ctx_size=0 token_count=0
   eval "$(printf '%s' "$task" | jq -r '
     def s: (. // "") | tostring | @sh;
     def n: (. // 0) | tonumber | tostring | @sh;
