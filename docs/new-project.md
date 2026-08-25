@@ -48,9 +48,13 @@ of `main`.
 ## Later: pulling template changes
 
 ```bash
-uvx copier update
+uvx copier update                 # needs a clean working tree
+git diff                          # review what the new template version changed
+git commit -am "chore: update template to whetstone vX.Y.Z"
 ```
 
-Copier reads `.copier-answers.yml`, fetches the template version recorded there and the
-latest, and three-way merges. Conflicts land as `.rej` files or inline markers depending on
-`--conflict`. Review, fix, commit.
+Copier reads `.copier-answers.yml`, fetches the version recorded there and the latest tag,
+and three-way merges into the working tree. It changes files and stops; the commit is yours.
+Conflicts appear as inline markers (`<<<<<<< before updating`); resolve them, `git add`, then
+commit. Files listed in `_skip_if_exists` (`README.md`, `uv.lock`) are never touched by an
+update.

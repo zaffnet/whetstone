@@ -50,7 +50,8 @@ uvx copier copy gh:zaffnet/whetstone my-project
 
 Asks a few questions and writes a project with uv, ruff, mypy, basedpyright, pre-commit,
 pytest, GitHub Actions, Dependabot, and agent config. `docs/new-project.md` lists the
-questions. Later, `uvx copier update` inside the project pulls template changes.
+questions. Later, `uvx copier update` inside the project applies newer template
+versions to the working tree; you review the diff and commit it.
 
 ### The skills only
 
@@ -94,7 +95,8 @@ subagents, and the hooks.
   a local denylist hook, and GitHub push protection check that (`docs/redaction.md`).
 - Each disabled lint rule, unusual flag, or pinned version has a comment next to it that
   says why.
-- Projects made from the template can take later template changes with `copier update`.
+- Projects made from the template take later template versions with `uvx copier update`,
+  then a normal commit.
 - CI renders the template in all four `use_docker` and `use_fastapi` combinations and runs
   each result's own pre-commit hooks and tests, builds the Docker variants and hits
   `/health`, and applies the `home/` tree into a clean macOS runner for both roles and runs
