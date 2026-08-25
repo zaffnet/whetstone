@@ -1,0 +1,32 @@
+{
+  "name": "whetstone",
+  "version": "0.1.0",
+  "description": "Skills, reviewer subagents, and hooks for Python work with Claude Code.",
+  "author": {
+    "name": "Zafar Mahmood",
+    "email": "zafar@zafarmahmood.com",
+    "url": "https://zafarmahmood.com"
+  },
+  "homepage": "https://github.com/zaffnet/whetstone",
+  "repository": "https://github.com/zaffnet/whetstone",
+  "license": "MIT",
+  "keywords": [
+    "python",
+    "fastapi",
+    "sqlmodel",
+    "code-review",
+    "writing",
+    "ruff",
+    "hooks"
+  ],
+  "skills": [
+    "./skills"
+  ],
+  "agents": [
+    "./agents/async-safety-reviewer.md",
+    "./agents/deceptive-test-hunter.md",
+    "./agents/consumer-agnostic-client-reviewer.md",
+    "./agents/variant-extensibility-reviewer.md"
+  ],
+  "hooks": "./hooks/hooks.json"
+}

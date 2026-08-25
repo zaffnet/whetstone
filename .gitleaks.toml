@@ -41,4 +41,9 @@ description = "Files that legitimately mention the patterns above"
 paths = [
   '''^tests/.*\.bats$''',
   '''^template/project/\.env\.example$''',
+  # Local tool state, never committed; `gitleaks dir` would otherwise flag venv shebangs.
+  '''(^|/)\.venv/''',
+  '''(^|/)\.ruff_cache/''',
+  '''(^|/)\.mypy_cache/''',
+  '''(^|/)\.pytest_cache/''',
 ]

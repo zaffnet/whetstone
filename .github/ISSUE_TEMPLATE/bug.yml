@@ -1,0 +1,28 @@
+name: Bug
+description: Something in the bootstrap, template, skills, or scripts does not work.
+labels: [bug]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - home (chezmoi)
+        - template (Copier)
+        - skills / agents / hooks
+        - bin scripts
+        - CI
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Command, output, and what you expected.
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: macOS and tool versions
+      placeholder: macOS 15.5, chezmoi 2.72.0, uv 0.11.21

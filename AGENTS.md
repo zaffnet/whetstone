@@ -1,0 +1,33 @@
+# Working conventions
+
+Read once per session. Detail lives in `docs/handbook/` of the whetstone repo, which chezmoi
+links to `~/.agents/handbook/`. This file is symlinked to `~/.claude/CLAUDE.md` and
+`~/.codex/AGENTS.md`, so it applies everywhere.
+
+## Writing
+
+Follow `~/.agents/handbook/writing.md`. Plain sentences that state
+facts and decisions. Use a list when the material is a list. If the code, the doc, or the
+user already named something, use that exact word.
+
+## Code
+
+Follow `~/.agents/handbook/code-style.md`. Python follows the Google
+style guide for judgment calls; ruff owns formatting, naming, and imports. Test files are
+`*_test.py` beside the module, never `test_*.py`. Fix the root cause; do not silence a
+checker. Keep diffs surgical.
+
+## Working with agents
+
+Follow `~/.agents/handbook/working-with-agents.md`. Color
+flags go on the command, never in the environment. Run independent reads in one turn. Ending
+a turn is a stop, not a wait. Design docs are guidelines, and drift from code is expected.
+
+## Git
+
+Follow `~/.agents/handbook/git.md`. Small PRs, one logical change each.
+Conventional commits, imperative mood, 50-character first line.
+
+## Skills
+
+Check `~/.agents/skills` at the start of a task and load the ones that match.

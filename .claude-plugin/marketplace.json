@@ -1,0 +1,69 @@
+{
+  "name": "whetstone",
+  "description": "Agent skills, reviewer subagents, and hooks from zaffnet/whetstone.",
+  "owner": {
+    "name": "Zafar Mahmood",
+    "email": "zafar@zafarmahmood.com",
+    "url": "https://zafarmahmood.com"
+  },
+  "plugins": [
+    {
+      "name": "whetstone-skills",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills"
+      ],
+      "description": "FastAPI and SQLModel conventions, deslop, writing-whip, verification-before-completion, multi-model PR review, and more.",
+      "version": "0.1.0",
+      "category": "Developer Tools",
+      "keywords": [
+        "python",
+        "fastapi",
+        "sqlmodel",
+        "writing",
+        "code-review"
+      ],
+      "license": "MIT",
+      "repository": "https://github.com/zaffnet/whetstone"
+    },
+    {
+      "name": "whetstone-reviewers",
+      "source": "./",
+      "strict": false,
+      "agents": [
+        "./agents/async-safety-reviewer.md",
+        "./agents/deceptive-test-hunter.md",
+        "./agents/consumer-agnostic-client-reviewer.md",
+        "./agents/variant-extensibility-reviewer.md"
+      ],
+      "description": "Reviewer subagents: async safety, deceptive tests, consumer-agnostic clients, variant extensibility.",
+      "version": "0.1.0",
+      "category": "Developer Tools",
+      "keywords": [
+        "code-review",
+        "asyncio",
+        "testing",
+        "python"
+      ],
+      "license": "MIT",
+      "repository": "https://github.com/zaffnet/whetstone"
+    },
+    {
+      "name": "whetstone-hooks",
+      "source": "./",
+      "strict": false,
+      "hooks": "./hooks/hooks.json",
+      "description": "ruff on every edit and a worktree setup hook.",
+      "version": "0.1.0",
+      "category": "Developer Tools",
+      "keywords": [
+        "ruff",
+        "hooks",
+        "worktree"
+      ],
+      "license": "MIT",
+      "repository": "https://github.com/zaffnet/whetstone"
+    }
+  ]
+}

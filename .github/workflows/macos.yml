@@ -1,0 +1,28 @@
+name: macos
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "41 6 * * 1" # Mondays 06:41 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: brew install chezmoi bats-core jq
+      - name: Apply the chezmoi tree into the runner home
+        env:
+          CI: "1"
+        run: |
+          start=$SECONDS
+          chezmoi init --apply --source "$GITHUB_WORKSPACE" \
+            --promptString "name=CI,email=ci@example.com,src_dir=src" \
+            --promptChoice role=personal
+          echo "Bootstrap (CI mode, no installs): $((SECONDS - start))s" >> "$GITHUB_STEP_SUMMARY"
+      - run: bats tests/

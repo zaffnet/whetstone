@@ -1,0 +1,46 @@
+name: template
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  render-and-check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [minimal, full]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      - name: Install actionlint
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) 1.7.12 /usr/local/bin
+      - name: Render the template
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          extra=()
+          if [ "$VARIANT" = full ]; then
+            extra=(-d use_docker=true -d use_fastapi=true)
+          fi
+          uvx copier copy --defaults --trust \
+            -d project_name=demo-app -d description=Demo -d github_owner=octocat \
+            "${extra[@]}" . /tmp/demo
+      - name: Check the generated project
+        working-directory: /tmp/demo
+        run: |
+          git init -q
+          git add -A
+          git -c user.name=ci -c user.email=ci@example.com commit -qm "chore: initial" --no-verify
+          uv sync --all-groups
+          SKIP=check-container-version,diff-cover uv run pre-commit run --all-files --show-diff-on-failure
+          uv run pytest -qq
+          actionlint

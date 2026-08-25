@@ -1,0 +1,11 @@
+name: Suggestion
+description: A generic improvement to a config, skill, or the template.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: change
+    attributes:
+      label: Change
+      description: What should change and why it applies beyond one machine or one project.
+    validations:
+      required: true
