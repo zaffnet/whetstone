@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/{{ github_owner }}/{{ project_name }}/actions/workflows/ci.yaml/badge.svg)](https://github.com/{{ github_owner }}/{{ project_name }}/actions/workflows/ci.yaml)
 
-{{ description }}
+{% if description %}{{ description }}
 
-## Quickstart
+{% endif %}## Quickstart
 
 ```bash
 gh repo clone {{ github_owner }}/{{ project_name }}

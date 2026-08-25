@@ -1,8 +1,8 @@
 # {{ project_name }}
 
-{{ description }}
+{% if description %}{{ description }}
 
-## Code style
+{% endif %}## Code style
 
 Python follows the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html) for judgment calls. Ruff (pre-commit) owns naming, formatting, and imports.
 
