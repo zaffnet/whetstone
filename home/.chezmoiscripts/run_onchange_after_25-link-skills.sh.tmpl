@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Links every hand-written skill in the repo's skills/ into ~/.agents/skills, so adding a
+# skill is one step: create skills/<name>/SKILL.md and run `just apply`. Re-runs whenever
+# the set of skill names changes (the list below is part of the script's hash).
+# skills: {{ output "ls" (joinPath .chezmoi.workingTree "skills") | trim | replace "\n" " " }}
+set -euo pipefail
+
+repo_skills="{{ .chezmoi.workingTree }}/skills"
+target="{{ .chezmoi.homeDir }}/.agents/skills"
+mkdir -p "$target"
+
+for skill in "$repo_skills"/*/; do
+  name="$(basename "$skill")"
+  link="$target/$name"
+  if [[ -L $link ]]; then
+    [[ "$(readlink "$link")" == "${skill%/}" ]] || ln -sfn "${skill%/}" "$link"
+  elif [[ -e $link ]]; then
+    echo "skip $name: $link exists and is not a symlink" >&2
+  else
+    ln -s "${skill%/}" "$link"
+  fi
+done
+
+# Remove links that point into the repo but whose skill folder is gone.
+for link in "$target"/*; do
+  [[ -L $link ]] || continue
+  dest="$(readlink "$link")"
+  [[ $dest == "$repo_skills"/* && ! -d $dest ]] && rm "$link" && echo "unlinked $(basename "$link")"
+done
+exit 0
