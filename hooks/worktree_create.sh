@@ -18,6 +18,11 @@
 #
 # Environment:
 #   WORKTREE_ROOT  Parent directory for new worktrees (default: the repo's parent).
+#
+# Opt-in: wire it through the whetstone-hooks plugin or a WorktreeCreate entry in
+# settings.json. It is not in the project template because the Claude desktop app runs
+# sessions in a sandbox that cannot reach the repository, and a configured WorktreeCreate
+# hook has no fallback: if it cannot print a path, worktree creation fails.
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
 
