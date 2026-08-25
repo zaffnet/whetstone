@@ -15,9 +15,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/aws/agent-toolkit-for-aws.git",
       "skillPath": "skills/core-skills/aws-cloudformation/SKILL.md",
-      "skillFolderHash": "073d65637eeaf1e3f2af172496a3f99a81842d39",
+      "skillFolderHash": "dce17e3a01ee4fa3f2e35909941d84eaac3e9053",
       "installedAt": "2026-08-12T00:14:00.853Z",
-      "updatedAt": "2026-08-14T07:28:59.379Z"
+      "updatedAt": "2026-08-25T20:32:01.226Z"
     },
     "aws-containers": {
       "source": "aws/agent-toolkit-for-aws",
@@ -87,9 +87,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/github/gh-stack.git",
       "skillPath": "skills/gh-stack/SKILL.md",
-      "skillFolderHash": "c95c8b5b4dd850f3fef007b304428f5684f2fb87",
+      "skillFolderHash": "c29ba25c9c07534c27f1a3253bd0ca3846c4f8c7",
       "installedAt": "2026-08-20T06:16:03Z",
-      "updatedAt": "2026-08-20T06:16:04Z"
+      "updatedAt": "2026-08-25T20:32:03.848Z"
     },
     "querying-aws-cloudwatch": {
       "source": "aws/agent-toolkit-for-aws",
