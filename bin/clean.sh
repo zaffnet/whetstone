@@ -84,7 +84,8 @@ done
 
 ((${#roots[@]} > 0)) || roots=(.)
 
-for root in "${roots[@]}"; do
+for i in "${!roots[@]}"; do
+  root=${roots[$i]}
   if [[ ! -d $root ]]; then
     printf 'clean.sh: not a directory: %s\n' "$root" >&2
     exit 2
@@ -94,6 +95,10 @@ for root in "${roots[@]}"; do
     printf 'clean.sh: refusing to clean %s\n' "$resolved" >&2
     exit 2
   fi
+  # The empty-parent sweep below compares dirname output against the root, and
+  # dirname never emits a trailing slash; tab completion always does.
+  root=${root%/}
+  roots[i]=${root:-/}
 done
 
 # Builds "( -name A -o -name B ... )" in name_group. Every pattern stays quoted:
@@ -141,9 +146,11 @@ select_junk() {
     "${dir_group[@]}" -type d -prune -print0 -o \
     "${file_group[@]}" -type f -print0
 
-  # -not excludes what the pass above already selected, so the two never name
-  # the same path and a dry-run counts exactly what --apply removes.
+  # Prunes the same junk directories so a log inside one is not named twice:
+  # under --apply the first pass has already removed it by the time this pass
+  # would reach it. -not excludes files the first pass already selected.
   find "$root" "${protect[@]}" -o \
+    "${dir_group[@]}" -type d -prune -o \
     -path '*/logs/*' -type f \( -name '*.log' -o -name '*.log.*' \) \
     -not "${file_group[@]}" -print0
 }
@@ -162,7 +169,7 @@ human_size() {
 if ((apply == 1)); then
   printf 'DELETING\n'
 else
-  printf 'WOULD DELETE (dry-run, pass --apply to remove)\n'
+  printf 'WOULD DELETE (dry-run, pass --apply to remove; parents left empty go too)\n'
 fi
 
 total_kb=0
