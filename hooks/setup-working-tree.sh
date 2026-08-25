@@ -109,7 +109,10 @@ fi
 if [[ -f $target/pyproject.toml ]] && command -v uv >/dev/null 2>&1; then
   (cd "$target" && uv sync -q --all-groups)
   if [[ -f $target/.pre-commit-config.yaml ]]; then
-    (cd "$target" && uv run pre-commit install >/dev/null)
+    # Some Macs set a system-level core.hooksPath; GIT_CONFIG_NOSYSTEM lets pre-commit
+    # install its hook (the system hook chains to .git/hooks). Never fail the worktree over it.
+    (cd "$target" && GIT_CONFIG_NOSYSTEM=1 uv run pre-commit install >/dev/null) \
+      || printf 'setup-working-tree: pre-commit install failed; run it by hand\n' >&2
   fi
 fi
 
