@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Installs Homebrew if missing, then converges on the Brewfile. `run_onchange_`
-# re-runs only when this rendered script changes, and the Brewfile hash below
-# makes any Brewfile edit count as a change.
-# Brewfile hash: {{ include "dot_config/homebrew/Brewfile" | sha256sum }}
+# Installs Homebrew if missing, then converges on the Brewfile. The Brewfile is inlined
+# here at render time, so this works on the first apply (before any file is written)
+# and re-runs whenever the Brewfile changes (`run_onchange_` hashes the rendered script).
 set -euo pipefail
 
 if ! command -v brew >/dev/null; then
@@ -10,4 +9,6 @@ if ! command -v brew >/dev/null; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
-brew bundle install --no-upgrade --file="{{ .chezmoi.homeDir }}/.config/homebrew/Brewfile"
+brew bundle install --no-upgrade --file=/dev/stdin <<'BREWFILE'
+{{ include "dot_config/homebrew/Brewfile" -}}
+BREWFILE
