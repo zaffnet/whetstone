@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Runs after every apply. Copies ~/.agents/mcp.json into Cursor, Claude Code, and Codex;
+# sync-mcp is the only writer of Codex's [mcp_servers.*] and chezmoi leaves that section
+# alone. Also installs the gh extension the prompt relies on. Both steps need a sign-in
+# that happens after the first apply (Claude Code writes ~/.claude.json on first run, gh
+# needs `gh auth login`), so they retry on every apply instead of being recorded as done.
+set -euo pipefail
+
+sync="{{ .chezmoi.homeDir }}/.agents/bin/sync-mcp"
+if [[ ! -x $sync ]]; then
+  echo "sync-mcp: not installed, skipping" >&2
+elif [[ ! -f "{{ .chezmoi.homeDir }}/.claude.json" ]]; then
+  echo "sync-mcp: ~/.claude.json absent (Claude Code not run yet), skipping" >&2
+else
+  "$sync"
+fi
+
+if command -v gh >/dev/null && gh auth status >/dev/null 2>&1; then
+  gh extension list 2>/dev/null | grep -q 'github/gh-stack' || gh extension install github/gh-stack || true
+fi

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Installs the third-party agent skills listed in ~/.agents/skills.txt (npx skills add, global
-# scope) and the gh extension the prompt relies on. Hand-written skills are linked by
-# 25-link-skills.sh. Re-runs when skills.txt changes.
+# scope). Hand-written skills are linked by 25-link-skills.sh. Re-runs when skills.txt changes.
 # skills.txt hash: {{ include "dot_agents/skills.txt" | sha256sum }}
 set -euo pipefail
 
@@ -22,8 +21,4 @@ if command -v npx >/dev/null; then
   done <"$list"
 else
   echo "skills: npx not found, skipping third-party skills" >&2
-fi
-
-if command -v gh >/dev/null && gh auth status >/dev/null 2>&1; then
-  gh extension list 2>/dev/null | grep -q 'github/gh-stack' || gh extension install github/gh-stack || true
 fi
