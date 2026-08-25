@@ -1,9 +1,9 @@
 # Local overlays and secrets never enter the repo.
 *.local
 *.local.*
-.env
-.env.*
-!.env.example
+/.env
+/.env.*
+!/.env.example
 *.pem
 *.key
 
@@ -16,13 +16,14 @@ __pycache__/
 .copier-answers.yml
 uv.lock.bak
 
-# Editors and agents (runtime state; config lives under home/)
-.claude/
-.codex/
-.cursor/
-.vscode/
-CLAUDE.local.md
-AGENTS.override.md
+# Editors and agents at the repo root (runtime state; config lives under home/ and
+# template/project/, which is why these patterns are anchored with a leading slash)
+/.claude/
+/.codex/
+/.cursor/
+/.vscode/
+/CLAUDE.local.md
+/AGENTS.override.md
 
 # macOS
 .DS_Store

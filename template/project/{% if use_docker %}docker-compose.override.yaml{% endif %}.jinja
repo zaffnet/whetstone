@@ -1,0 +1,11 @@
+services:
+  app:
+{%- if use_fastapi %}
+    command: ["uv", "run", "--no-sync", "uvicorn", "{{ package_name }}.app:app", "--host", "0.0.0.0", "--port", "8080", "--reload", "--reload-dir", "/app/{{ package_name }}"]
+{%- endif %}
+    volumes:
+      - ./{{ package_name }}:/app/{{ package_name }}
+
+  postgres:
+    ports:
+      - "5432:5432"

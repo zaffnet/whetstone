@@ -1,0 +1,35 @@
+# Daily commands. `just` lists them.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# Install the project and every dependency group
+sync:
+    uv sync --all-groups --all-extras
+
+# Run every pre-commit hook on the whole tree
+lint:
+    uv run pre-commit run --all-files
+
+# Run the default test suite
+test *ARGS:
+    uv run pytest -qq --tb=short --no-header {{ '{{ ARGS }}' }}
+
+# Coverage report plus changed-line coverage against origin/main
+cov:
+    uv run pytest -m "not integration and not live" --cov --cov-report=xml --cov-report=term-missing
+    uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under=80
+
+# Remove caches and build output
+clean:
+    rm -rf .pytest_cache .ruff_cache .mypy_cache .coverage coverage.xml htmlcov dist
+    find . -name __pycache__ -type d -prune -exec rm -rf {} +
+{%- if use_docker %}
+
+# Build and run the local stack
+up:
+    IMAGE_TAG=local PULL_POLICY=never docker compose up --build
+
+# Stop the stack; `just down -v` also drops the database volume
+down *ARGS:
+    docker compose down {{ '{{ ARGS }}' }}
+{%- endif %}

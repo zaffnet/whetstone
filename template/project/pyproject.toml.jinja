@@ -1,0 +1,161 @@
+[project]
+name = "{{ project_name }}"
+version = "0.1.0"
+description = "{{ description }}"
+requires-python = ">={{ python_version }}"
+{%- if license != "Proprietary" %}
+license = "{{ license }}"
+{%- endif %}
+dependencies = [
+{%- if use_fastapi %}
+    "fastapi>=0.140",
+    "httpx>=0.28",
+    "pydantic>=2.13",
+    "pydantic-settings>=2.15",
+    "uvicorn[standard]>=0.52",
+{%- endif %}
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.8",
+    "basedpyright>=1.39",
+    "diff-cover>=10.4",
+    "mypy>=2.3",
+    "pip-audit>=2.10",
+    "pre-commit>=4.6",
+    "pytest>=9.1",
+{%- if use_fastapi %}
+    "pytest-asyncio>=0.24",
+{%- endif %}
+    "pytest-cov>=7.1",
+    "pytest-timeout>=2.4",
+{%- if use_fastapi %}
+    "respx>=0.23",
+{%- endif %}
+    "ruff>=0.16",
+{%- if use_docker %}
+    "semver>=3.0",
+    "yq>=4.1",
+{%- endif %}
+]
+
+[tool.pytest.ini_options]
+# Test files sit next to the code they cover and end in _test.py.
+python_files = "*_test.py"
+{%- if use_fastapi %}
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+# Tests construct respx routers directly and do not use the plugin's fixture.
+addopts = '-v -p no:respx -m "not live"'
+{%- else %}
+addopts = '-v -m "not live"'
+{%- endif %}
+markers = [
+    "integration: marks tests as integration tests",
+    "live: marks tests that call live external services",
+]
+
+[tool.coverage.run]
+source = ["."]
+omit = ["**/*_test.py", "**/_test_helpers.py"]
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.mypy]
+python_version = "{{ python_version }}"
+mypy_path = "stubs"
+files = ["."]
+pretty = true
+warn_unused_configs = true
+{%- if use_fastapi %}
+plugins = ['pydantic.mypy']
+{%- endif %}
+exclude = ["^\\.venv/", "^node_modules/"]
+
+[tool.basedpyright]
+include = ["."]
+exclude = [".venv", "node_modules"]
+typeCheckingMode = "strict"
+stubPath = "stubs"
+reportMissingImports = "error"
+reportMissingTypeStubs = false
+pythonVersion = "{{ python_version }}"
+
+[tool.ruff]
+target-version = "py{{ python_version | replace('.', '') }}"
+line-length = {{ line_length }}
+
+[tool.ruff.lint]
+select = ["ALL"]
+extend-select = ["E266"]
+explicit-preview-rules = true
+preview = true
+ignore = [
+    # D100–D105: pydocstyle rules that require docstrings on every public
+    # module, class, method, function, package, and magic method. We don't
+    # enforce blanket docstring coverage; authors add docstrings where they
+    # help and skip them where the name and signature speak for themselves.
+    "D100", # undocumented public module
+    "D101", # undocumented public class
+    "D102", # undocumented public method
+    "D103", # undocumented public function
+    "D104", # undocumented public package
+    "D105", # undocumented magic method
+
+    # D203 requires a blank line before a class docstring. It is mutually
+    # exclusive with D211 (no blank line before class docstring). We prefer
+    # D211, so D203 must be ignored.
+    "D203",
+
+    # D213 requires the docstring summary to start on the second line. It is
+    # mutually exclusive with D212 (summary on the first line). We prefer
+    # D212, so D213 must be ignored.
+    "D213",
+
+    # COM812 flags missing trailing commas. Ruff's formatter already inserts
+    # and removes trailing commas, so this rule conflicts with formatter
+    # output. The formatter owns comma placement.
+    "COM812",
+
+    # FIX (flake8-fixme) flags TODO, FIXME, and HACK comments as errors.
+    # TD (flake8-todos) enforces a specific format for TODO comments
+    # (author, link, issue number). We use TODOs as intentional placeholders
+    # and don't require structured metadata on every one.
+    "FIX",
+    "TD",
+
+    # TRY003 forbids long messages in raise statements and pushes authors
+    # toward custom exception classes for every case. Inline messages are
+    # easier to read and maintain for most of our exception sites.
+    "TRY003",
+
+    # Ignore the absence of copyright notices within Python files.
+    "CPY001",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*_test.py" = [
+    "S101",    # Disable check for "assert" keyword; used by pytest
+    "S105",    # Dummy credentials in tests are intentional
+    "S404",    # subprocess import for process-isolation tests
+    "S603",    # subprocess.run with fixed argv (sys.executable, -c, literal)
+    "PLR2004", # Disable check for "magic-value-comparison" errors
+]
+
+# Stubs may still trip ANN401 on catch-all kwargs; ignore it for .pyi files.
+"*.pyi" = ["ANN401"]
+
+[tool.bandit]
+# Ruff's flake8-bandit rules (`S`, enabled by `select = ["ALL"]`) cover most of
+# bandit and run under `per-file-ignores`, which relaxes `S101` and `S105` on
+# test files because pytest asserts and dummy credentials are intentional there.
+# Bandit mirrors that relaxed profile per path rather than by excluding tests
+# wholesale: `assert_used.skips` drops B101 (assert) on test files and fixtures,
+# and each dummy credential carries a line-specific `# nosec B105`. Test and
+# fixture code stays in scope for every other bandit check.
+exclude_dirs = [".venv", "node_modules"]
+
+[tool.bandit.assert_used]
+skips = ["*_test.py", "*conftest.py"]

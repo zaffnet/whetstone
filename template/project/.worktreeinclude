@@ -1,0 +1,10 @@
+# Untracked local paths copied into every new worktree by
+# .claude/hooks/setup-working-tree.sh and .codex/environments/environment.toml
+# (cp -Rp; no trailing slash on directories). Keep this list in sync with
+# .cursorignore so Cursor indexes the same files.
+.env
+.claude/settings.local.json
+.claude/plans
+CLAUDE.local.md
+AGENTS.override.md
+docker-compose.override.yaml

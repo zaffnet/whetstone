@@ -1,0 +1,27 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+*.egg-info/
+
+# coverage
+.coverage
+coverage.xml
+htmlcov/
+
+# runtime logs
+logs/
+
+# Per-machine agent and editor state. Shared config lives in the tracked files.
+.claude/settings.local.json
+.claude/plans/
+.claude/worktrees/
+CLAUDE.local.md
+AGENTS.override.md
+
+docker-compose.override.yaml

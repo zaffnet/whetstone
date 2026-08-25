@@ -1,0 +1,66 @@
+services:
+  app:
+    build: .
+    image: ghcr.io/{{ github_owner }}/{{ project_name }}:${IMAGE_TAG:-latest}
+    # For local dev: IMAGE_TAG=local PULL_POLICY=never docker compose up --build
+    pull_policy: ${PULL_POLICY:-always}
+{%- if use_fastapi %}
+    command: [ "uv", "run", "uvicorn", "{{ package_name }}.app:app", "--host", "0.0.0.0", "--port", "8080" ]
+    ports:
+      - "8080:8080"
+{%- else %}
+    command: [ "uv", "run", "python", "-m", "{{ package_name }}" ]
+{%- endif %}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://app:app@postgres:5432/app
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+{%- if use_fastapi %}
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+{%- endif %}
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U app -d app" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:
+
+# Local Compose overrides
+#
+# Individual developers can create a `docker-compose.override.yaml` file in the
+# repository root for machine-specific settings. Docker Compose automatically merges it
+# with `docker-compose.yaml` when you run `docker compose up`. This file is ignored by
+# git and should stay untracked because local ports, paths, and environment values often
+# differ from developer to developer.
+#
+# For example, this exposes Postgres to the host and changes local environment values
+# without editing the committed Compose file:
+#
+# ```yaml
+# services:
+#   app:
+#     environment:
+#       LOG_LEVEL: DEBUG
+#
+#   postgres:
+#     ports:
+#       - "5432:5432"
+# ```

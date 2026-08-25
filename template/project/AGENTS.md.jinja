@@ -1,0 +1,51 @@
+# {{ project_name }}
+
+{{ description }}
+
+# Code style
+
+Python follows the [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html) for judgment calls. Ruff (pre-commit) owns naming, formatting, and imports.
+
+Google-style docstrings on public modules, classes, and functions. One-line helpers skip Args/Returns. Type hints on function signatures.
+
+Make routine judgment calls. Check in only when different readings of the request would lead to materially different work. If you assume something, say what you assumed.
+
+Write the minimum that solves the problem. Keep diffs surgical: every changed line traces to the request. Mention unrelated dead code; do not delete it unless asked. Remove names this change made unused.
+
+Fix the root cause. Do not leave `# type: ignore`, bare `except: pass`, or unexplained `# noqa`.
+
+Test files are `*_test.py`, never `test_*.py`. Correct: `memory_store_test.py`. Wrong: `test_memory_store.py`.
+
+Do not add tests that only assert a constant or a fact ruff, mypy, or basedpyright already prove. No section-separator comments. No template docstrings that restate the function name.
+
+# Writing style
+
+- Write for humans, not agents.
+- If the code, the doc, or the user already named it, use that exact word. Do not paraphrase a technical term, and do not coin a near-synonym or near-homophone of one.
+
+# How to run the tests
+
+- One file: `uv run pytest {{ package_name }}/<module>_test.py -qq --tb=short --no-header`
+- Everything pre-commit runs: `uv run pre-commit run --all-files`
+- Live tests (call external services): `uv run pytest -qq --tb=short --no-header -m live`
+
+## Terminal color
+
+Color flags per command, never via env:
+
+- screen output: `pytest --color=yes`, `ruff check --color always`, `git --no-pager diff --color=always`
+- redirected/parsed output: no color (`NO_COLOR=1 GH_FORCE_TTY=0 gh api ...`)
+
+Never strip ANSI with regex after the fact.
+
+# Parallel tool calling in agent loops
+
+When the next independent reads or checks are only implied by the task, list what you need next, then request every item that does not depend on another's result in one response.
+
+# Stacked pull requests
+
+Run `gh stack list` to see the stack. Use `/gh-stack` to work with GitHub Stack.
+
+# Machine-local facts
+
+Put machine-specific context (local clone paths, internal URLs, credentials location) in `CLAUDE.local.md`. It is ignored by git; Codex reads it as `AGENTS.override.md`.

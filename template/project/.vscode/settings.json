@@ -1,0 +1,55 @@
+{
+  // `.git/info/exclude` carries no extension, so automatic language detection
+  // guesses `shellscript` from its comments and globs and shellcheck then parses
+  // gitignore patterns as commands (`!frontend/scripts/` reads as SC1035). It is
+  // gitignore syntax, and `ignore` is the language the built-in git extension
+  // contributes for it.
+  "files.associations": {
+    "**/.git/info/exclude": "ignore"
+  },
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.venvPath": "${workspaceFolder}",
+  "gitlens.currentLine.uncommittedChangesFormat": "✏️ ${ago} (uncommitted)",
+  "prettier.printWidth": 100,
+  // Design docs and Compose keep hand-wrapped prose. Global user settings may set
+  // Prettier as the markdown formatter with formatOnSave + autoSave, which
+  // rewrites tables/headers/paragraphs into PR noise. Keep format-on-save off
+  // for those languages in this workspace.
+  "[markdown]": {
+    "editor.formatOnSave": false,
+    "editor.formatOnPaste": false
+  },
+  "[dockercompose]": {
+    "editor.formatOnSave": false,
+    "editor.formatOnPaste": false
+  },
+  "[yaml]": {
+    "editor.formatOnSave": false,
+    "editor.formatOnPaste": false
+  },
+  // Bind the editor to the Ruff that `uv sync` installs, so diagnostics match
+  // what pre-commit and CI report. `ruff.path` outranks `ruff.importStrategy`,
+  // which means a missing `.venv` surfaces as an error instead of silently
+  // falling back to the newer Ruff bundled with the extension.
+  "ruff.path": [
+    "${workspaceFolder}/.venv/bin/ruff"
+  ],
+  "ruff.interpreter": [
+    "${workspaceFolder}/.venv/bin/python"
+  ],
+  "ruff.importStrategy": "fromEnvironment",
+  // The `uv` backend may format with a different Ruff version than the one
+  // resolved above; `internal` keeps the formatter and linter on one binary.
+  "ruff.format.backend": "internal",
+  "ruff.nativeServer": "on",
+  "cSpell.words": [
+    "argnames",
+    "argvalues",
+    "basedpyright",
+    "nosec",
+    "pyrefly"
+  ],
+  // No lint or format options are set here. Leaving `ruff.configuration` unset
+  // makes the server discover pyproject.toml exactly as the command line does,
+  // keeping that file the single source of truth for rules and style.
+}

@@ -1,0 +1,130 @@
+# Development guide
+
+## Quickstart
+
+```bash
+gh repo clone {{ github_owner }}/{{ project_name }}
+cd {{ project_name }}
+
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install dependencies. uv reads .python-version to pick the interpreter for .venv.
+uv sync --all-groups --all-extras
+
+# Install pre-commit hooks if you plan to modify the code
+uv run pre-commit install
+{%- if use_docker %}
+
+# Docker Compose is required for the local stack and for database tests.
+docker compose version
+{%- endif %}
+```
+{%- if use_docker %}
+
+### Running the application
+
+```bash
+mkdir -p logs
+LOG_LEVEL=DEBUG IMAGE_TAG=local PULL_POLICY=never docker compose up --build
+{%- if use_fastapi %}
+curl http://localhost:8080/health
+{%- endif %}
+```
+
+Stop with `docker compose down`; add `-v` to drop the Postgres volume and start from scratch.
+
+> **After a schema change, reset the volume.** `create_all` only creates *missing* tables and
+> enum types; it never `ALTER`s an existing schema. Run `docker compose down -v` before the
+> next `up`, otherwise the stale schema persists in the `pgdata` volume.
+{%- endif %}
+
+## Creating commits and pull requests
+
+### Branch naming
+
+Use the pattern `username/two-four-word-description`, for example `{{ github_owner }}/add-rate-limiting`.
+
+### Commit messages
+
+Follow Conventional Commits (`conventionalcommits.org`):
+
+```txt
+<type>(scope): <subject>
+```
+
+Valid types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `ci`, `style`, `perf`, `build`.
+Write the subject in imperative mood ("add", "fix", "remove", not "added", "fixes", "removed").
+Keep the first line under 50 characters and the full message under 100 words.
+
+```txt
+feat(api): add rate limiting
+fix(worker): retry on transient timeouts
+docs(readme): update local setup instructions
+```
+
+### Pre-commit hooks
+
+`uv run pre-commit install` registers the hooks in `.pre-commit-config.yaml`. CI runs the same
+hooks and enforces changed-line coverage (below).
+
+Some hooks (ruff) modify files in place. The commit then aborts because the working tree changed
+after staging; re-add and commit again:
+
+```bash
+git add -u
+git commit
+```
+
+Do not skip hooks with `--no-verify`. If a hook fails and you do not understand why, ask before
+bypassing it.
+
+### Pull requests
+
+Follow `.github/PULL_REQUEST_TEMPLATE.md`. Keep PRs small; see [git-and-small-prs.md](git-and-small-prs.md).
+
+## Running the tests
+
+Test files live next to the code they cover and end with `*_test.py`, never `test_*.py`.
+
+```bash
+# Default suite (excludes integration and live tests)
+uv run pytest -m "not integration and not live"
+
+# Coverage command used by pre-commit and CI
+uv run pytest -m "not integration and not live" --cov --cov-report=xml
+
+# Changed-line coverage against main (CI requires at least 80%)
+uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under=80
+
+# Everything
+uv run pytest
+```
+
+## Toolchain
+
+| Tool | Role |
+|---|---|
+| `uv` | Dependency resolution, virtualenv, Python version (`.python-version`), lockfile (`uv.lock`, committed) |
+| `ruff` | Lint (`select = ["ALL"]` with a commented ignore list) and format |
+| `mypy` + `basedpyright` | Two type checkers; each catches what the other misses |
+| `pyrefly` | Fast type checking in the editor (`pyrefly.toml`) |
+| `bandit`, `pip-audit` | Security lint and dependency vulnerability audit |
+| `pytest`, `pytest-cov`, `diff-cover` | Tests and changed-line coverage gate |
+| `pre-commit` | Runs all of the above before each commit and in CI |
+{%- if use_docker %}
+| `docker compose` | Local stack; `docker-compose.override.yaml` for per-machine overrides |
+{%- endif %}
+
+`pyproject.toml` configures every tool. Runtime dependencies live under `[project.dependencies]`,
+development tools under `[dependency-groups.dev]`.
+{%- if use_docker %}
+
+### Container image
+
+The Dockerfile declares the uv image as a build stage so Dependabot can update it, installs
+with `uv sync --frozen --no-dev` from the committed lockfile, and runs as a non-root user. The
+`IMAGE_VERSION` build arg defaults to `project.version`; the `check-container-version` hook
+keeps the two equal, and CI overrides it with
+`<project-version>-dev.<run-number>.<attempt>+g<seven-character-commit>`.
+{%- endif %}

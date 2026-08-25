@@ -1,0 +1,50 @@
+# Codex cloud/worktree environment. Copies the untracked local files listed in
+# .worktreeinclude into the worktree, builds the virtualenv, installs hooks.
+version = 1
+name = "{{ project_name }}"
+
+[setup]
+script = '''
+#!/bin/bash
+
+while IFS= read -r line; do
+  [ -z "$line" ] && continue
+  case "$line" in \#*) continue ;; esac
+  src="${CODEX_SOURCE_TREE_PATH}/${line}"
+  dst="${CODEX_WORKTREE_PATH}/${line}"
+  if [ ! -e "$src" ]; then
+    echo "warning: $src does not exist, skipping" >&2
+    continue
+  fi
+  mkdir -p "$(dirname "$dst")"
+  cp -R "$src" "$dst"
+done < "${CODEX_SOURCE_TREE_PATH}/.worktreeinclude"
+
+cd "$CODEX_WORKTREE_PATH"
+
+# AGENTS.md is the source of truth (tracked). CLAUDE.md is @AGENTS.md.
+# Machine-local extra context is CLAUDE.local.md; Codex reads it as AGENTS.override.md.
+if [ -f CLAUDE.local.md ]; then
+  cp CLAUDE.local.md AGENTS.override.md
+fi
+
+rm -rf .venv && uv sync --all-groups --all-extras
+source .venv/bin/activate
+pre-commit install'''
+
+[cleanup]
+script = '''
+#!/bin/bash
+
+mapfile -t entries < "${CODEX_WORKTREE_PATH}/.worktreeinclude"
+for line in "${entries[@]}"; do
+  [ -z "$line" ] && continue
+  case "$line" in \#*) continue ;; esac
+  [ "$line" = ".codex" ] && continue
+  target="${CODEX_WORKTREE_PATH}/${line}"
+  if [ ! -e "$target" ]; then
+    echo "warning: $target does not exist, skipping" >&2
+    continue
+  fi
+  rm -rf -- "$target" || echo "warning: failed to delete $target" >&2
+done'''

@@ -1,0 +1,7 @@
+{
+  "hooks": {
+    "beforeMCPExecution": [],
+    "beforeShellExecution": []
+  },
+  "version": 1
+}

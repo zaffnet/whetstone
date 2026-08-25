@@ -1,0 +1,3 @@
+# Follow `source` directives so shellcheck sees functions defined in sibling files
+# (.claude/hooks/_common.sh is sourced by every hook).
+external-sources=true

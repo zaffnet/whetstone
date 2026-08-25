@@ -1,0 +1,103 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: pretty-format-json
+        args: [--autofix]
+        # .vscode/settings.json is JSONC (comments); the editor owns its format.
+        exclude: ^\.vscode/settings\.json$
+
+  - repo: local
+    hooks:
+{%- if use_docker %}
+      - id: check-container-version
+        name: check container version
+        entry: >-
+          bash -c '
+          metadata_file=$(mktemp);
+          cleanup() { unlink "$metadata_file"; };
+          trap cleanup EXIT;
+          docker buildx build --call=outline --metadata-file "$metadata_file" . >/dev/null &&
+          project_version=$(uv run tomlq -r ".project.version" pyproject.toml) &&
+          image_version=$(uv run yq -r ".[\"result.json\"].args[] | select(.name == \"IMAGE_VERSION\") | .value" "$metadata_file") &&
+          test "$project_version" = "$image_version" &&
+          uv run pysemver check "$project_version" >/dev/null'
+        language: system
+        files: ^(Dockerfile|pyproject\.toml)$
+        pass_filenames: false
+
+{%- endif %}
+      - id: ruff-fix
+        name: ruff fix (lint + import sort)
+        entry: uv run ruff check --fix
+        language: system
+        types_or: [python, pyi]
+
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types_or: [python, pyi]
+
+      - id: forbid-section-separator-comments
+        name: forbid section-separator comments
+        entry: '^\s*#\s*(?:[-=]{3,}|#{2,})(?:\s+.*)?$'
+        language: pygrep
+        types_or: [python, pyi]
+
+      - id: mypy
+        name: mypy
+        entry: env MYPY_NUM_WORKERS=8 uv run mypy
+        language: system
+        pass_filenames: false
+        always_run: true
+        require_serial: true
+
+      - id: basedpyright
+        name: basedpyright
+        entry: uv run basedpyright
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: bandit
+        name: bandit
+        entry: uv run bandit -c pyproject.toml -r .
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: pip-audit
+        name: pip-audit
+        entry: uv run pip-audit
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: unit-tests
+        name: unit tests
+        entry: >-
+          bash -c 'uv run pytest -m "not integration and not live" --cov --cov-report=xml'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Changed-line coverage against origin/main. Skips with a note when the
+      # remote or branch does not exist yet (fresh project, detached CI checkout).
+      - id: diff-cover
+        name: Python line coverage (changed lines only)
+        entry: >-
+          bash -c 'git fetch -q origin main 2>/dev/null || true;
+          if git rev-parse --verify -q origin/main >/dev/null; then
+            uv run diff-cover coverage.xml --compare-branch=origin/main
+            --fail-under=80 --total-percent-float;
+          else
+            echo "diff-cover: origin/main not found, skipping";
+          fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true

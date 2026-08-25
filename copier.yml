@@ -1,0 +1,88 @@
+# Copier template for a Python project: uv, ruff, mypy + basedpyright, pre-commit,
+# GitHub Actions, and agent configuration for Claude Code, Codex, and Cursor.
+#
+#   uvx copier copy gh:zaffnet/whetstone my-project
+#   uvx copier update            # later, from inside the project
+_min_copier_version: "9.4.0"
+_subdirectory: template/project
+_templates_suffix: .jinja
+_answers_file: .copier-answers.yml
+_exclude:
+  - "copier.yaml"
+  - "copier.yml"
+  - "~*"
+  - "*.py[co]"
+  - "__pycache__"
+  - ".git"
+  - ".DS_Store"
+  - ".svn"
+_skip_if_exists:
+  - README.md
+  - uv.lock
+_message_after_copy: |
+  {{ project_name }} is ready. Next:
+
+    cd {{ _copier_conf.dst_path }}
+    git init -b main
+    uv sync --all-groups
+    uv run pre-commit install
+    uv run pytest -qq
+
+  Later, pull template updates with `uvx copier update`.
+
+project_name:
+  type: str
+  help: Project name (kebab-case; also the repository and distribution name)
+  validator: >-
+    {% if not (project_name | regex_search('^[a-z][a-z0-9]*(-[a-z0-9]+)*$')) %}
+    Use kebab-case: lowercase letters, digits, single hyphens.
+    {% endif %}
+
+package_name:
+  type: str
+  help: Python import name
+  default: "{{ project_name | replace('-', '_') }}"
+  validator: >-
+    {% if not (package_name | regex_search('^[a-z][a-z0-9_]*$')) %}
+    Use a valid lowercase identifier.
+    {% endif %}
+
+description:
+  type: str
+  help: One-line description
+
+github_owner:
+  type: str
+  help: GitHub user or org
+
+python_version:
+  type: str
+  help: Minimum Python version
+  default: "3.12"
+  choices:
+    - "3.12"
+    - "3.13"
+
+line_length:
+  type: int
+  help: Line length for ruff and editors
+  default: 100
+
+use_docker:
+  type: bool
+  help: Dockerfile, Compose stack with Postgres, container-version hook, Trivy scan in CI
+  default: false
+
+use_fastapi:
+  type: bool
+  help: FastAPI, uvicorn, pydantic-settings, httpx, pytest-asyncio, and the async-safety reviewer agent
+  default: false
+
+license:
+  type: str
+  help: License
+  default: MIT
+  choices:
+    - MIT
+    - Apache-2.0
+    - Proprietary

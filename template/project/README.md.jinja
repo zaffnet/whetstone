@@ -1,0 +1,36 @@
+# {{ project_name }}
+
+[![CI](https://github.com/{{ github_owner }}/{{ project_name }}/actions/workflows/ci.yaml/badge.svg)](https://github.com/{{ github_owner }}/{{ project_name }}/actions/workflows/ci.yaml)
+
+{{ description }}
+
+## Quickstart
+
+```bash
+gh repo clone {{ github_owner }}/{{ project_name }}
+cd {{ project_name }}
+uv sync --all-groups          # creates .venv from .python-version and uv.lock
+uv run pre-commit install     # hooks: ruff, mypy, basedpyright, bandit, pip-audit, tests, diff-cover
+uv run pytest -qq
+```
+{%- if use_docker %}
+
+Run the stack:
+
+```bash
+LOG_LEVEL=DEBUG IMAGE_TAG=local PULL_POLICY=never docker compose up --build
+```
+{%- endif %}
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for conventions and the full toolchain.
+
+## Layout
+
+| Path | Purpose |
+|---|---|
+| `{{ package_name }}/` | Source. Tests sit next to the code as `*_test.py`. |
+| `docs/` | Design docs ([template](docs/technical-design-doc-template.md)) and guides. |
+| `.claude/`, `.codex/`, `.cursor/` | Agent configuration: hooks, rules, reviewer subagents. |
+| `AGENTS.md` | Conventions every coding agent reads. `CLAUDE.md` holds the code-style subset. |
+
+Generated from [whetstone](https://github.com/zaffnet/whetstone). Pull template updates with `uvx copier update`.

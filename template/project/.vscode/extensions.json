@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "detachhead.basedpyright",
+    "charliermarsh.ruff"
+  ],
+  "unwantedRecommendations": [
+    "anysphere.cursorpyright"
+  ]
+}
