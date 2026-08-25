@@ -9,7 +9,7 @@ Cursor. One repo, one source of truth, tested in CI.
 [![macos](https://github.com/zaffnet/whetstone/actions/workflows/macos.yml/badge.svg)](https://github.com/zaffnet/whetstone/actions/workflows/macos.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-![terminal](docs/img/terminal.png)
+![terminal](docs/img/bootstrap.png)
 
 ## Four commands
 
