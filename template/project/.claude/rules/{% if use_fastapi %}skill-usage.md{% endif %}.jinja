@@ -1,8 +1,9 @@
 ---
-description: FastAPI and SQLModel skills for api and db
+description: FastAPI and SQLModel skills for Python changes
 paths:
-  - "{{ package_name }}/api/**/*.py"
-  - "{{ package_name }}/db/**/*.py"
+  - "{{ package_name }}/**/*.py"
 ---
 
-When a change depends on current FastAPI or SQLModel behavior, read `/fastapi` and `/sqlmodel` under `~/.claude/skills/`. Those match the versions this repo pins, which move faster than model priors.
+When a change depends on current FastAPI or SQLModel behavior, load the `fastapi` and
+`sqlmodel` skills rather than relying on model priors; they track the versions this project
+pins. Install them with `npx skills add zaffnet/whetstone -s fastapi -s sqlmodel`.
