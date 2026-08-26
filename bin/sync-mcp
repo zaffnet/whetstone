@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Copy ~/.agents/mcp.json into Cursor, Claude Code, and Codex user configs."""
+"""Copy ~/.agents/mcp.json into Cursor, Claude Code, and Codex user configs.
+
+Needs Python 3.11 or newer for tomllib, which the system python3 on macOS is not.
+Run it as `uv run --no-project --python 3.12 python ~/.agents/bin/sync-mcp`.
+"""
 
 from __future__ import annotations
 
