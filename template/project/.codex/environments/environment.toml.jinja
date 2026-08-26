@@ -47,7 +47,8 @@ fi
 
 rm -rf .venv && uv sync --all-groups --all-extras
 source .venv/bin/activate
-pre-commit install'''
+# Hides a system-level core.hooksPath, which pre-commit refuses to install over.
+GIT_CONFIG_NOSYSTEM=1 pre-commit install'''
 
 [cleanup]
 script = '''

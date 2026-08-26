@@ -84,13 +84,15 @@ subagents, and the hooks.
 | Packages | Homebrew with a Brewfile | `brew bundle` installs what is missing and skips what is there |
 | Python | uv, ruff, mypy, basedpyright, pyrefly | uv replaces pip, venv, and pyenv; ruff owns style; `docs/decisions/0004` explains the three checkers |
 | Task runner | just | A file of recipes, readable without knowing make |
-| Agent config | `~/.agents` | Claude Code, Codex, and Cursor all link into it, so a skill is added once |
+| Agent config | `~/.agents` | One copy of skills, MCP servers, and instructions; every agent reads it or links to it |
 | Secrets | `~/.zsh_secrets` and `*.local` files | Exported by the shell, read by every tool, never written into a tool's own config |
 
 ## How I keep it honest
 
-- Agent configuration has one copy. Skills, MCP servers, and instructions live in
-  `~/.agents`; each agent gets a symlink.
+- Agent configuration has one copy, in `~/.agents`. Claude Code, Cursor, and Kiro link
+  their skills directories at it and Codex reads it in place; the instruction files are
+  symlinks to this repo's `AGENTS.md`; MCP servers are copied into each product's own
+  config by `bin/sync-mcp`, because none of them reads a shared file.
 - Secrets stay in the environment. No settings file in this repo holds a key, and gitleaks,
   a local denylist hook, and GitHub push protection check that (`docs/redaction.md`).
 - Each disabled lint rule, unusual flag, or pinned version has a comment next to it that

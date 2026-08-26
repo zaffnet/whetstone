@@ -45,7 +45,8 @@ jobs:
       - name: Rendered config parses and carries the work values
         if: matrix.role == 'work'
         run: |
-          python3 -c 'import tomllib, pathlib; tomllib.loads(pathlib.Path.home().joinpath(".codex/config.toml").read_text())'
+          uv run --no-project --python 3.12 python -c \
+            'import tomllib, pathlib; tomllib.loads(pathlib.Path.home().joinpath(".codex/config.toml").read_text())'
           jq -e '.mcpServers["aws-mcp"].env.AWS_PROFILE == "example"' ~/.agents/mcp.json
           jq -e '.mcpServers["code-scan"] == {command: "/opt/example/code-scan", args: ["mcp-server"]}' \
             ~/.agents/mcp.json

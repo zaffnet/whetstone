@@ -12,7 +12,9 @@ if [[ ! -x $sync ]]; then
 elif [[ ! -f "{{ .chezmoi.homeDir }}/.claude.json" ]]; then
   echo "sync-mcp: ~/.claude.json absent (Claude Code not run yet), skipping" >&2
 else
-  "$sync"
+  # sync-mcp needs tomllib (3.11+) and the system python3 on macOS is 3.9. uv comes from
+  # the Brewfile, which 10-brew-bundle.sh installs before this runs.
+  uv run --no-project --python 3.12 python "$sync"
 fi
 
 if command -v gh >/dev/null && gh auth status >/dev/null 2>&1; then

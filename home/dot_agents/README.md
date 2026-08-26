@@ -8,11 +8,15 @@ Add: put a folder with `SKILL.md` at `~/.agents/skills/<name>/`.
 
 Remove: delete that folder.
 
-Claude follows `~/.claude/skills` → `~/.agents/skills`. Codex reads `~/.agents/skills`. Cursor sees them through the Claude symlink. Do not copy the same skill into `~/.cursor/skills` or `~/.codex/skills`.
+`~/.claude/skills`, `~/.cursor/skills`, and `~/.kiro/skills` are all symlinks to this directory, and Codex reads it in place, so a skill is installed once. `home/.chezmoiscripts/run_onchange_after_30-agent-skills.sh.tmpl` passes `-a claude-code`, so the installer writes here and never into an agent's own directory.
+
+`skills.txt` plus the folders in the repo's `skills/` are the reproducible set. Anything else in `~/.agents/skills` is a hand install: an apply neither creates it nor removes it, and `chezmoi status` says nothing about it. Add it to `skills.txt` to keep it, or delete the folder.
 
 ## MCP
 
-Every stdio server is pinned to a version (`pkg@X.Y.Z`). Bump the pin by hand, then run `~/.agents/bin/sync-mcp`.
+Every stdio server is pinned to a version (`pkg@X.Y.Z`). Bump the pin by hand, then sync.
+
+Sync means `uv run --no-project --python 3.12 python ~/.agents/bin/sync-mcp`. The script needs tomllib and the system python3 on macOS is 3.9, so the bare path fails on a fresh Mac. An apply runs it this way for you (`home/.chezmoiscripts/run_after_40-sync-mcp.sh.tmpl`).
 
 Shared raw servers live in `~/.agents/mcp.json`. Secrets are environment variable names, never values. `${VAR}` is the Claude and Codex syntax; Cursor expands `${env:VAR}`. No shared server needs a secret today, so this only matters when one is added.
 
@@ -20,13 +24,13 @@ Add:
 
 1. Confirm it is not already a plugin (github, figma).
 2. Add one key to `mcp.json`.
-3. Run `~/.agents/bin/sync-mcp`.
+3. Run `uv run --no-project --python 3.12 python ~/.agents/bin/sync-mcp`.
 4. Start a new Cursor / Claude / Codex session.
 
 Remove:
 
 1. Delete that key from `mcp.json`.
-2. Run `~/.agents/bin/sync-mcp`.
+2. Run `uv run --no-project --python 3.12 python ~/.agents/bin/sync-mcp`.
 3. Start a new session in each agent.
 
 Do not use `claude mcp add`, `codex mcp add`, or Cursor's MCP form for shared servers. The next sync overwrites those product files. Sync also empties every Claude local scope (`projects[*].mcpServers` in `~/.claude.json`), so anything added with `claude mcp add` is gone after the next sync.

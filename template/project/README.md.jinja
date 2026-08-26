@@ -10,7 +10,8 @@
 gh repo clone {{ github_owner }}/{{ project_name }}
 cd {{ project_name }}
 uv sync --all-groups          # creates .venv from .python-version and uv.lock
-uv run pre-commit install     # hooks: ruff, mypy, basedpyright, bandit, pip-audit, tests, diff-cover
+# GIT_CONFIG_NOSYSTEM hides a system-level core.hooksPath, which pre-commit refuses to install over.
+GIT_CONFIG_NOSYSTEM=1 uv run pre-commit install   # ruff, mypy, basedpyright, bandit, pip-audit, tests, diff-cover
 uv run pytest -qq
 ```
 {%- if use_docker %}

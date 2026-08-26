@@ -25,7 +25,7 @@ _message_after_copy: |
     cd {{ _copier_conf.dst_path }}
     git init -b main
     uv sync --all-groups
-    uv run pre-commit install
+    GIT_CONFIG_NOSYSTEM=1 uv run pre-commit install
     uv run pytest -qq
 
   Later, pull template updates with `uvx copier update`.
@@ -65,8 +65,13 @@ python_version:
 
 line_length:
   type: int
-  help: Line length for ruff and editors
+  help: Line length for ruff and editors (88 or more)
   default: 100
+  validator: >-
+    {% if line_length < 88 %}
+    Use 88 or more. The template is rendered and checked at 88 and 100; below that the
+    scaffold can violate its own ruff config.
+    {% endif %}
 
 use_docker:
   type: bool
@@ -75,7 +80,7 @@ use_docker:
 
 use_fastapi:
   type: bool
-  help: FastAPI, uvicorn, pydantic-settings, httpx, pytest-asyncio, and the async-safety reviewer agent
+  help: FastAPI, uvicorn, pydantic-settings, httpx2, pytest-asyncio, and the async-safety reviewer agent
   default: false
 
 license:

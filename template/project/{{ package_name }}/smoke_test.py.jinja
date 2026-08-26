@@ -7,6 +7,7 @@ import {{ package_name }}
 
 def test_version_matches_pyproject() -> None:
     """The package version and the pyproject version are one number, not two."""
-    pyproject = tomllib.loads((Path(__file__).parents[1] / "pyproject.toml").read_text())
+    pyproject_path = Path(__file__).parents[1] / "pyproject.toml"
+    pyproject = tomllib.loads(pyproject_path.read_text())
     assert {{ package_name }}.__version__ == pyproject["project"]["version"]
     assert re.fullmatch(r"\d+\.\d+\.\d+", {{ package_name }}.__version__)

@@ -41,8 +41,10 @@ chezmoi_managed() {
   fi
 }
 
-@test ".claude/skills points at ~/.agents/skills" {
+@test "every agent's skills directory points at ~/.agents/skills" {
   resolves_to "$H/.claude/skills" "$H/.agents/skills"
+  resolves_to "$H/.cursor/skills" "$H/.agents/skills"
+  resolves_to "$H/.kiro/skills" "$H/.agents/skills"
 }
 
 @test "each hand-written skill resolves into the repo and has a SKILL.md" {
@@ -156,7 +158,9 @@ chezmoi_managed() {
 }
 
 @test "Codex config parses as TOML" {
-  python3 -c 'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$H/.codex/config.toml"
+  # tomllib needs 3.11+; the system python3 on macOS is 3.9.
+  uv run --no-project --python 3.12 python -c \
+    'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$H/.codex/config.toml"
 }
 
 @test "shared MCP config parses as JSON with a non-empty server map" {
@@ -166,4 +170,11 @@ chezmoi_managed() {
 @test "the secrets file is not managed" {
   if [ "$H" = "$HOME" ] && [ -z "${CI:-}" ]; then skip "the real home may hold a hand-made ~/.zsh_secrets"; fi
   [ ! -e "$H/.zsh_secrets" ]
+}
+
+# dot_zsh_secrets.example:1 and docs/new-machine.md:31 both say chmod 600, and nothing
+# else checks that the instruction was followed.
+@test "the secrets file, when present, is readable only by its owner" {
+  [ -e "$H/.zsh_secrets" ] || skip "no ~/.zsh_secrets on this machine"
+  [ "$(stat -f '%Lp' "$H/.zsh_secrets")" = 600 ]
 }
