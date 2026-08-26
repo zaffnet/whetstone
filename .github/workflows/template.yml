@@ -52,8 +52,10 @@ jobs:
           actionlint
           test -f LICENSE
           # A WorktreeCreate hook has no fallback and fails inside the Claude desktop app's
-          # session sandbox; generated projects must not ship one (docs/decisions/0010).
+          # session sandbox; generated projects must not ship one, wired or not
+          # (docs/decisions/0010).
           jq -e '.hooks | has("WorktreeCreate") | not' .claude/settings.json
+          test ! -e .claude/hooks/worktree_create.sh
       - name: Build the image and run the Compose stack
         # line_length only changes rendered source, so build the image once per docker
         # variant rather than once per line_length.

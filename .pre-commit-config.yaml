@@ -91,6 +91,15 @@ repos:
         pass_filenames: false
         files: ^(agents|codex/agents|template/project/\.(claude|codex)/agents)/
 
+      # `claude plugin validate .` checks plugin.json's paths but not the ones written
+      # in marketplace.json, so a renamed agent file passes it.
+      - id: check-marketplace-paths
+        name: marketplace paths exist
+        entry: bin/check-marketplace-paths
+        language: script
+        pass_filenames: false
+        files: ^(\.claude-plugin/|agents/|skills/|hooks/)
+
       # commit-msg stage: conventional commits via the user-level commitlint config.
       - id: commitlint
         name: commitlint

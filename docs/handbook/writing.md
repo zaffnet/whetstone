@@ -3,7 +3,7 @@ When you write prose for me, essays, articles, posts, emails, or rewrites, your 
 
 These fingerprints cluster. A draft that fixes one tell but keeps five others still reads as generated, and a single tell in an otherwise human draft is rarely what gives it away. Weight the structural habits (padding, self-summary, forced significance, missing detail) above any single banned word, because the word lists go stale as models get tuned while the structural habits persist. Any one pattern used once may be fine; the signal is several of them at once, or one repeated.
 
-Each rule carries a list of quoted bad examples, drawn from the tropes catalog at tropes.fyi and from common machine output. They exist to help you recognize a habit in your own draft. Do not copy them into your writing. The examples keep a double-hyphen rendering for em dashes and describe arrows in words, so this document contains no real em dash or arrow of its own. The tropes.fyi label for each pattern is collected in the reference index at the end.
+Each rule carries a list of quoted bad examples, drawn from the tropes catalog at tropes.fyi and from common machine output. They exist to help you recognize a habit in your own draft. Do not copy them into your writing. A bullet that shows the fix as well puts the bad version after "Instead of" and the one to use after "write", so quoted text is never an instruction on its own. The examples keep a double-hyphen rendering for em dashes and describe arrows in words, so this document contains no real em dash or arrow of its own. The tropes.fyi label for each pattern is collected in the reference index at the end.
 
 ## 1. Writing and word choice
 
@@ -12,10 +12,10 @@ Each rule carries a list of quoted bad examples, drawn from the tropes catalog a
   - "Streamline your workflow and harness synergy across the org."
 - Do not use vague adjectives that assert a quality without evidence. Replace deep, complex, comprehensive, impactful, seamless, and innovative with a specific description of what the thing does. Watch for:
   - "a seamless, innovative platform with deep, comprehensive impact"
-  - "our robust and impactful solution" instead of "cut checkout time from 9 seconds to 2"
+  - Instead of "our robust and impactful solution", write "cut checkout time from 9 seconds to 2"
 - Choose concrete verbs that name a specific action; avoid weak or metaphorical stand-ins. For example:
-  - "this drives engagement" instead of "this doubled repeat visits"
-  - "we enable teams to unlock value" instead of "the tool lets two people edit the same file at once"
+  - Instead of "this drives engagement", write "this doubled repeat visits"
+  - Instead of "we enable teams to unlock value", write "the tool lets two people edit the same file at once"
 - Avoid the delve vocabulary cluster, which is common in machine output and reads as a tell: delve, underscore, showcase, intricate, intricacies, meticulous, pivotal, testament, realm, garner, boast, surpass, comprehend, groundbreaking, advancements, align with, foster, elevate, bolster, commendable, enduring, vibrant, interplay, crucial, unwavering, emphasize, enhance, and highlighting. It shows up as:
   - "Let's delve into the details."
   - "Delving deeper into this topic."
@@ -67,7 +67,7 @@ Each rule carries a list of quoted bad examples, drawn from the tropes catalog a
   - "Half the bugs you chase aren't in your code. They're in your head."
   - "The question isn't whether to build. The question is what to build."
 - Do not use "not only ... but also." It pads one idea into a false pair. If two things are true, name them in a plain sentence. For example:
-  - "not only fast but also cheap" instead of "fast and cheap"
+  - Instead of "not only fast but also cheap", write "fast and cheap"
 - Do not stack negations to build suspense before the point. In the wild:
   - "Not a bug. Not a feature. A fundamental design flaw."
   - "Not ten. Not fifty. Five hundred and twenty-three lint violations across 67 files."
@@ -159,7 +159,7 @@ Each rule carries a list of quoted bad examples, drawn from the tropes catalog a
   - "**Security**: Environment-based configuration with ..."
   - "**Performance**: Lazy loading of expensive resources ..."
 - Use sentence case in headings. Capitalize the first word and proper nouns only. For example:
-  - "## The Rise Of Remote Work" instead of "## The rise of remote work"
+  - Instead of "## The Rise Of Remote Work", write "## The rise of remote work"
 
 ## 7. Voice and substance
 
@@ -181,9 +181,9 @@ Each rule carries a list of quoted bad examples, drawn from the tropes catalog a
   - "Interestingly, this pattern repeats across industries."
 - Let tone move with the material. Writing can turn sharp, then plain, then wry as the subject shifts. A single flat register across every paragraph is itself a tell.
 - Do not over-explain why things matter. Models attach importance, legacy, and broader meaning to ordinary facts. State what happened and let the reader weigh it; do not force a tie to a "wider trend" or a "broader impact" where none is warranted. For example:
-  - "The cafe opened in 2019. This matters because it signals the neighborhood's revival." instead of "The cafe opened in 2019."
+  - Instead of "The cafe opened in 2019. This matters because it signals the neighborhood's revival", write "The cafe opened in 2019."
 - Ground the writing in specifics. Use real names, dates, places, and numbers. Generated prose floats above detail and could describe anything. In the wild:
-  - "a leading company saw strong growth" instead of "Stripe's revenue rose 40 percent in 2023"
+  - Instead of "a leading company saw strong growth", write "Stripe's revenue rose 40 percent in 2023"
 - Leave room for subtext. Trust the reader to catch an implication. Writing that states every meaning outright reads flat.
 - Use a metaphor only if it lands exactly. A comparison that is roughly right but slightly off is a tell; if the image is not precise, use plain words. This looks like:
   - "penguins standing on their own flippers"
@@ -199,7 +199,7 @@ Each rule carries a list of quoted bad examples, drawn from the tropes catalog a
   - "Great question."
   - "What a thoughtful note."
 - Give every "this" a clear referent. Name the subject rather than writing "This shows ..." or "That means ..." when the reader cannot tell what it points to. For example:
-  - "This shows the approach works." instead of "The 40 percent drop in errors shows the approach works."
+  - Instead of "This shows the approach works", write "The 40 percent drop in errors shows the approach works."
 - Trim reflexive hedging unless the uncertainty is real and worth flagging. State what you know plainly. Seen as:
   - "generally speaking"
   - "in many cases"

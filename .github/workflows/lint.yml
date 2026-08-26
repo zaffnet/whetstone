@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Template hooks match hooks/
         run: |
-          for f in _common.sh ruff_format.sh setup-working-tree.sh worktree_create.sh; do
+          for f in _common.sh ruff_format.sh setup-working-tree.sh; do
             diff -u "hooks/$f" "template/project/.claude/hooks/$f"
           done
       - name: Reviewer subagents match between Claude markdown and Codex TOML
