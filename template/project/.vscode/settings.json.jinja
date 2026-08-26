@@ -47,6 +47,9 @@
     "${workspaceFolder}/.venv/bin/python"
   ],
   "ruff.importStrategy": "fromEnvironment",
+  // basedpyright resolves from the environment by default; pinned here so the dev
+  // group's version is what the editor reports, whatever the default becomes.
+  "basedpyright.importStrategy": "fromEnvironment",
   // The `uv` backend may format with a different Ruff version than the one
   // resolved above; `internal` keeps the formatter and linter on one binary.
   "ruff.format.backend": "internal",
