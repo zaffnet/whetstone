@@ -12,8 +12,9 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # Install dependencies. uv reads .python-version to pick the interpreter for .venv.
 uv sync --all-groups --all-extras
 
-# Install pre-commit hooks if you plan to modify the code
-uv run pre-commit install
+# Install pre-commit hooks if you plan to modify the code. GIT_CONFIG_NOSYSTEM hides a
+# system-level core.hooksPath, which pre-commit refuses to install over.
+GIT_CONFIG_NOSYSTEM=1 uv run pre-commit install
 {%- if use_docker %}
 
 # Docker Compose is required for the local stack and for database tests.
@@ -60,8 +61,23 @@ docs(readme): update local setup instructions
 
 ### Pre-commit hooks
 
-`uv run pre-commit install` registers the hooks in `.pre-commit-config.yaml`. CI runs the same
+`GIT_CONFIG_NOSYSTEM=1 uv run pre-commit install` registers the hooks in `.pre-commit-config.yaml`. CI runs the same
 hooks and enforces changed-line coverage (below).
+
+`GIT_CONFIG_NOSYSTEM=1` is there because `pre-commit install` refuses to run when a
+system-level `core.hooksPath` is set, which managed macOS fleets use for a mandatory secret
+scanner. It applies to the install only. Commits still read that system setting, so the hook
+this writes to `.git/hooks/pre-commit` runs only if the system hook chains to it, which those
+scanners normally do. Confirm it once:
+
+```bash
+git config --get core.hooksPath          # empty: nothing to worry about
+git hook run --ignore-missing pre-commit # your hooks should run; silence means unreachable
+```
+
+If they do not run, ask whoever owns the system hook to chain to `.git/hooks`. Do not point
+`core.hooksPath` at `.git/hooks` yourself: that disables the fleet's scanner for this
+repository.
 
 Some hooks (ruff) modify files in place. The commit then aborts because the working tree changed
 after staging; re-add and commit again:

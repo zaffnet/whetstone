@@ -31,9 +31,6 @@ dev = [
 {%- endif %}
     "pytest-cov>=7.1",
     "pytest-timeout>=2.4",
-{%- if use_fastapi %}
-    "respx>=0.23",
-{%- endif %}
     "ruff>=0.16",
 {%- if use_docker %}
     "semver>=3.0",
@@ -47,8 +44,7 @@ python_files = "*_test.py"
 {%- if use_fastapi %}
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-# Tests construct respx routers directly and do not use the plugin's fixture.
-addopts = '-v -p no:respx -m "not live"'
+addopts = '-v -m "not live"'
 {%- else %}
 addopts = '-v -m "not live"'
 {%- endif %}

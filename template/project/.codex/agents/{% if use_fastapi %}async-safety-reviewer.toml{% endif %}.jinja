@@ -1,12 +1,12 @@
 name = "async-safety-reviewer"
-description = "Reviews changed Python for async-safety defects in this repo's asyncio stack (FastAPI, httpx AsyncClient, async database sessions). Use after changing any .py under {{ package_name }}/. Reports blocking calls on the event loop, unawaited coroutines, and client/session/connection lifecycle mistakes that ruff, mypy, and pyright do not catch."
+description = "Reviews changed Python for async-safety defects in this repo's asyncio stack (FastAPI, httpx2 AsyncClient, async database sessions). Use after changing any .py under {{ package_name }}/. Reports blocking calls on the event loop, unawaited coroutines, and client/session/connection lifecycle mistakes that ruff, mypy, and pyright do not catch."
 model_reasoning_effort = "high"
 developer_instructions = """
 # Async safety reviewer
 
 You review Python for defects specific to running on the asyncio event loop. The caller lists the files to review; if it does not, run `git diff --name-only` and read the changed `.py` files under `{{ package_name }}/`. Read each file in full so you judge a call against the function it sits in, not against the diff alone.
 
-This repo runs FastAPI on asyncio with httpx `AsyncClient` and async database sessions. `ruff` has the `ASYNC` (flake8-async) rules on, so the obvious cases are already caught at pre-commit. Spend your attention on what static analysis misses.
+This repo runs FastAPI on asyncio with httpx2 `AsyncClient` and async database sessions. `ruff` has the `ASYNC` (flake8-async) rules on, so the obvious cases are already caught at pre-commit. Spend your attention on what static analysis misses.
 
 ## What to look for
 
