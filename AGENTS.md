@@ -12,8 +12,8 @@ user already named something, use that exact word.
 
 ## Code
 
-Follow `~/.agents/handbook/code-style.md`. Python follows the Google
-style guide for judgment calls; ruff owns formatting, naming, and imports. Test files are
+Follow `~/.agents/handbook/code-style.md`. Python follows PEP 8 for
+judgment calls; ruff owns formatting, naming, and imports. Test files are
 `*_test.py` beside the module, never `test_*.py`. Fix the root cause; do not silence a
 checker. Keep diffs surgical.
 
