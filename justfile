@@ -73,8 +73,9 @@ validate:
 clean:
     rm -rf {{ci_home}} .ruff_cache .pytest_cache
 
-# Release the template: tag a new version on a clean, pushed main. Tags are immutable on
-# GitHub (ruleset "released-tags-are-immutable"); to fix a release, cut the next one.
+# Release the template: tag a new version on a clean, pushed main and publish a GitHub
+# Release with generated notes. Tags are immutable on GitHub (ruleset
+# "released-tags-are-immutable"); to fix a release, cut the next one.
 # Downstream projects pick it up with `uvx copier update`.
 release VERSION:
     #!/usr/bin/env bash
@@ -86,4 +87,5 @@ release VERSION:
     ! git rev-parse -q --verify "refs/tags/{{VERSION}}" >/dev/null || { echo "{{VERSION}} exists; pick the next version"; exit 1; }
     git tag -a "{{VERSION}}" -m "whetstone {{VERSION}}"
     git push origin "{{VERSION}}"
+    gh release create "{{VERSION}}" --verify-tag --title "{{VERSION}}" --generate-notes
     echo "released {{VERSION}}; projects update with: uvx copier update"
