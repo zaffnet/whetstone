@@ -18,7 +18,7 @@ just test-home # apply the chezmoi tree into a throwaway HOME and run the bats s
   owner too. Copilot reviews every PR automatically; ask other agents as well. CI is green
   before merge, and zaffnet merges (`docs/decisions/0011-main-is-pull-request-only.md`).
 - Conventional commits: `type(scope): subject`, imperative mood, first line of 72 characters or fewer.
-- One logical change per PR. `docs/handbook/git.md` has the rest.
+- One logical change per PR.
 - No private hostnames, account ids, names, absolute home paths, or secrets. Pre-commit
   checks this; `docs/redaction.md` explains what and why.
 - A disabled rule, an unusual flag, or a pinned version carries a comment that says why.
