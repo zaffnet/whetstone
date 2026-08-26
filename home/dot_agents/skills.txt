@@ -5,3 +5,4 @@
 aws/agent-toolkit-for-aws aws-cdk aws-cloudformation aws-containers aws-database aws-deployment aws-iam aws-networking aws-observability creating-secrets-using-best-practices querying-aws-cloudwatch querying-aws-s3 rds-oss route53 routing-traffic-with-route53-and-cloudfront setting-up-cloudwatch-alarm-notifications troubleshooting-application-failures
 github/gh-stack gh-stack
 vercel-labs/skills find-skills
+obra/the-elements-of-style writing-clearly-and-concisely
