@@ -74,7 +74,7 @@ repos:
         language: pygrep
         types_or: [python, pyi]
 
-      # Tests are *_test.py beside the module (docs/decisions/0005). pytest is configured
+      # Tests are *_test.py beside the module (docs/DEVELOPMENT.md). pytest is configured
       # for that name only, so a test_*.py file would be silently never collected.
       - id: forbid-test-prefix
         name: test files are *_test.py, not test_*.py
