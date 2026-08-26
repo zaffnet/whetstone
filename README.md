@@ -9,7 +9,7 @@ This is how I set up a Mac and a Python project. The repo holds my shell, git, a
 config as a chezmoi source tree, a Copier template for new Python projects, and the skills,
 subagents, and hooks I use with Claude Code, Codex, and Cursor.
 
-I don't currently expect this to be useful for anyone but myself. Maybe eventually!
+I don't currently expect this to be useful to anyone but me. Maybe eventually it will be.
 
 ## Requirements
 
