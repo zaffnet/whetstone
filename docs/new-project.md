@@ -5,7 +5,7 @@ uvx copier copy gh:zaffnet/whetstone my-project
 cd my-project
 git init -b main
 uv sync --all-groups
-uv run pre-commit install
+GIT_CONFIG_NOSYSTEM=1 uv run pre-commit install   # ignores a system core.hooksPath
 ```
 
 Copier renders the latest tagged release of the template. Add `--vcs-ref HEAD` for the tip

@@ -16,6 +16,9 @@ jobs:
       matrix:
         use_docker: ["false", "true"]
         use_fastapi: ["false", "true"]
+        # 88 is ruff's own default and the likeliest non-default answer. Rendering only the
+        # default hid a template line that was 89 characters wide.
+        line_length: ["100", "88"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
@@ -29,12 +32,14 @@ jobs:
         env:
           USE_DOCKER: ${{ matrix.use_docker }}
           USE_FASTAPI: ${{ matrix.use_fastapi }}
+          LINE_LENGTH: ${{ matrix.line_length }}
         # --vcs-ref HEAD: copier defaults to the latest tag, which would test the last
         # release instead of this commit.
         run: |
           uvx copier copy --defaults --vcs-ref HEAD \
             -d project_name=demo-app -d description=Demo -d github_owner=octocat \
-            -d "use_docker=$USE_DOCKER" -d "use_fastapi=$USE_FASTAPI" . /tmp/demo
+            -d "use_docker=$USE_DOCKER" -d "use_fastapi=$USE_FASTAPI" \
+            -d "line_length=$LINE_LENGTH" . /tmp/demo
       - name: Check the generated project
         working-directory: /tmp/demo
         run: |
@@ -50,7 +55,9 @@ jobs:
           # session sandbox; generated projects must not ship one (docs/decisions/0010).
           jq -e '.hooks | has("WorktreeCreate") | not' .claude/settings.json
       - name: Build the image and run the Compose stack
-        if: matrix.use_docker == 'true'
+        # line_length only changes rendered source, so build the image once per docker
+        # variant rather than once per line_length.
+        if: matrix.use_docker == 'true' && matrix.line_length == '100'
         working-directory: /tmp/demo
         env:
           USE_FASTAPI: ${{ matrix.use_fastapi }}
