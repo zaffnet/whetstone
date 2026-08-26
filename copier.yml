@@ -49,7 +49,12 @@ package_name:
 
 description:
   type: str
-  help: One-line description
+  help: One-line description (80 characters or fewer)
+  validator: >-
+    {% if description | length > 80 %}
+    Keep it to 80 characters or fewer: it becomes the package docstring, and
+    ruff holds that to one line.
+    {% endif %}
 
 github_owner:
   type: str
