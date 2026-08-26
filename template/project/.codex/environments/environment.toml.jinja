@@ -39,9 +39,10 @@ done < "${CODEX_SOURCE_TREE_PATH}/.worktreeinclude"
 cd "$CODEX_WORKTREE_PATH"
 
 # AGENTS.md is the tracked source of truth. Machine-local extra context is
-# CLAUDE.local.md; Codex reads the same text as AGENTS.override.md.
+# CLAUDE.local.md; Codex reads AGENTS.override.md instead of AGENTS.md when it
+# exists, so the override carries both.
 if [ -f CLAUDE.local.md ]; then
-  cp CLAUDE.local.md AGENTS.override.md
+  cat AGENTS.md CLAUDE.local.md > AGENTS.override.md
 fi
 
 rm -rf .venv && uv sync --all-groups --all-extras

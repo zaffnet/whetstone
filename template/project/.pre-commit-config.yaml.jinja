@@ -1,3 +1,6 @@
+# commit-msg installs the conventional-commit check below alongside pre-commit.
+default_install_hook_types: [pre-commit, commit-msg]
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -70,6 +73,23 @@ repos:
         entry: '^\s*#\s*(?:[-=]{3,}|#{2,})(?:\s+.*)?$'
         language: pygrep
         types_or: [python, pyi]
+
+      # Tests are *_test.py beside the module (docs/decisions/0005). pytest is configured
+      # for that name only, so a test_*.py file would be silently never collected.
+      - id: forbid-test-prefix
+        name: test files are *_test.py, not test_*.py
+        entry: rename to <module>_test.py; pytest collects only *_test.py
+        language: fail
+        files: (^|/)test_[^/]*\.py$
+
+      # Conventional Commits subject, 72 characters or fewer (docs/DEVELOPMENT.md).
+      # Merge and revert subjects that git writes itself are allowed through.
+      - id: conventional-commit-subject
+        name: conventional commit subject
+        entry: '\A(?=[^\n]{1,72}(\n|\Z))((feat|fix|refactor|chore|docs|test|ci|style|perf|build)(\([^()\n]+\))?!?: \S|Merge |Revert ")'
+        language: pygrep
+        args: [--multiline, --negate]
+        stages: [commit-msg]
 
       - id: mypy
         name: mypy

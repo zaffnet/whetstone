@@ -1,7 +1,8 @@
 {
   "recommendations": [
     "detachhead.basedpyright",
-    "charliermarsh.ruff"
+    "charliermarsh.ruff",
+    "meta.pyrefly"
   ],
   "unwantedRecommendations": [
     "anysphere.cursorpyright"

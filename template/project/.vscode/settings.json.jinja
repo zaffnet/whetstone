@@ -10,7 +10,8 @@
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
   "python.venvPath": "${workspaceFolder}",
   "gitlens.currentLine.uncommittedChangesFormat": "✏️ ${ago} (uncommitted)",
-  "prettier.printWidth": 100,
+  "prettier.printWidth": {{ line_length }},
+  "editor.rulers": [{{ line_length }}],
   // Design docs and Compose keep hand-wrapped prose. Global user settings may set
   // Prettier as the markdown formatter with formatOnSave + autoSave, which
   // rewrites tables/headers/paragraphs into PR noise. Keep format-on-save off

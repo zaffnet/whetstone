@@ -30,8 +30,8 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for conventions and the full tool
 |---|---|
 | `{{ package_name }}/` | Source. Tests sit next to the code as `*_test.py`. |
 | `docs/` | Design docs ([template](docs/technical-design-doc-template.md)) and guides. |
-| `.claude/`, `.codex/`, `.cursor/` | Agent configuration: hooks, rules, reviewer subagents. |
-| `AGENTS.md` | Conventions every coding agent reads. `CLAUDE.md` holds the code-style subset. |
+| `.claude/`, `.codex/` | Agent configuration: hooks, rules, reviewer subagents. |
+| `AGENTS.md` | Conventions every coding agent reads. `CLAUDE.md` imports it. |
 
 Generated from [whetstone](https://github.com/zaffnet/whetstone). To take a newer template
 version: `uvx copier update`, review the diff, commit.

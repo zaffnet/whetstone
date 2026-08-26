@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    image: ghcr.io/{{ github_owner }}/{{ project_name }}:${IMAGE_TAG:-latest}
+    image: ghcr.io/{{ github_owner | lower }}/{{ project_name }}:${IMAGE_TAG:-latest}
     # For local dev: IMAGE_TAG=local PULL_POLICY=never docker compose up --build
     pull_policy: ${PULL_POLICY:-always}
 {%- if use_fastapi %}
@@ -49,14 +49,13 @@ volumes:
 
 # Local Compose overrides
 #
-# Individual developers can create a `docker-compose.override.yaml` file in the
-# repository root for machine-specific settings. Docker Compose automatically merges it
-# with `docker-compose.yaml` when you run `docker compose up`. This file is ignored by
-# git and should stay untracked because local ports, paths, and environment values often
-# differ from developer to developer.
+# `cp docker-compose.override.example.yaml docker-compose.override.yaml` for a dev
+# loop with the source bind-mounted and Postgres published on the host. Docker Compose
+# merges the override with `docker-compose.yaml` on every `docker compose up`. The
+# override is ignored by git and stays untracked because local ports, paths, and
+# environment values differ from developer to developer; CI runs the committed stack.
 #
-# For example, this exposes Postgres to the host and changes local environment values
-# without editing the committed Compose file:
+# Anything machine-specific goes in the same file, for example:
 #
 # ```yaml
 # services:

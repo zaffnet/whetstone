@@ -22,7 +22,7 @@ cov:
 # Remove caches and build output
 clean:
     rm -rf .pytest_cache .ruff_cache .mypy_cache .coverage coverage.xml htmlcov dist
-    find . -name __pycache__ -type d -prune -exec rm -rf {} +
+    find . \( -name .venv -o -name .git \) -prune -o -name __pycache__ -type d -prune -exec rm -rf {} +
 {%- if use_docker %}
 
 # Build and run the local stack

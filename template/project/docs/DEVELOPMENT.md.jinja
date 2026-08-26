@@ -25,7 +25,6 @@ docker compose version
 ### Running the application
 
 ```bash
-mkdir -p logs
 LOG_LEVEL=DEBUG IMAGE_TAG=local PULL_POLICY=never docker compose up --build
 {%- if use_fastapi %}
 curl http://localhost:8080/health
@@ -33,10 +32,6 @@ curl http://localhost:8080/health
 ```
 
 Stop with `docker compose down`; add `-v` to drop the Postgres volume and start from scratch.
-
-> **After a schema change, reset the volume.** `create_all` only creates *missing* tables and
-> enum types; it never `ALTER`s an existing schema. Run `docker compose down -v` before the
-> next `up`, otherwise the stale schema persists in the `pgdata` volume.
 {%- endif %}
 
 ## Creating commits and pull requests
@@ -55,7 +50,7 @@ Follow Conventional Commits (`conventionalcommits.org`):
 
 Valid types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `ci`, `style`, `perf`, `build`.
 Write the subject in imperative mood ("add", "fix", "remove", not "added", "fixes", "removed").
-Keep the first line under 50 characters and the full message under 100 words.
+Keep the first line at 72 characters or fewer and the full message under 100 words.
 
 ```txt
 feat(api): add rate limiting
