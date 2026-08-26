@@ -26,9 +26,9 @@ apply:
 diff:
     chezmoi --source . --no-pager diff
 
-# First-time setup on this machine (asks name, email, role, src_dir).
-# First run on a machine: answer the prompts, write ~/.config/chezmoi/chezmoi.toml, apply nothing.
+# Answers the prompts and writes ~/.config/chezmoi/chezmoi.toml, applies nothing.
 # Then `just diff` to review and `just apply` to write.
+# First-time setup on this machine (asks name, email, role, src_dir).
 init:
     chezmoi init --source .
 
@@ -36,13 +36,14 @@ init:
 bootstrap:
     chezmoi init --apply --source .
 
-# Pull edits made directly in $HOME back into the repo and refresh the Brewfile.
-# Pull edits back into home/ and diff the Brewfile against what brew has installed.
+# re-add skips templates (.zshrc, .gitconfig, mcp.json, Cursor settings): edit those with
+# `chezmoi edit` or in home/. The Brewfile diff drops the tracked file's trailing comments.
+# Pull non-template edits made in $HOME back into home/; diff the Brewfile against brew.
 sync:
     chezmoi --source . re-add
     brew bundle dump --force --file=/tmp/whetstone-brewfile
     @echo "lines with > are installed but not in the Brewfile; add them by hand:"
-    -diff <(grep -E '^(brew|cask|tap|uv|npm|go) ' home/dot_config/homebrew/Brewfile | sort) <(grep -E '^(brew|cask|tap|uv|npm|go) ' /tmp/whetstone-brewfile | sort)
+    -diff <(grep -E '^(brew|cask|tap|uv|npm|go) ' home/dot_config/homebrew/Brewfile | sed -E 's/[[:space:]]+#.*$//' | sort) <(grep -E '^(brew|cask|tap|uv|npm|go) ' /tmp/whetstone-brewfile | sort)
     git status --short
 
 # bats suite against $HOME (or WHETSTONE_HOME).
@@ -57,13 +58,15 @@ test-home:
         --promptChoice role=personal
     WHETSTONE_HOME={{ci_home}} bats tests/
 
+# Renders the committed tree (HEAD), so commit template edits first.
 # Generate a Python project from template/ into DEST.
 new DEST:
-    uv run copier copy --vcs-ref HEAD . {{DEST}}
+    uv run copier copy --vcs-ref HEAD . "{{DEST}}"
 
-# Plugin manifest and secret scan.
+# Plugin and marketplace manifests, and a secret scan over tracked and untracked files.
 validate:
     claude plugin validate .
+    claude plugin validate .claude-plugin/plugin.json
     gitleaks dir --no-banner .
 
 # Remove caches and the throwaway HOME.

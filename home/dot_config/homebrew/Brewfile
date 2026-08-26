@@ -1,5 +1,5 @@
 # Installed by .chezmoiscripts/run_onchange_before_10-brew-bundle.sh.tmpl whenever this
-# file changes. Refresh from a machine with `just sync` (brew bundle dump --describe).
+# file changes. `just sync` diffs it against what brew has installed.
 # Adopt apps that were installed by hand (Cursor, iTerm2) instead of failing.
 cask_args adopt: true
 
