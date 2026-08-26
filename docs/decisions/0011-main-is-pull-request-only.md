@@ -15,14 +15,14 @@ bypass list, so it binds the owner as well as any agent:
 - no direct pushes, deletions, or force-pushes;
 - every change arrives as a pull request, and Copilot code review is requested
   automatically;
-- every review thread is resolved before merge;
 - the ten CI checks (`pre-commit`, `plugin-manifests`, `single-source`, `gitleaks`, both
-  `bootstrap` roles, all four `render-and-check` variants) pass on a branch that is up to
-  date with `main`.
+  `bootstrap` roles, all four `render-and-check` variants) pass.
 
 No approving review is required: Copilot cannot approve, and the owner cannot approve their
-own PR. Merging is the owner's action. Agents open PRs, request reviews, and address
-comments; they do not merge.
+own PR. Bot reviews are advisory: the ruleset does not require threads to be resolved or the
+branch to be up to date with `main`, because with one contributor and several review bots
+either requirement turns two open PRs into a queue. Merging is the owner's action. Agents
+open PRs, request reviews, and address comments; they do not merge.
 
 ## Consequences
 
