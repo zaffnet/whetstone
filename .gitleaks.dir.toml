@@ -1,0 +1,19 @@
+# Config for the `gitleaks dir` scan in `just validate`, which walks the filesystem and does
+# not read .gitignore, so a local scratch file failed the recipe with nothing wrong in the
+# repo. It extends the committed-secret config and adds only the paths git ignores.
+#
+# This is a separate file on purpose. The pre-commit hook and the full-history scan in
+# .github/workflows/secrets.yml keep using .gitleaks.toml unchanged, because .gitignore does
+# not stop `git add -f` and does not cover an already-tracked file: a secret committed as
+# credentials.local.json has to stay visible to both of those.
+title = "whetstone working tree"
+
+[extend]
+path = ".gitleaks.toml"
+
+[allowlist]
+description = "Paths git ignores, where a finding can never reach the repo"
+paths = [
+  # .gitignore:2-3 are *.local and *.local.*, which match directories as well as files.
+  '''(^|/)[^/]*\.local(\.[^/]+)?($|/)''',
+]

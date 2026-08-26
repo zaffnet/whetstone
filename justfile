@@ -74,7 +74,7 @@ new DEST:
 validate:
     claude plugin validate .
     claude plugin validate .claude-plugin/plugin.json
-    gitleaks dir --no-banner .
+    gitleaks dir --no-banner --config .gitleaks.dir.toml .
 
 # Remove caches and the throwaway HOME.
 clean:
