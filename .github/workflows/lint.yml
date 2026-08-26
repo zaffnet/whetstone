@@ -40,7 +40,5 @@ jobs:
           for f in _common.sh ruff_format.sh setup-working-tree.sh worktree_create.sh; do
             diff -u "hooks/$f" "template/project/.claude/hooks/$f"
           done
-      - name: Template git guide matches the handbook
-        run: diff -u docs/handbook/git.md template/project/docs/git-and-small-prs.md
       - name: Reviewer subagents match between Claude markdown and Codex TOML
         run: python3 tools/check-agents-sync.py

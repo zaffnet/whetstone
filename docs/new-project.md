@@ -41,8 +41,7 @@ of `main`.
 - `.claude/` with hooks (ruff on every edit, worktree setup), rules, reviewer agents, and
   `.codex/` with the same agents in TOML.
 - `.vscode/settings.json` pinned to the project's `.venv` ruff and basedpyright.
-- `AGENTS.md` (and a `CLAUDE.md` that imports it), `docs/DEVELOPMENT.md`, a design-doc
-  template, `.env.example`.
+- `AGENTS.md` (and a `CLAUDE.md` that imports it), `docs/DEVELOPMENT.md`, `.env.example`.
 - With Docker: a Compose stack that builds, starts, and answers `/health` (FastAPI) or runs
   the module once.
 
