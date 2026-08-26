@@ -239,7 +239,8 @@ if ! codex exec \
 fi
 
 COMMIT_MESSAGE=$(jq -er '.message | select(type == "string" and length > 0)' "$RESULT_FILE")
-COMMIT_MESSAGE=$(printf '%s\n' "$COMMIT_MESSAGE" | sed -E '/^[[:space:]]*```.*[[:space:]]*$/d')
+# Strip a fence around the whole message; fences inside the body are content.
+COMMIT_MESSAGE=$(printf '%s\n' "$COMMIT_MESSAGE" | sed -E '1{/^[[:space:]]*```/d;}' | sed -E '${/^[[:space:]]*```[[:space:]]*$/d;}')
 
 printf '%s\n' "$COMMIT_MESSAGE" >"$(git rev-parse --git-dir)/COMMIT_MESSAGE.md"
 
@@ -248,7 +249,7 @@ printf '%s\n%s\n' 'Commit Message:' "$COMMIT_MESSAGE"
 confirm_commit
 
 SIGN_ARGS=()
-if [[ "${COMMIT_SIGN:-}" == 1 || "$(git config --get commit.gpgsign || true)" == true ]]; then
+if [[ "${COMMIT_SIGN:-}" == 1 || "$(git config --get --type=bool commit.gpgsign || true)" == true ]]; then
   SIGN_ARGS=(-S)
 fi
 

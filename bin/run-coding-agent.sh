@@ -12,8 +12,9 @@
 #   CODEX_MODEL       Codex model (default: gpt-5.5).
 #
 # AGENTS.md is the source of truth for agent instructions; CLAUDE.md is @AGENTS.md.
-# When CLAUDE.local.md exists, it is appended to a machine-local AGENTS.override.md
-# so Codex sees the same extra context without it ever being committed.
+# Codex reads AGENTS.override.md *instead of* AGENTS.md when it exists, so when
+# CLAUDE.local.md exists the override is AGENTS.md plus the local file: Codex sees
+# the same extra context as Claude without it ever being committed.
 set -euo pipefail
 
 REPO_DIR="$(git rev-parse --show-toplevel)"
@@ -25,20 +26,14 @@ REFERENCE_REPOS_LIST=()
 if [[ -n "${REFERENCE_REPOS:-}" ]]; then
   read -r -a REFERENCE_REPOS_LIST <<<"$REFERENCE_REPOS"
 elif [[ -f .reference-repos ]]; then
-  while IFS= read -r line; do
+  while IFS= read -r line || [[ -n $line ]]; do
     [[ -z $line || $line == \#* ]] || REFERENCE_REPOS_LIST+=("$line")
   done <.reference-repos
 fi
 
-if [[ -f CLAUDE.local.md ]]; then
-  cat CLAUDE.md >AGENTS.override.md
-  echo "" >>AGENTS.override.md
-  cat CLAUDE.local.md >>AGENTS.override.md
+if [[ -f CLAUDE.local.md && -f AGENTS.md ]]; then
+  cat AGENTS.md CLAUDE.local.md >AGENTS.override.md
 fi
-
-for repo in ${REFERENCE_REPOS_LIST[@]+"${REFERENCE_REPOS_LIST[@]}"}; do
-  git -C "$SRC_DIR/$repo" pull -q
-done
 
 AGENT="claude" # "codex"
 CLAUDE_MODEL="${CLAUDE_MODEL:-opus}"
@@ -79,6 +74,7 @@ done
 
 ADD_DIRS=()
 for repo in ${REFERENCE_REPOS_LIST[@]+"${REFERENCE_REPOS_LIST[@]}"}; do
+  git -C "$SRC_DIR/$repo" pull -q || echo "warning: could not pull $repo; mounting it as is" >&2
   ADD_DIRS+=(--add-dir "$SRC_DIR/$repo")
 done
 

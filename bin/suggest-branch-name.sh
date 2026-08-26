@@ -39,7 +39,12 @@ resolve_prefix() {
     [[ -z $prefix ]] || prefix="$prefix/"
   fi
   if [[ -z $prefix ]]; then
-    prefix="$(git config user.name | tr '[:upper:] ' '[:lower:]-')/"
+    prefix="$(git config user.name 2>/dev/null | tr '[:upper:] ' '[:lower:]-')"
+    if [[ -z $prefix ]]; then
+      printf '%s\n' 'Set GIT_BRANCH_PREFIX, sign in to gh, or set git user.name.' >&2
+      exit 1
+    fi
+    prefix="$prefix/"
   fi
   printf '%s' "$prefix"
 }
@@ -103,8 +108,11 @@ readonly PROMPT
 TEMP_DIR=$(mktemp -d)
 readonly TEMP_DIR
 SCHEMA_FILE="$TEMP_DIR/schema.json"
+PROMPT_FILE="$TEMP_DIR/prompt.txt"
 RESULT_FILE="$TEMP_DIR/result.json"
 printf '%s\n' "$SCHEMA" >"$SCHEMA_FILE"
+# The prompt embeds the whole diff; on stdin it has no argv size limit.
+printf '%s\n' "$PROMPT" >"$PROMPT_FILE"
 
 cleanup() {
   rm -rf -- "$TEMP_DIR"
@@ -124,7 +132,7 @@ if ! codex exec \
   ${PROVIDER_ARGS[@]+"${PROVIDER_ARGS[@]}"} \
   --output-schema "$SCHEMA_FILE" \
   --output-last-message "$RESULT_FILE" \
-  "$PROMPT" >/dev/null 2>"$TEMP_DIR/codex.stderr"; then
+  - >/dev/null 2>"$TEMP_DIR/codex.stderr" <"$PROMPT_FILE"; then
   cat "$TEMP_DIR/codex.stderr" >&2
   exit 1
 fi

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Resolves every unresolved review thread on a pull request in the current repo.
+# Resolves every unresolved review thread on a pull request in the current repo and
+# prints each thread id it resolved. Non-interactive on purpose: agents call it.
 #
 # Usage: resolve-pr-comments.sh PR_NUMBER
 set -euo pipefail
@@ -26,13 +27,18 @@ gh api graphql --paginate \
     }
   }' \
   --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | .id' \
-  | while IFS= read -r thread_id; do
-    # shellcheck disable=SC2016  # $threadId is a GraphQL variable, bound below by -F.
-    gh api graphql --silent \
-      -F threadId="$thread_id" \
-      -f query='mutation($threadId: ID!) {
-      resolveReviewThread(input: {threadId: $threadId}) {
-        thread { id isResolved }
-      }
-    }'
-  done
+  | {
+    resolved=0
+    while IFS= read -r thread_id; do
+      # shellcheck disable=SC2016  # $threadId is a GraphQL variable, bound below by -F.
+      gh api graphql \
+        -F threadId="$thread_id" \
+        -f query='mutation($threadId: ID!) {
+        resolveReviewThread(input: {threadId: $threadId}) {
+          thread { id isResolved }
+        }
+      }' --jq '"resolved " + .data.resolveReviewThread.thread.id'
+      resolved=$((resolved + 1))
+    done
+    printf '%d thread(s) resolved on #%s\n' "$resolved" "$pr"
+  }

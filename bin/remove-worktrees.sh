@@ -14,13 +14,13 @@ usage() {
   exit 2
 }
 
-main_worktree="$(git worktree list --porcelain | awk 'NR==1 && $1=="worktree" {print $2}')"
+main_worktree="$(git worktree list --porcelain | sed -n '1s/^worktree //p')"
 worktrees=()
 
 if [[ $1 == --all ]]; then
   while IFS= read -r path; do
     [[ $path == "$main_worktree" ]] || worktrees+=("$path")
-  done < <(git worktree list --porcelain | awk '$1=="worktree" {print $2}')
+  done < <(git worktree list --porcelain | sed -n 's/^worktree //p')
   if [[ ${#worktrees[@]} -eq 0 ]]; then
     echo "No worktrees besides $main_worktree."
     exit 0

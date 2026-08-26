@@ -24,6 +24,7 @@ uv.lock.bak
 /.vscode/
 /CLAUDE.local.md
 /AGENTS.override.md
+/.reference-repos
 
 # macOS
 .DS_Store
