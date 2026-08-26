@@ -127,6 +127,26 @@ chezmoi_managed() {
   diff "$first" "$second"
 }
 
+# Copilot on #11: chezmoi replaces a real directory with the managed symlink by deleting it
+# recursively and without a prompt, so an apply could take Cursor-only skills with it.
+@test "an apply refuses while a skills directory is real (CI home only)" {
+  if [ "$H" = "$HOME" ] && [ -z "${CI:-}" ]; then skip "would disturb the real home"; fi
+  rm -rf "$H/.cursor/skills"
+  mkdir -p "$H/.cursor/skills/only-here"
+
+  run env HOME="$H" CI=1 chezmoi apply --source "$REPO"
+  survived=no
+  [ -d "$H/.cursor/skills/only-here" ] && survived=yes
+
+  # Put the home back before asserting, so a failure here does not affect later tests.
+  rm -rf "$H/.cursor/skills"
+  env HOME="$H" CI=1 chezmoi apply --force --source "$REPO"
+
+  [ "$status" -ne 0 ]
+  [ "$survived" = yes ]
+  resolves_to "$H/.cursor/skills" "$H/.agents/skills"
+}
+
 # Copilot on #10: nothing exercised the .chezmoiremove entries, so a typo in one would
 # leave the live file in place while the suite passed.
 @test ".chezmoiremove deletes the paths it lists (CI home only)" {

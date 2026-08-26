@@ -6,11 +6,24 @@
 # needs `gh auth login`), so they retry on every apply instead of being recorded as done.
 set -euo pipefail
 
+# Homebrew is installed by 10-brew-bundle.sh, but that script's shellenv applies to its
+# own process and no login shell has read .zprofile yet.
+if ! command -v uv >/dev/null; then
+  for brew_bin in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [[ -x $brew_bin ]]; then
+      eval "$("$brew_bin" shellenv)"
+      break
+    fi
+  done
+fi
+
 sync="{{ .chezmoi.homeDir }}/.agents/bin/sync-mcp"
 if [[ ! -x $sync ]]; then
   echo "sync-mcp: not installed, skipping" >&2
 elif [[ ! -f "{{ .chezmoi.homeDir }}/.claude.json" ]]; then
   echo "sync-mcp: ~/.claude.json absent (Claude Code not run yet), skipping" >&2
+elif ! command -v uv >/dev/null; then
+  echo "sync-mcp: uv not on PATH, skipping" >&2
 else
   # sync-mcp needs tomllib (3.11+) and the system python3 on macOS is 3.9. uv comes from
   # the Brewfile, which 10-brew-bundle.sh installs before this runs.

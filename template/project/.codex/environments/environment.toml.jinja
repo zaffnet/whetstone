@@ -80,4 +80,9 @@ while IFS= read -r line || [ -n "$line" ]; do
     continue
   fi
   rm -rf -- "$target" || echo "warning: failed to delete $target" >&2
-done < "${CODEX_WORKTREE_PATH}/.worktreeinclude"'''
+done < "${CODEX_WORKTREE_PATH}/.worktreeinclude"
+
+# Derived from AGENTS.md and CLAUDE.local.md, so it is deliberately not in
+# .worktreeinclude and the loop above never sees it. Setup writes it; cleanup takes it back
+# out, or a later session in this worktree reads a frozen copy.
+rm -f -- "${CODEX_WORKTREE_PATH}/AGENTS.override.md"'''
