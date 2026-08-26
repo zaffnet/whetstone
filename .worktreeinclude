@@ -1,0 +1,4 @@
+# Local-only files copied into every new worktree by hooks/setup-working-tree.sh.
+.claude/
+CLAUDE.local.md
+AGENTS.override.md

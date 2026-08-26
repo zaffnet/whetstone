@@ -36,13 +36,15 @@ id = "ca-bundle-env"
 description = "CA bundle path exported into TLS env vars"
 regex = '''(?:SSL_CERT_FILE|REQUESTS_CA_BUNDLE|NODE_EXTRA_CA_CERTS|CURL_CA_BUNDLE|AWS_CA_BUNDLE)=\S+\.pem'''
 
+# This block applies to every rule, built-in ones included, so it holds only local tool
+# state that is never committed; `gitleaks dir` would otherwise flag venv shebangs and the
+# source paths baked into bytecode. A file that legitimately matches one custom rule gets a
+# [[rules.allowlists]] entry on that rule instead.
 [allowlist]
-description = "Files that legitimately mention the patterns above"
+description = "Local tool state, never committed"
 paths = [
-  '''^tests/.*\.bats$''',
-  '''^template/project/\.env\.example\.jinja$''',
-  # Local tool state, never committed; `gitleaks dir` would otherwise flag venv shebangs.
   '''(^|/)\.venv/''',
+  '''(^|/)__pycache__/''',
   '''(^|/)\.ruff_cache/''',
   '''(^|/)\.mypy_cache/''',
   '''(^|/)\.pytest_cache/''',

@@ -17,7 +17,8 @@ dev = [
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-extend-exclude = ["template/project"]
+# ruff 0.16 formats Python blocks in Markdown; the skills are prose.
+extend-exclude = ["template/project", "skills"]
 
 [tool.ruff.lint]
 select = ["ALL"]
