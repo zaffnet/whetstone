@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# chezmoi modify script: receives the current ~/.codex/config.toml on stdin and prints the
+# new file. The managed part comes from the template; anything the template does not declare
+# belongs to another writer (Codex itself, bin/sync-mcp) and is carried over verbatim, so an
+# apply never drops Codex's MCP servers, project trust decisions, or bundled plugins.
+set -euo pipefail
+
+managed=$(
+  cat <<'MANAGED'
+{{ template "codex-config.toml.tmpl" . }}
+MANAGED
+)
+
+current=$(cat)
+
+MANAGED="$managed" CURRENT="$current" python3 - <<'PY'
+import os
+import re
+import sys
+
+MARKER = "# --- preserved sections (owned by Codex and bin/sync-mcp; chezmoi keeps them as-is) ---"
+
+managed = os.environ["MANAGED"].rstrip("\n")
+current = os.environ["CURRENT"]
+
+HEADER = re.compile(r"^\[\[?([^\]]+)\]\]?\s*(?:#.*)?$")
+BARE_KEY = re.compile(r'''^\s*("[^"]+"|'[^']+'|[A-Za-z0-9_.-]+)\s*=''')
+
+
+def table_name(line):
+    match = HEADER.match(line)
+    return match.group(1).strip() if match else None
+
+
+def key_name(line):
+    match = BARE_KEY.match(line)
+    # "notify" and notify are the same key.
+    return match.group(1).strip("\"'") if match else None
+
+
+# What the template declares. A table it declares wins outright, and so does every table
+# nested under one; everything else in the current file is preserved.
+managed_lines = managed.splitlines()
+first_table = next((i for i, l in enumerate(managed_lines) if table_name(l)), len(managed_lines))
+managed_tables = {name for l in managed_lines if (name := table_name(l))}
+managed_keys = {name for l in managed_lines[:first_table] if (name := key_name(l))}
+
+kept_keys: list[str] = []
+kept_tables: list[str] = []
+block: list[str] = []
+keep_block = False
+in_preamble = True
+keep_key = False
+
+
+def flush() -> None:
+    if keep_block and block:
+        kept_tables.extend(block)
+        if block[-1].strip():
+            kept_tables.append("")
+
+
+for line in current.splitlines():
+    if line.strip() == MARKER:
+        continue
+    name = table_name(line)
+    if name is not None:
+        flush()
+        block = []
+        in_preamble = False
+        keep_block = name not in managed_tables and not any(
+            name.startswith(f"{table}.") for table in managed_tables
+        )
+    if in_preamble:
+        # Only another key or a table header ends a capture. A blank or comment line can
+        # sit inside a multiline value, so it has to be captured, not treated as the end.
+        key = key_name(line)
+        if key is not None:
+            keep_key = key not in managed_keys
+        if keep_key:
+            kept_keys.append(line)
+        continue
+    block.append(line)
+flush()
+
+# A preserved bare key has to land above the first table, or TOML reparents it into
+# whichever table it happens to follow. Capture runs to the next key, so it can pick up
+# blank lines that trail the last one.
+while kept_keys and not kept_keys[-1].strip():
+    kept_keys.pop()
+preamble = managed_lines[:first_table] + (kept_keys + [""] if kept_keys else [])
+out = "\n".join(preamble + managed_lines[first_table:]) + "\n"
+if kept_tables:
+    out += "\n" + MARKER + "\n\n" + "\n".join(kept_tables).rstrip("\n") + "\n"
+sys.stdout.write(out)
+PY

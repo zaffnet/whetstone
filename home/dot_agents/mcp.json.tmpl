@@ -1,6 +1,12 @@
 {{- $work := get . "work" | default (dict) -}}
 {
   "mcpServers": {
+{{- if hasKey $work "code_scan_command" }}
+    "code-scan": {
+      "command": {{ get $work "code_scan_command" | quote }},
+      "args": ["mcp-server"]
+    },
+{{- end }}
     "aws-mcp": {
       "command": "uvx",
       "args": [
