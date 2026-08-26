@@ -91,8 +91,9 @@ subagents, and the hooks.
 
 - Agent configuration has one copy, in `~/.agents`. Claude Code, Cursor, and Kiro link
   their skills directories at it and Codex reads it in place; the instruction files are
-  symlinks to this repo's `AGENTS.md`; MCP servers are copied into each product's own
-  config by `bin/sync-mcp`, because none of them reads a shared file.
+  symlinks to this repo's `AGENTS.md`; `~/.cursor/mcp.json` is a symlink to the shared
+  `mcp.json`, and `bin/sync-mcp` copies the servers into `~/.claude.json` and
+  `~/.codex/config.toml`, which each insist on a file of their own.
 - Secrets stay in the environment. No settings file in this repo holds a key, and gitleaks,
   a local denylist hook, and GitHub push protection check that (`docs/redaction.md`).
 - Each disabled lint rule, unusual flag, or pinned version has a comment next to it that
