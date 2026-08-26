@@ -112,14 +112,16 @@ repos:
       # remote or branch does not exist yet (fresh project, detached CI checkout).
       - id: diff-cover
         name: Python line coverage (changed lines only)
-        entry: >-
-          bash -c 'git fetch -q origin main 2>/dev/null || true;
-          if git rev-parse --verify -q origin/main >/dev/null; then
-            uv run diff-cover coverage.xml --compare-branch=origin/main
-            --fail-under=80 --total-percent-float;
-          else
-            echo "diff-cover: origin/main not found, skipping";
-          fi'
+        # A literal block: a folded (>-) scalar keeps the newlines of indented lines,
+        # which split the diff-cover flags into separate shell commands.
+        entry: |
+          bash -c '
+            git fetch -q origin main 2>/dev/null || true
+            if git rev-parse --verify -q origin/main >/dev/null; then
+              uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under=80 --total-percent-float
+            else
+              echo "diff-cover: origin/main not found, skipping"
+            fi'
         language: system
         pass_filenames: false
         always_run: true
