@@ -43,22 +43,6 @@ Never end a turn with "I'll wait for X".
 commands error cleanly or print static text; under a PTY the same commands open a prompt or
 a full-screen TUI and block. Pass explicit flags instead of relying on that detection.
 
-## Design docs
-
-Design docs are guidelines, not rules. During implementation, review, and testing, make the
-decision that keeps the code readable, extensible, and simple. Design docs can change later.
-Drift between code and design docs is normal and expected; do not justify code by a doc line
-number, and do not propose syncing them as a task on its own.
-
-## Tests
-
-Every test that can run against a live backend runs against both a mock and the live backend.
-Mock-only needs a written reason. Put backend differences in fixtures; the test body is the
-action and the assertions, and does not branch on backend type.
-
-Do not re-test validation constraints one at a time. One invalid input is enough. Type
-checkers do not see JSON that arrives at runtime, so that one test earns its place.
-
 ## Generated projects and managed files
 
 - A project created with Copier records its template version in `.copier-answers.yml`. When a
