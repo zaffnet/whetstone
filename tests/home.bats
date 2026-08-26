@@ -1,7 +1,9 @@
 #!/usr/bin/env bats
 bats_require_minimum_version 1.5.0
 # Assertions against an applied chezmoi tree. Run against the real home with `just test`,
-# or against the throwaway CI home with `just test-home` (sets WHETSTONE_HOME).
+# or against the throwaway CI home with `just test-home` (sets WHETSTONE_HOME). Two tests
+# skip on a real home; the macOS workflow applies into the runner's own HOME, so CI=1 also
+# counts as a throwaway home.
 
 setup() {
   REPO="$(git -C "$BATS_TEST_DIRNAME" rev-parse --show-toplevel)"
@@ -86,7 +88,7 @@ chezmoi_managed() {
 }
 
 @test "git identity comes from chezmoi data (CI home only)" {
-  if [ "$H" = "$HOME" ]; then skip "real home uses the machine's own identity"; fi
+  if [ "$H" = "$HOME" ] && [ -z "${CI:-}" ]; then skip "real home uses the machine's own identity"; fi
   if [ "$(chezmoi_role)" = work ]; then skip ".gitconfig is unmanaged when role is work"; fi
   [ "$(git config -f "$H/.gitconfig" user.name)" = T ]
   [ "$(git config -f "$H/.gitconfig" user.email)" = t@example.com ]
@@ -101,6 +103,6 @@ chezmoi_managed() {
 }
 
 @test "the secrets file is not managed" {
-  if [ "$H" = "$HOME" ]; then skip "the real home may hold a hand-made ~/.zsh_secrets"; fi
+  if [ "$H" = "$HOME" ] && [ -z "${CI:-}" ]; then skip "the real home may hold a hand-made ~/.zsh_secrets"; fi
   [ ! -e "$H/.zsh_secrets" ]
 }

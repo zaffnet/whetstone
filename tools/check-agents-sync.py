@@ -90,6 +90,8 @@ def main() -> int:
             problems.extend(compare(md_path, toml_path))
             checked += 1
         problems.extend(f"{p}: no markdown twin in {md_dir}" for p in toml_by_name.values())
+    if checked == 0:
+        problems.append("no agent pairs found; check PAIRS")
     for problem in problems:
         print(problem, file=sys.stderr)  # noqa: T201  -- CLI report
     print(f"check-agents-sync: {checked} pairs checked, {len(problems)} problems")  # noqa: T201  -- CLI report

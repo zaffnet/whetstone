@@ -4,7 +4,8 @@
 # current file so an apply never undoes a choice made inside Claude.
 set -euo pipefail
 current=$(cat)
-MANAGED=$(cat <<'MANAGED'
+MANAGED=$(
+  cat <<'MANAGED'
 {{ template "claude-settings.json" . }}
 MANAGED
 )

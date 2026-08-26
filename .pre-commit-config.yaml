@@ -36,15 +36,16 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
-        # zsh files and chezmoi templates cannot be parsed as bash; every plain .sh is checked.
-        exclude: ^(template/project/|home/.*\.tmpl$|home/dot_zsh|home/dot_zprofile|home/dot_p10k\.zsh|home/\.chezmoiscripts/)
+        # zsh files cannot be parsed as bash. The chezmoi scripts and modify_ templates are
+        # bash with {{ }} inside quoted strings and comments, and are checked as written.
+        exclude: ^(template/project/|home/dot_zsh|home/dot_zprofile|home/dot_p10k\.zsh)
 
   - repo: https://github.com/scop/pre-commit-shfmt
     rev: v3.13.1-1
     hooks:
       - id: shfmt
         args: [--indent=2, --case-indent, --binary-next-line, --write]
-        exclude: ^(template/project/|home/.*\.tmpl$|home/dot_zsh|home/dot_zprofile|home/dot_p10k\.zsh|home/\.chezmoiscripts/)
+        exclude: ^(template/project/|home/dot_zsh|home/dot_zprofile|home/dot_p10k\.zsh)
 
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.12
@@ -84,7 +85,8 @@ repos:
       # bodies must stay identical.
       - id: check-agents-sync
         name: agents md/toml in sync
-        entry: python3 tools/check-agents-sync.py
+        # The script needs tomllib (3.11+); the system python3 on macOS is older.
+        entry: uv run --no-sync python tools/check-agents-sync.py
         language: system
         pass_filenames: false
         files: ^(agents|codex/agents|template/project/\.(claude|codex)/agents)/

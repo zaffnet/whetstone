@@ -11,7 +11,8 @@ private hostname; email gets it removed and the key rotated first.
   (`.github/workflows/secrets.yml`); GitHub push protection is on.
 - No private hostnames, account ids, or personal identifiers. A machine-local denylist
   hook enforces this at commit time (`docs/redaction.md`).
-- Scripts under `bin/` and `hooks/` pass shellcheck and are reviewed before merge.
+- Scripts under `bin/`, `hooks/`, and `home/.chezmoiscripts/` pass shellcheck and are reviewed
+  before merge.
 - GitHub Actions are pinned to commit SHAs and run with `contents: read`.
 
 ## Scope
