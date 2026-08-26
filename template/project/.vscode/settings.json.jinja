@@ -7,6 +7,14 @@
   "files.associations": {
     "**/.git/info/exclude": "ignore"
   },
+  // A justfile is guessed as shellscript and then linted as one: `set shell :=` reads as
+  // SC2121, `{{ '{{' }}VAR{{ '}}' }}` as SC1083. Recipe bodies are shell, the file is not.
+  "shellcheck.ignorePatterns": {
+    "**/justfile": true,
+    "**/Justfile": true,
+    "**/.justfile": true,
+    "**/*.just": true
+  },
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
   "python.venvPath": "${workspaceFolder}",
   "gitlens.currentLine.uncommittedChangesFormat": "✏️ ${ago} (uncommitted)",
