@@ -15,8 +15,10 @@ reader looks for a module's tests and how files sort in a directory listing.
 
 - The module and its tests sit next to each other in every listing and every editor.
 - Coverage omits `**/*_test.py` and `**/_test_helpers.py`.
-- Ruff `per-file-ignores` relaxes `S101`, `S105`, and `PLR2004` for `*_test.py` only.
-- Contributors used to `tests/test_*.py` get a pre-commit failure with the file name rule.
+- Ruff `per-file-ignores` relaxes `S101`, `S105`, `S404`, `S603`, and `PLR2004` for `*_test.py`
+  only in generated projects; this repo's own config relaxes `S101` and `PLR2004`.
+- Contributors used to `tests/test_*.py` get a pre-commit failure from the `forbid-test-prefix`
+  hook; without it pytest would silently never collect the file.
 
 ## Alternatives considered
 

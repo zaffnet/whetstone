@@ -21,15 +21,16 @@ of `main`.
 | `github_owner` | `CODEOWNERS`, clone URL in `docs/DEVELOPMENT.md`, container registry path |
 | `python_version` | `requires-python`, `.python-version`, `target-version` for ruff, mypy, basedpyright |
 | `line_length` | ruff and editor rulers |
-| `use_docker` | Adds `Dockerfile`, `docker-compose.yaml`, the override file, `.dockerignore`, the image-version pre-commit hook, and the image build job in CI |
+| `use_docker` | Adds `Dockerfile`, `docker-compose.yaml`, `docker-compose.override.example.yaml`, `.dockerignore`, the image-version pre-commit hook, and the image build job in CI |
 | `use_fastapi` | Adds FastAPI, uvicorn, pydantic-settings, and httpx2; a `/health` app with a test; the async-safety reviewer agent |
 | `license` | `LICENSE` text (MIT or Apache-2.0) and the `license` field; `Proprietary` writes neither |
 | `author` | Copyright holder named in `LICENSE`; asked only when a license text is written |
 
 ## What you get
 
-- `pyproject.toml` with ruff `select = ["ALL"]` and a commented ignore list, mypy with the
-  Pydantic plugin, basedpyright strict, bandit, pytest (`*_test.py`), coverage.
+- `pyproject.toml` with ruff `select = ["ALL"]` and a commented ignore list, mypy (with the
+  Pydantic plugin when `use_fastapi`), basedpyright strict, pyrefly, bandit, pytest
+  (`*_test.py`), coverage.
 - `.pre-commit-config.yaml`: ruff fix and format, mypy, basedpyright, bandit, pip-audit,
   unit tests with coverage, `diff-cover --fail-under=80` against `origin/main`, and a
   pygrep hook that rejects section-separator comments.

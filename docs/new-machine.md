@@ -46,7 +46,7 @@ From a fresh macOS install to a working shell, editor, and agents.
 | --- | --- |
 | Edit a managed file | `chezmoi edit ~/.zshrc` then `chezmoi apply`, or edit in the repo and `just apply` |
 | See what apply would change | `just diff` (run `just init` first on a new machine; it only writes the config) |
-| Pull edits made directly in `$HOME` back into the repo | `just sync` |
+| Pull edits made directly in `$HOME` back into the repo | `just sync` (non-template files only; `chezmoi re-add` skips templates such as `.zshrc`, `.gitconfig`, `mcp.json`, and the Cursor settings, so edit those with `chezmoi edit` or in `home/`) |
 | Re-run the Brewfile after editing it | `just apply` (the script re-runs on Brewfile change) |
 | Update the repo from GitHub and apply | `chezmoi update` |
 
@@ -56,14 +56,20 @@ From a fresh macOS install to a working shell, editor, and agents.
    chezmoi at it: `chezmoi init --source ~/Desktop/src/whetstone` (no `--apply` yet).
 2. `chezmoi diff`. Read every hunk. Anything that should survive goes into `~/.zshrc.local`,
    `~/.gitconfig.local`, `~/.zsh_secrets`, or `[data.work]`.
-3. Back up the files chezmoi will replace:
-   `chezmoi --source ~/Desktop/src/whetstone archive --output ~/whetstone-pre-apply.tar`
-   writes every managed file, with its path, into one tar.
+3. Back up the files chezmoi will replace. `chezmoi archive` writes the *incoming* state, so
+   tar the current files by the managed paths instead:
+
+   ```bash
+   chezmoi --source ~/Desktop/src/whetstone managed --include=files \
+     | while IFS= read -r f; do [ -e ~/"$f" ] && printf '%s\n' "$f"; done \
+     | tar -C ~ -cf ~/whetstone-pre-apply.tar -T -
+   ```
+
 4. `chezmoi apply`.
 5. Codex rewrites its runtime sections (`[projects.*]`, `[marketplaces.*]`) on next launch
    and asks again to trust each project directory. The apply already ran `sync-mcp`, so the
    MCP server lists in `~/.codex/config.toml` and `~/.claude.json` match `~/.agents/mcp.json`.
-6. Run `just test` with `WHETSTONE_HOME=$HOME` to confirm the symlinks resolve.
+6. Run `just test` to confirm the symlinks resolve.
 
 ## CI mode
 

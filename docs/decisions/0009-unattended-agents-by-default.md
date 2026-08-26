@@ -24,8 +24,11 @@ prompts there cost more attention than they save.
   back to `default`.
 - `bin/run_claude_code.sh` and `bin/run-coding-agent.sh` use the same mode,
   `bypassPermissions`, so launching either way behaves the same.
-- Hooks still run (`ruff_format.sh`, `worktree_create.sh`); they are the remaining guard
-  on what an edit leaves behind.
+- The only edit-time guard is `ruff_format.sh`, and it runs in two places: every project
+  generated from the template wires it in `.claude/settings.json`, and any other repository
+  gets it only when the `whetstone-hooks` plugin is enabled. The global
+  `~/.claude/settings.json` configures no `PostToolUse` hook, so in a repository outside
+  those two cases nothing checks what an edit leaves behind until pre-commit.
 
 ## Alternatives considered
 

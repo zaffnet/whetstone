@@ -10,7 +10,7 @@ once.
 
 - ruff with `select = ["ALL"]` and a commented ignore list. Ruff owns formatting, imports,
   and naming; nothing else formats Python.
-- mypy with the Pydantic plugin, run in pre-commit and CI.
+- mypy, run in pre-commit and CI; the Pydantic plugin is enabled with `use_fastapi`.
 - basedpyright in strict mode, run in pre-commit and CI.
 - pyrefly in strict mode as the editor language server, for speed while typing.
 
