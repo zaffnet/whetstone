@@ -24,7 +24,9 @@ done
 cd "$project_root" || exit 0
 
 # Send any remaining (unfixable) lint output to stderr so Claude sees it.
-uv run ruff check --fix "$file_path" 1>&2 || true
-uv run ruff format "$file_path" >/dev/null 2>&1 || true
+# --no-sync: formatting must not resolve, lock, or install that project's
+# environment on every edit; if ruff is not there yet, pre-commit is the gate.
+uv run --no-sync ruff check --fix "$file_path" 1>&2 || true
+uv run --no-sync ruff format "$file_path" >/dev/null 2>&1 || true
 
 exit 0

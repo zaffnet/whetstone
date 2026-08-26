@@ -107,7 +107,10 @@ if [[ -f $include_list ]]; then
 fi
 
 if [[ -f $target/pyproject.toml ]] && command -v uv >/dev/null 2>&1; then
-  (cd "$target" && uv sync -q --all-groups)
+  # The worktree already exists; a sync failure (offline, private index) must not
+  # fail its creation.
+  (cd "$target" && uv sync -q --all-groups) \
+    || printf 'setup-working-tree: uv sync failed; run it by hand\n' >&2
   if [[ -f $target/.pre-commit-config.yaml ]]; then
     # Some Macs set a system-level core.hooksPath; GIT_CONFIG_NOSYSTEM lets pre-commit
     # install its hook (the system hook chains to .git/hooks). Never fail the worktree over it.
