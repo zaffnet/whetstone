@@ -28,7 +28,7 @@ comments; they do not merge.
 
 - A fix takes one more step (branch, PR, wait for checks and review) and lands only when
   zaffnet merges it.
-- `just release` still tags a pushed `main`; it now also publishes a GitHub Release.
+- `just release` still releases from a pushed `main`; the tag now arrives with a GitHub Release.
 - Changing this policy means editing the ruleset in the repository settings, which leaves a
   trace in the audit log.
 
