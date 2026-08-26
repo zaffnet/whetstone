@@ -27,6 +27,9 @@ a turn is a stop, not a wait. Design docs are guidelines, and drift from code is
 
 Follow `~/.agents/handbook/git.md`. Small PRs, one logical change each.
 Conventional commits, imperative mood, first line of 72 characters or fewer.
+In whetstone, never push to `main` and never merge a pull request: push a branch, open the
+PR, request a Copilot review and any other agent reviews, resolve every thread, and leave
+the merge to zaffnet.
 
 ## Skills
 
