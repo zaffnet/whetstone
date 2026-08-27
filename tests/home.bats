@@ -232,6 +232,74 @@ JSON
     | grep -qF '"snyk.yesWelcomeNotification": false'
 }
 
+# Copilot on #28: the model and proxy lookup had no test. Both defects it named were real —
+# a relative invocation resolved the library to bin/bin/, and the awk lookup kept a trailing
+# comment and the quotes of a TOML literal string.
+@test "the Codex config lookup reads every TOML spelling, and only top-level keys" {
+  home="$BATS_TEST_TMPDIR/codex"
+  mkdir -p "$home"
+
+  value() {
+    printf '%s\n' "$1" >"$home/config.toml"
+    CODEX_HOME="$home" bash -c "source '$REPO/bin/_codex-config.sh'; codex_config_value model"
+  }
+
+  [ "$(value 'model = "plain"')" = plain ]
+  [ "$(value 'model = "with-comment" # note')" = with-comment ]
+  [ "$(value "model = 'literal'")" = literal ]
+  [ "$(value 'model="no-spaces"')" = no-spaces ]
+  [ "$(value '  model = "indented"')" = indented ]
+  [ "$(value 'model = bare # note')" = bare ]
+
+  # `model` appears inside tables too, so only a key above the first header counts.
+  [ -z "$(value "$(printf '[tui]\nmodel = "in-table"')")" ]
+  [ -z "$(value "$(printf '  [tui]\n  model = "in-table"')")" ]
+
+  # Missing file and missing key are both empty, not an error: a machine with no Codex
+  # config still has to run the script.
+  [ -z "$(CODEX_HOME=/nonexistent bash -c "source '$REPO/bin/_codex-config.sh'; codex_config_value model")" ]
+  [ -z "$(value 'other = "x"')" ]
+
+  # Precedence: environment beats the config, config beats the literal fallback.
+  printf 'model = "from-config"\n' >"$home/config.toml"
+  [ "$(CODEX_HOME="$home" bash -c "source '$REPO/bin/_codex-config.sh'; codex_model")" = from-config ]
+  [ "$(CODEX_HOME="$home" CODEX_MODEL=from-env bash -c "source '$REPO/bin/_codex-config.sh'; codex_model")" = from-env ]
+  [ "$(CODEX_HOME=/nonexistent bash -c "source '$REPO/bin/_codex-config.sh'; codex_model fallback-model")" = fallback-model ]
+}
+
+# Copilot on #28: `bin/commit.sh` sourced bin/bin/_codex-config.sh and died. Every way these
+# scripts are reached has to find the library beside the real file, not beside the symlink.
+# The assertion is the absence of that specific failure, not the exit status: only two of the
+# three have a --help fast path, and the third goes straight to Codex.
+@test "the Codex scripts find their library however they are invoked" {
+  link_dir="$BATS_TEST_TMPDIR/localbin"
+  stub_dir="$BATS_TEST_TMPDIR/stub"
+  mkdir -p "$link_dir" "$stub_dir"
+
+  # A codex that fails at once, so a script that gets past its source line stops there
+  # instead of reaching the network.
+  printf '#!/usr/bin/env bash\nexit 1\n' >"$stub_dir/codex"
+  chmod +x "$stub_dir/codex"
+
+  for script in commit.sh update-pr-title-and-body.sh suggest-branch-name.sh; do
+    ln -sf "$REPO/bin/$script" "$link_dir/$script"
+
+    for invocation in \
+      "cd '$REPO' && bin/$script" \
+      "cd '$REPO' && ./bin/$script" \
+      "cd / && bash '$REPO/bin/$script'" \
+      "cd / && bash '$link_dir/$script'" \
+      "cd / && $script"; do
+      run env PATH="$stub_dir:$link_dir:$PATH" bash -c "$invocation --help"
+      [[ $output != *_codex-config.sh* ]] || {
+        echo "library not found for: $invocation" >&2
+        echo "$output" >&2
+        return 1
+      }
+    done
+  done
+}
+
 # Copilot on #11: chezmoi replaces a real directory with the managed symlink by deleting it
 # recursively and without a prompt, so an apply could take Cursor-only skills with it.
 @test "an apply refuses while a skills directory is real (CI home only)" {

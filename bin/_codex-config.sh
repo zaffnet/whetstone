@@ -19,10 +19,14 @@ codex_config_value() {
 
   [[ -r $config ]] || return 0
   awk -v key="$key" '
-    /^\[/ { exit }
-    $0 ~ "^" key "[[:space:]]*=" {
+    /^[[:space:]]*\[/ { exit }
+    $0 ~ "^[[:space:]]*" key "[[:space:]]*=" {
       sub(/^[^=]*=[[:space:]]*/, "")
-      gsub(/^"|"[[:space:]]*$/, "")
+      # A quoted value ends at its closing quote, so a trailing comment goes with it. An
+      # escaped quote inside would defeat this; a model name or a URL does not contain one.
+      if ($0 ~ /^"/) { sub(/^"/, ""); sub(/".*$/, "") }
+      else if ($0 ~ /^\047/) { sub(/^\047/, ""); sub(/\047.*$/, "") }
+      else { sub(/[[:space:]]*#.*$/, ""); sub(/[[:space:]]+$/, "") }
       print
       exit
     }

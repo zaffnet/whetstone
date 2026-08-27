@@ -21,9 +21,17 @@
 set -euo pipefail
 
 # Resolve through ~/.local/bin's symlink so the sibling library is found either way.
+# The rewrite applies only when readlink actually ran: prefixing unconditionally turned a
+# relative invocation such as `bin/commit.sh` into `bin/bin/_codex-config.sh`.
 self=${BASH_SOURCE[0]}
-[[ -L $self ]] && self=$(readlink "$self")
-case $self in /*) ;; *) self="${BASH_SOURCE[0]%/*}/$self" ;; esac
+[[ $self == */* ]] || self=./$self
+if [[ -L $self ]]; then
+  link=$(readlink "$self")
+  case $link in
+    /*) self=$link ;;
+    *) self="${self%/*}/$link" ;;
+  esac
+fi
 # shellcheck source-path=SCRIPTDIR source=_codex-config.sh
 source "${self%/*}/_codex-config.sh"
 
