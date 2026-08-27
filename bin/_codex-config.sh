@@ -22,7 +22,13 @@ codex_config_value() {
 
   [[ -r $config ]] || return 0
   awk -v key="$key" '
-    /^[[:space:]]*\[/ { exit }
+    function is_table_header(line) {
+      return line ~ /^[[:space:]]*\[\[?[^]]+\]\]?[[:space:]]*(#.*)?$/
+    }
+    multiline {
+      if ($0 ~ multiline) multiline = ""
+      next
+    }
     # A bare, "quoted" or \047literal\047 key are the same key, as bin/sync-mcp and the Codex
     # modify script already treat them.
     $0 ~ "^[[:space:]]*[\"\047]?" key "[\"\047]?[[:space:]]*=" {
@@ -34,6 +40,14 @@ codex_config_value() {
       else { sub(/[[:space:]]*#.*$/, ""); sub(/[[:space:]]+$/, "") }
       print
       exit
+    }
+    {
+      if (is_table_header($0)) exit
+      if ($0 ~ /=[[:space:]]*"""([[:space:]]*(#.*)?)?$/) multiline = "\"\"\""
+      else if ($0 ~ /=[[:space:]]*\047\047\047([[:space:]]*(#.*)?)?$/) multiline = "\047\047\047"
+      else if (after_equals && $0 ~ /^[[:space:]]*"""/) multiline = "\"\"\""
+      else if (after_equals && $0 ~ /^[[:space:]]*\047\047\047/) multiline = "\047\047\047"
+      after_equals = ($0 ~ /=[[:space:]]*$/)
     }
   ' "$config"
 }

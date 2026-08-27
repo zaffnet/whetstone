@@ -257,6 +257,9 @@ JSON
   [ "$(value "$(printf 'model\t=\t"tabs"')")" = tabs ]
   [ "$(value "$(printf 'model = "crlf"\r')")" = crlf ]
   [ "$(value "$(printf '# model = "commented"\nmodel = "real"')")" = real ]
+  # A valid multiline value above `model` must not look like the first table header.
+  [ "$(value "$(printf 'notify =\n[\n  [\"turn-ended\"],\n]\nmodel = \"after-array\"')")" = after-array ]
+  [ "$(value "$(printf 'note = \"\"\"\n[line]\n\"\"\"\nmodel = \"after-string\"')")" = after-string ]
   # A key that merely starts with the name must not match.
   [ "$(value "$(printf 'model_reasoning_effort = "high"\nmodel = "after"')")" = after ]
   [ -z "$(value 'notmodel = "x"')" ]
