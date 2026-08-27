@@ -193,7 +193,10 @@ chezmoi_managed() {
 
   seeded="$BATS_TEST_TMPDIR/seeded.toml"
   {
-    printf '["tui"]\nstatus_line_use_colors = false\n\n'
+    # A managed preamble key and a managed table, each spelled with an escape: decoding
+    # them is what makes the duplicate visible. \u006c is l, \u0069 is i.
+    printf '"mode\\u006c" = "gpt-4"\n\n'
+    printf '["tu\\u0069"]\nstatus_line_use_colors = false\n\n'
     printf "[ 'plugins' . \"github@claude-plugins-official\" ]\nenabled = false\n\n"
     # Undeclared, and differing from the declared [tui] only in quoting: still preserved.
     printf '[ "tui" . model_availability_nux ]\nseen = true\n'
@@ -208,6 +211,7 @@ chezmoi_managed() {
 import sys, tomllib
 
 config = tomllib.load(open(sys.argv[1], "rb"))
+assert config["model"] == "gpt-5.6-sol", config["model"]
 assert config["tui"]["status_line_use_colors"] is True, config["tui"]
 assert config["plugins"]["github@claude-plugins-official"]["enabled"] is True
 assert config["tui"]["model_availability_nux"] == {"seen": True}
