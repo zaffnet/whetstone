@@ -143,6 +143,37 @@ chezmoi_managed() {
     "$REPO/home/Library/Application Support/iTerm2/DynamicProfiles/whetstone.json.tmpl"
 }
 
+# Comparing the two Macs is what found these; reading one could not, because a value that
+# is set looks identical to one that is defaulted. The script is the only record that they
+# are deliberate, so the test pins that it still writes them rather than that the machine
+# currently has them -- a real home may have been changed by hand since.
+@test "the defaults script writes the settings that differed between machines" {
+  script="$BATS_TEST_TMPDIR/defaults.sh"
+  HOME="$H" chezmoi --source "$REPO" execute-template \
+    <"$REPO/home/.chezmoiscripts/run_onchange_20-macos-defaults.sh.tmpl" >"$script"
+  bash -n "$script"
+
+  # iTerm2 keeps these in its own domain, not in the profile, so a Dynamic Profile does not
+  # carry them. Focus-follows-mouse is the one you notice within a minute.
+  for key in FocusFollowsMouse AggressiveFocusFollowsMouse DimInactiveSplitPanes \
+    SplitPaneDimmingAmount CopySelection CopyLastNewline EnableAPIServer \
+    "Selection Respects Soft Boundaries"; do
+    grep -qF "defaults write com.googlecode.iterm2 \"$key\"" "$script" \
+      || grep -qF "defaults write com.googlecode.iterm2 $key" "$script" \
+      || {
+        echo "iTerm2 setting not written: $key"
+        return 1
+      }
+  done
+
+  # Finder's search scope and the two hot corners, with their modifiers: an unset modifier
+  # is not the same as zero.
+  grep -qF 'FXDefaultSearchScope -string "SCcf"' "$script"
+  for corner in wvous-bl-corner wvous-bl-modifier wvous-br-corner wvous-br-modifier; do
+    grep -qF "defaults write com.apple.dock $corner" "$script"
+  done
+}
+
 @test "Claude settings carry no env block" {
   jq -e 'has("env") | not' "$H/.claude/settings.json"
 }

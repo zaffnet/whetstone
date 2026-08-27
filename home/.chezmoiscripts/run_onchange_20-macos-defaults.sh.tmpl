@@ -26,6 +26,41 @@ defaults write com.apple.screencapture location -string "$HOME/Screenshots"
 defaults write com.apple.screencapture type -string "png"
 defaults write com.apple.screencapture disable-shadow -bool true
 
+# Finder: search the current folder rather than the whole Mac, open a new window on the
+# home folder, and let the Trash empty items after 30 days.
+defaults write com.apple.finder FXDefaultSearchScope -string "SCcf"
+defaults write com.apple.finder NewWindowTarget -string "PfAF"
+defaults write com.apple.finder FXRemoveOldTrashItems -bool true
+
+# Dock: tile size, and the two hot corners in use -- bottom left starts the screen saver,
+# bottom right shows the desktop. Modifiers are written too: an unset modifier is not the
+# same as zero, and a corner without one behaves differently.
+defaults write com.apple.dock tilesize -int 67
+defaults write com.apple.dock wvous-bl-corner -int 5
+defaults write com.apple.dock wvous-bl-modifier -int 0
+defaults write com.apple.dock wvous-br-corner -int 1
+defaults write com.apple.dock wvous-br-modifier -int 0
+
+# iTerm2 settings that live in the app's own domain rather than in a profile. This is the
+# same trap as the key bindings: a Dynamic Profile carries what is inside `New Bookmarks`
+# and nothing else, so focus-follows-mouse, split-pane dimming and the copy behaviour all
+# stayed on one machine. Comparing the two Macs' plists is what surfaced them; reading one
+# machine's could not, because there is no way to tell a set value from a default.
+defaults write com.googlecode.iterm2 FocusFollowsMouse -bool true
+defaults write com.googlecode.iterm2 AggressiveFocusFollowsMouse -bool true
+defaults write com.googlecode.iterm2 FocusNewSplitPaneWithFocusFollowsMouse -bool true
+defaults write com.googlecode.iterm2 DimInactiveSplitPanes -bool true
+defaults write com.googlecode.iterm2 SplitPaneDimmingAmount -float 0.2518520555218447
+defaults write com.googlecode.iterm2 DimBackgroundWindows -bool false
+defaults write com.googlecode.iterm2 "Selection Respects Soft Boundaries" -bool true
+defaults write com.googlecode.iterm2 CopySelection -bool false
+defaults write com.googlecode.iterm2 CopyLastNewline -bool true
+defaults write com.googlecode.iterm2 ClickToSelectCommand -bool false
+defaults write com.googlecode.iterm2 AllowClipboardAccess -bool true
+defaults write com.googlecode.iterm2 EnableAPIServer -bool true
+defaults write com.googlecode.iterm2 HideActivityIndicator -bool false
+defaults write com.googlecode.iterm2 ShowFullScreenTabBar -bool false
+
 # iTerm2: make the managed profile the default. The profile itself is a Dynamic Profile
 # (Library/Application Support/iTerm2/DynamicProfiles/whetstone.json), which iTerm2 reads
 # and never writes back -- the reason it is not the preferences plist: 44 of that file's 99
