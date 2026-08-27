@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # chezmoi modify script: receives the current ~/.codex/config.toml on stdin and prints the
-# new file. The managed part comes from the template; anything the template does not declare
-# belongs to another writer (Codex itself, bin/sync-mcp) and is carried over verbatim, so an
-# apply never drops Codex's MCP servers, project trust decisions, or bundled plugins.
+# new file. Ownership is per table, not per key: a table the template declares is rewritten
+# whole, and every other table belongs to another writer (Codex itself, bin/sync-mcp) and is
+# carried over verbatim, so an apply never drops Codex's MCP servers, project trust
+# decisions, or bundled plugins. Whole-table ownership is what makes a deletion work --
+# drop a key from the template and it leaves the machine on the next apply, which a
+# key-by-key merge could not do, because the deleted key would read as undeclared and be
+# preserved forever.
 set -euo pipefail
 
 managed=$(
@@ -38,8 +42,10 @@ def key_name(line):
     return match.group(1).strip("\"'") if match else None
 
 
-# What the template declares. A table it declares wins outright, and so does every table
-# nested under one; everything else in the current file is preserved.
+# What the template declares. A table it declares wins outright. A table merely nested
+# under one does not: `[tui.model_availability_nux]` is Codex's own state, the old KEEP
+# allowlist named it for that reason, and the template declaring `[tui]` says nothing
+# about it. Only an exact match is managed; everything else is preserved.
 managed_lines = managed.splitlines()
 first_table = next((i for i, l in enumerate(managed_lines) if table_name(l)), len(managed_lines))
 managed_tables = {name for l in managed_lines if (name := table_name(l))}
@@ -68,9 +74,7 @@ for line in current.splitlines():
         flush()
         block = []
         in_preamble = False
-        keep_block = name not in managed_tables and not any(
-            name.startswith(f"{table}.") for table in managed_tables
-        )
+        keep_block = name not in managed_tables
     if in_preamble:
         # Only another key or a table header ends a capture. A blank or comment line can
         # sit inside a multiline value, so it has to be captured, not treated as the end.
