@@ -6,3 +6,4 @@ aws/agent-toolkit-for-aws amazon-bedrock aws-auth aws-billing-and-cost-managemen
 github/gh-stack gh-stack
 vercel-labs/skills find-skills
 obra/the-elements-of-style writing-clearly-and-concisely
+anthropics/skills discernment-nudge

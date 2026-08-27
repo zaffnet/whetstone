@@ -80,6 +80,7 @@ From other repos:
 | `gh-stack` | `github/gh-stack` | Stacked PRs: create, push, submit, sync, rebase, merge. |
 | `find-skills` | `vercel-labs/skills` | Finds and installs skills for a described task. |
 | `writing-clearly-and-concisely` | `obra/the-elements-of-style` | Strunk's rules applied to any prose. |
+| `discernment-nudge` | `anthropics/skills` | Appends 2-3 questions that help the reader check a substantive answer. |
 
 ## From plugins
 
