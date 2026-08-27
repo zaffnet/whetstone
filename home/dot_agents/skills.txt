@@ -1,6 +1,8 @@
 # Third-party agent skills installed into ~/.agents/skills by
 # .chezmoiscripts/run_onchange_after_30-agent-skills.sh (npx skills add -g).
-# One repo per line: owner/repo [skill ...]. No skills listed = every skill in the repo.
+# One repo per line: owner/repo [skill ...]. No skills listed = every skill in the repo,
+# which tools/check-skills-doc.py rejects: it cannot check docs/skills.md against a set
+# it would have to fetch. Name the skills.
 # The tool keeps its own lock file (~/.agents/.skill-lock.json); it is not managed here.
 aws/agent-toolkit-for-aws amazon-bedrock aws-auth aws-billing-and-cost-management aws-blocks aws-cdk aws-cloudformation aws-compute aws-containers aws-database aws-deployment aws-iam aws-messaging-and-streaming aws-networking aws-observability aws-sdk-js-v3-usage aws-sdk-python-usage aws-sdk-swift-usage aws-security aws-serverless creating-secrets-using-best-practices launch-with-aws querying-aws-cloudwatch querying-aws-s3 rds-oss route53 routing-traffic-with-route53-and-cloudfront setting-up-cloudwatch-alarm-notifications signing-in-to-aws troubleshooting-application-failures
 github/gh-stack gh-stack
