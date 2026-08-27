@@ -96,6 +96,40 @@ chezmoi_managed() {
   [ -x "$H/.claude/subagent-statusline.sh" ]
 }
 
+# The terminal was the one thing every machine disagreed about -- cursor shape, font --
+# because nothing managed it. A Dynamic Profile is iTerm2's own mechanism for a profile that
+# comes from a file: it reads it live and never writes back, so it survives an apply and does
+# not churn the way the preferences plist does.
+@test "the iTerm2 profile is managed and is the default" {
+  profile="$H/Library/Application Support/iTerm2/DynamicProfiles/whetstone.json"
+  [ -f "$profile" ]
+
+  # Parsed the way iTerm2 parses it, not with jq. jq accepts `Infinity`, which Python's
+  # json.dumps emits and NSJSONSerialization rejects -- the profile was silently unreadable
+  # while a jq-based assertion called it valid. `plutil -convert` is Foundation's parser.
+  # (`plutil -lint` is not: it rejects even `{"a": 1}`.)
+  plutil -convert xml1 -o /dev/null "$profile"
+  run ! grep -qE '\b(Infinity|-Infinity|NaN)\b' "$profile"
+
+  jq -e '.Profiles | length == 1' "$profile" >/dev/null
+
+  # The Guid is what `Default Bookmark Guid` points at, so it has to be stable rather than
+  # the machine-generated one the profile was captured from.
+  [ "$(jq -r '.Profiles[0].Guid' "$profile")" = whetstone-default ]
+  [ "$(jq -r '.Profiles[0].Name' "$profile")" = Whetstone ]
+
+  # The settings that differed between machines, pinned so a drifting one is a failure.
+  [ "$(jq -r '.Profiles[0]["Cursor Type"]' "$profile")" = 1 ]
+  [ "$(jq -r '.Profiles[0]["Blinking Cursor"]' "$profile")" = true ]
+  [ "$(jq -r '.Profiles[0]["Normal Font"]' "$profile")" = "FiraCodeRoman-Medium 13" ]
+
+  # The applied file carries this machine's home, and the source carries none: the working
+  # directory is templated, so the profile is not pinned to whoever captured it.
+  [ "$(jq -r '.Profiles[0]["Working Directory"]' "$profile")" = "$H" ]
+  run ! grep -qE '"/Users/[a-z0-9]+"' \
+    "$REPO/home/Library/Application Support/iTerm2/DynamicProfiles/whetstone.json.tmpl"
+}
+
 @test "Claude settings carry no env block" {
   jq -e 'has("env") | not' "$H/.claude/settings.json"
 }
