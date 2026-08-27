@@ -155,23 +155,42 @@ chezmoi_managed() {
 
   # iTerm2 keeps these in its own domain, not in the profile, so a Dynamic Profile does not
   # carry them. Focus-follows-mouse is the one you notice within a minute.
-  for key in FocusFollowsMouse AggressiveFocusFollowsMouse DimInactiveSplitPanes \
-    SplitPaneDimmingAmount CopySelection CopyLastNewline EnableAPIServer \
-    "Selection Respects Soft Boundaries"; do
-    grep -qF "defaults write com.googlecode.iterm2 \"$key\"" "$script" \
-      || grep -qF "defaults write com.googlecode.iterm2 $key" "$script" \
-      || {
-        echo "iTerm2 setting not written: $key"
-        return 1
-      }
+  for line in \
+    "defaults write com.googlecode.iterm2 FocusFollowsMouse -bool true" \
+    "defaults write com.googlecode.iterm2 AggressiveFocusFollowsMouse -bool true" \
+    "defaults write com.googlecode.iterm2 FocusNewSplitPaneWithFocusFollowsMouse -bool true" \
+    "defaults write com.googlecode.iterm2 DimInactiveSplitPanes -bool true" \
+    "defaults write com.googlecode.iterm2 SplitPaneDimmingAmount -float 0.2518520555218447" \
+    "defaults write com.googlecode.iterm2 DimBackgroundWindows -bool false" \
+    "defaults write com.googlecode.iterm2 \"Selection Respects Soft Boundaries\" -bool true" \
+    "defaults write com.googlecode.iterm2 CopySelection -bool false" \
+    "defaults write com.googlecode.iterm2 CopyLastNewline -bool true" \
+    "defaults write com.googlecode.iterm2 ClickToSelectCommand -bool false" \
+    "defaults write com.googlecode.iterm2 AllowClipboardAccess -bool true" \
+    "defaults write com.googlecode.iterm2 EnableAPIServer -bool true" \
+    "defaults write com.googlecode.iterm2 HideActivityIndicator -bool false" \
+    "defaults write com.googlecode.iterm2 ShowFullScreenTabBar -bool false" \
+    "defaults write com.googlecode.iterm2 \"Default Bookmark Guid\" -string \"whetstone-default\""; do
+    grep -qFx "$line" "$script"
   done
 
-  # Finder's search scope and the two hot corners, with their modifiers: an unset modifier
-  # is not the same as zero.
-  grep -qF 'FXDefaultSearchScope -string "SCcf"' "$script"
-  for corner in wvous-bl-corner wvous-bl-modifier wvous-br-corner wvous-br-modifier; do
-    grep -qF "defaults write com.apple.dock $corner" "$script"
-  done
+  grep -qFx "if pgrep -xq iTerm2; then" "$script"
+  grep -qFx \
+    "  echo \"iTerm2 is running; quit it and rerun apply so settings are not overwritten.\" >&2" \
+    "$script"
+  grep -qFx "  exit 1" "$script"
+  grep -qFx "fi" "$script"
+
+  # Finder's search scope and new-window target, plus the two hot corners with modifiers:
+  # an unset modifier is not the same as zero.
+  grep -qFx 'defaults write com.apple.finder FXDefaultSearchScope -string "SCcf"' "$script"
+  grep -qFx 'defaults write com.apple.finder NewWindowTarget -string "PfHm"' "$script"
+  grep -qFx "defaults write com.apple.finder FXRemoveOldTrashItems -bool true" "$script"
+  grep -qFx "defaults write com.apple.dock tilesize -int 67" "$script"
+  grep -qFx "defaults write com.apple.dock wvous-bl-corner -int 5" "$script"
+  grep -qFx "defaults write com.apple.dock wvous-bl-modifier -int 0" "$script"
+  grep -qFx "defaults write com.apple.dock wvous-br-corner -int 4" "$script"
+  grep -qFx "defaults write com.apple.dock wvous-br-modifier -int 0" "$script"
 }
 
 @test "Claude settings carry no env block" {
