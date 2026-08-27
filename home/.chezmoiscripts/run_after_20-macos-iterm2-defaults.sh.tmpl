@@ -9,7 +9,14 @@ set -euo pipefail
 # and nothing else, so focus-follows-mouse, split-pane dimming and the copy behaviour all
 # stayed on one machine. Comparing the two Macs' plists is what surfaced them; reading one
 # machine's could not, because there is no way to tell a set value from a default.
-if pgrep -x iTerm2 >/dev/null; then
+# Asked of the app registry, not the process table, because every process-name form is
+# wrong here. `pgrep -x iTerm2` finds nothing while iTerm2 is running -- the accounting
+# name is the full bundle path, so the exact-match form never matches. `pgrep -f iTerm.app`
+# overmatches: every process launched from iTerm2 carries that path in its environment.
+# `ps -Ao comm= | grep -q` reads correctly at a prompt and inverts inside a script, because
+# grep -q exits on the first match, ps takes SIGPIPE, and pipefail makes the pipeline
+# non-zero -- the guard silently flips and writes underneath a running iTerm2.
+if [ "$(osascript -e 'application "iTerm" is running')" = true ]; then
   printf 'iTerm2 is running; leaving its settings alone. Quit it and re-apply to set them.\n' >&2
 else
   defaults write com.googlecode.iterm2 FocusFollowsMouse -bool true

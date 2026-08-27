@@ -7,6 +7,7 @@
 {{ if ne .chezmoi.os "darwin" -}}
 Library
 .chezmoiscripts/20-macos-defaults.sh
+.chezmoiscripts/20-macos-iterm2-defaults.sh
 {{- end }}
 
 {{ if env "CI" -}}
@@ -14,6 +15,7 @@ Library
 .chezmoiscripts/05-oh-my-zsh.sh
 .chezmoiscripts/10-brew-bundle.sh
 .chezmoiscripts/20-macos-defaults.sh
+.chezmoiscripts/20-macos-iterm2-defaults.sh
 .chezmoiscripts/30-agent-skills.sh
 .chezmoiscripts/40-sync-mcp.sh
 {{- end }}

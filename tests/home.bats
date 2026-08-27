@@ -180,12 +180,20 @@ chezmoi_managed() {
 
   # The guard skips rather than aborting: an apply is normally run from a shell inside
   # iTerm2, so exiting non-zero there would fail every apply and block the scripts after it.
-  grep -qFx "if pgrep -x iTerm2 >/dev/null; then" "$iterm_script"
+  # The guard asks the app registry. Every process-name form is wrong here: `pgrep -x
+  # iTerm2` never matches (the accounting name is the full bundle path), `pgrep -f
+  # iTerm.app` matches anything launched from iTerm2, and `ps | grep -q` inverts under
+  # `set -o pipefail` when grep exits first and ps takes SIGPIPE -- which silently wrote
+  # the settings underneath a running iTerm2.
+  grep -qF 'osascript -e' "$iterm_script"
+  code="$BATS_TEST_TMPDIR/iterm-code.sh"
+  grep -vE '^[[:space:]]*#' "$iterm_script" >"$code"
+  run ! grep -qE 'pgrep|ps -Ao' "$code"
   run ! grep -qFx "  exit 1" "$iterm_script"
 
   # And nothing reaches iTerm2's domain outside that guard: written while it runs, the
   # values are discarded when it quits, which looks like success and loses all of them.
-  outside=$(awk '$0 == "if pgrep -x iTerm2 >/dev/null; then" { guarded = 1 }
+  outside=$(awk '/^if \[ "\$\(osascript/ { guarded = 1 }
                  /^fi$/ { guarded = 0 }
                  /defaults write com.googlecode.iterm2/ && !guarded { print }' "$iterm_script")
   [ -z "$outside" ] || {
