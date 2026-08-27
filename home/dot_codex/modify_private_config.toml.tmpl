@@ -106,14 +106,15 @@ def key_name(line):
     return key_path(match.group(1)) if match else None
 
 
-def close_multiline(line, opener):
-    """The multiline delimiter still open at the end of `line`, or None.
+def scan_line(line, opener, depth):
+    """The multiline delimiter and bracket depth still open at the end of `line`.
 
-    A table header is only a header outside a multiline string. Without this, a `[tui]`
-    line inside a preserved value reads as the managed [tui] table: that block is dropped
-    out of the middle of the string, the value is left unterminated, and the apply writes
-    a ~/.codex/config.toml that does not parse. There is no guard downstream to catch it,
-    and there cannot easily be one -- system python3 on macOS is 3.9, which has no tomllib.
+    A header or a key is only itself at the lexical top level: outside a multiline string
+    and outside an array. Both ways of getting that wrong ended the same, with an apply
+    writing a ~/.codex/config.toml that does not parse -- a `[tui]` line inside a preserved
+    value read as the managed table and dropped the rest of the string, and a `["tui"]`
+    element on its own line read as a table and orphaned the `custom = [` above it. There
+    is no guard downstream to catch either: system python3 on macOS is 3.9, no tomllib.
     """
     index = 0
     length = len(line)
@@ -146,16 +147,25 @@ def close_multiline(line, opener):
                 index += 2 if char == '"' and line[index] == "\\" else 1
             index += 1
             continue
+        if char in "[{":
+            depth += 1
+        elif char in "]}" and depth > 0:
+            depth -= 1
         index += 1
-    return opener
+    return opener, depth
 
 
 def headers(lines):
-    """Each line with its table name, or None where it is not a header at the top level."""
+    """Each line with its table name and whether it starts at the lexical top level.
+
+    A header line balances its own brackets, so scanning it leaves the depth where it was.
+    """
     opener = None
+    depth = 0
     for line in lines:
-        yield line, (None if opener is not None else table_name(line))
-        opener = close_multiline(line, opener)
+        at_top = opener is None and depth == 0
+        yield line, (table_name(line) if at_top else None), at_top
+        opener, depth = scan_line(line, opener, depth)
 
 
 # What the template declares. A table it declares wins outright. A table merely nested
@@ -165,9 +175,9 @@ def headers(lines):
 managed_lines = managed.splitlines()
 managed_headers = list(headers(managed_lines))
 first_table = next(
-    (i for i, (_, name) in enumerate(managed_headers) if name), len(managed_lines)
+    (i for i, (_, name, _) in enumerate(managed_headers) if name), len(managed_lines)
 )
-managed_tables = {name for _, name in managed_headers if name}
+managed_tables = {name for _, name, _ in managed_headers if name}
 managed_keys = {name for l in managed_lines[:first_table] if (name := key_name(l))}
 
 kept_keys: list[str] = []
@@ -185,7 +195,7 @@ def flush() -> None:
             kept_tables.append("")
 
 
-for line, name in headers(current.splitlines()):
+for line, name, at_top in headers(current.splitlines()):
     if line.strip() == MARKER:
         continue
     if name is not None:
@@ -196,7 +206,10 @@ for line, name in headers(current.splitlines()):
     if in_preamble:
         # Only another key or a table header ends a capture. A blank or comment line can
         # sit inside a multiline value, so it has to be captured, not treated as the end.
-        key = key_name(line)
+        # Only at the top level: a `model = "inside"` line within a preserved multiline
+        # value is that value's text, not the managed key, and reading it as the key
+        # dropped the line and the closing delimiter with it.
+        key = key_name(line) if at_top else None
         if key is not None:
             keep_key = key not in managed_keys
         if keep_key:

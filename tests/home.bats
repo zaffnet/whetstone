@@ -210,46 +210,26 @@ chezmoi_managed() {
     'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$escaped"
   grep -qF 'trust_level = "trusted"' "$escaped"
   grep -qF 'still inside' "$escaped"
-}
 
-# Copilot on #32: table names were compared as captured text, so ["tui"] and [tui] read as
-# two tables. The live one was preserved and the template emitted its own, declaring [tui]
-# twice -- a config.toml Codex cannot parse. Every spelling seeded here is a name the
-# template already declares, written the way TOML also allows.
-@test "the Codex modify script reads equivalent table spellings as one table" {
-  script="$BATS_TEST_TMPDIR/modify.sh"
-  HOME="$H" chezmoi --source "$REPO" execute-template \
-    <"$REPO/home/dot_codex/modify_private_config.toml.tmpl" >"$script"
+  # Copilot on #35: a header is only a header at the lexical top level, which means outside
+  # an array as well as outside a string. `["tui"]` as an array element on its own line read
+  # as the managed table, so the block was dropped and `custom = [` was left orphaned.
+  nested="$BATS_TEST_TMPDIR/nested-array.toml"
+  printf 'custom = [\n["tui"]\n]\n' | bash "$script" >"$nested"
+  uv run --no-project --python 3.12 python -c \
+    'import sys, tomllib; assert tomllib.load(open(sys.argv[1], "rb"))["custom"] == [["tui"]]' \
+    "$nested"
 
-  seeded="$BATS_TEST_TMPDIR/seeded.toml"
-  {
-    # A managed preamble key and a managed table, each spelled with an escape: decoding
-    # them is what makes the duplicate visible. \u006c is l, \u0069 is i.
-    printf '"mode\\u006c" = "gpt-4"\n\n'
-    printf '["tu\\u0069"]\nstatus_line_use_colors = false\n\n'
-    printf "[ 'plugins' . \"github@claude-plugins-official\" ]\nenabled = false\n\n"
-    # Undeclared, and differing from the declared [tui] only in quoting: still preserved.
-    printf '[ "tui" . model_availability_nux ]\nseen = true\n'
-  } >"$seeded"
-
-  out="$BATS_TEST_TMPDIR/out.toml"
-  bash "$script" <"$seeded" >"$out"
-
-  # tomllib rejects a table declared twice, so parsing is the duplicate check; the values
-  # say the template won and the undeclared table came through.
-  uv run --no-project --python 3.12 python - "$out" <<'PYEOF'
-import sys, tomllib
-
-config = tomllib.load(open(sys.argv[1], "rb"))
-assert config["model"] == "gpt-5.6-sol", config["model"]
-assert config["tui"]["status_line_use_colors"] is True, config["tui"]
-assert config["plugins"]["github@claude-plugins-official"]["enabled"] is True
-assert config["tui"]["model_availability_nux"] == {"seen": True}
-PYEOF
-
-  second="$BATS_TEST_TMPDIR/second.toml"
-  bash "$script" <"$out" >"$second"
-  diff "$out" "$second"
+  # And a key is only a key at the top level too: `model = "inside"` within a preserved
+  # multiline value is that value's text, not the managed key. Reading it as the key dropped
+  # the line and the closing delimiter, leaving `custom = """` unterminated.
+  inner="$BATS_TEST_TMPDIR/inner-key.toml"
+  printf 'custom = """\nmodel = "inside"\n"""\n' | bash "$script" >"$inner"
+  uv run --no-project --python 3.12 python -c \
+    'import sys, tomllib; d = tomllib.load(open(sys.argv[1], "rb")); assert d["custom"] == chr(109) + chr(111) + chr(100) + chr(101) + chr(108) + " = \"inside\"\n", d["custom"]' \
+    "$inner"
+  # The managed `model` key is still the template's, not the one from inside the string.
+  grep -qF 'model = "gpt-5.6-sol"' "$inner"
 }
 
 # Copilot on #32: table names were compared as captured text, so ["tui"] and [tui] read as
