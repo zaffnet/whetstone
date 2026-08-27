@@ -16,7 +16,7 @@ Run `git diff --name-only` and `git diff` to see what changed. Read each affecte
 
 ## Flag two kinds of tests
 
-1. **Self-proving mock tests.** The test configures a mock to return a value, then asserts the result equals that same value. A common shape is an `httpx` or `respx` route set to return a canned body, followed by an assertion against that canned body. The mock produced the result, so the test says nothing about the code under test.
+1. **Self-proving mock tests.** The test configures a mock to return a value, then asserts the result equals that same value. A common shape is an `httpx2.MockTransport` route set to return a canned body, followed by an assertion against that canned body. The mock produced the result, so the test says nothing about the code under test.
 
 2. **Static-analysis duplicates.** The test only checks a fact that `ruff`, `mypy`, or `basedpyright` already enforce during `pre-commit run --all-files`. Examples: asserting that an object is an instance of its declared type, asserting that a constant equals itself, or asserting that a list is a list.
 

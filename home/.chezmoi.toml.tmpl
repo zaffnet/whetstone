@@ -5,6 +5,11 @@
 {{- $role := promptChoiceOnce . "role" "role" (list "personal" "work") "personal" -}}
 {{- $srcDir := promptStringOnce . "src_dir" "src_dir" "Desktop/src" -}}
 
+# Without this, a bare `chezmoi` command falls back to ~/.local/share/chezmoi, which does
+# not exist when the repo is cloned somewhere else. It has to sit above [data], or TOML
+# reads it as a key of the last table.
+sourceDir = {{ .chezmoi.workingTree | quote }}
+
 [data]
   # Git identity.
   name = {{ $name | quote }}
@@ -24,6 +29,7 @@
 #     pypi_index_url = "https://artifacts.example.internal/api/pypi/simple"
 #     pypi_publish_url = "https://artifacts.example.internal/api/pypi"
 #     branch_prefix = "yourhandle/"                               # Cursor git.branchPrefix, Codex git-branch-prefix
+#     code_scan_command = "/opt/vendor/bin/code-scan"             # MCP server only this machine has
 [data.work]
 
 [edit]

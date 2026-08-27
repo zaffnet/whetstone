@@ -16,6 +16,9 @@ jobs:
       matrix:
         use_docker: ["false", "true"]
         use_fastapi: ["false", "true"]
+        # 88 is ruff's own default and the likeliest non-default answer. Rendering only the
+        # default hid a template line that was 89 characters wide.
+        line_length: ["100", "88"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
@@ -29,12 +32,14 @@ jobs:
         env:
           USE_DOCKER: ${{ matrix.use_docker }}
           USE_FASTAPI: ${{ matrix.use_fastapi }}
+          LINE_LENGTH: ${{ matrix.line_length }}
         # --vcs-ref HEAD: copier defaults to the latest tag, which would test the last
         # release instead of this commit.
         run: |
           uvx copier copy --defaults --vcs-ref HEAD \
             -d project_name=demo-app -d description=Demo -d github_owner=octocat \
-            -d "use_docker=$USE_DOCKER" -d "use_fastapi=$USE_FASTAPI" . /tmp/demo
+            -d "use_docker=$USE_DOCKER" -d "use_fastapi=$USE_FASTAPI" \
+            -d "line_length=$LINE_LENGTH" . /tmp/demo
       - name: Check the generated project
         working-directory: /tmp/demo
         run: |
@@ -47,10 +52,14 @@ jobs:
           actionlint
           test -f LICENSE
           # A WorktreeCreate hook has no fallback and fails inside the Claude desktop app's
-          # session sandbox; generated projects must not ship one (docs/decisions/0010).
+          # session sandbox; generated projects must not ship one, wired or not
+          # (docs/decisions/0010).
           jq -e '.hooks | has("WorktreeCreate") | not' .claude/settings.json
+          test ! -e .claude/hooks/worktree_create.sh
       - name: Build the image and run the Compose stack
-        if: matrix.use_docker == 'true'
+        # line_length only changes rendered source, so build the image once per docker
+        # variant rather than once per line_length.
+        if: matrix.use_docker == 'true' && matrix.line_length == '100'
         working-directory: /tmp/demo
         env:
           USE_FASTAPI: ${{ matrix.use_fastapi }}
@@ -65,3 +74,56 @@ jobs:
             docker compose run --rm app
           fi
           docker compose down -v
+
+  # The name is interpolated inline into rendered Python, so a long one can push a line
+  # past the project's own ruff gate. copier.yml caps it at 40; this renders at the cap
+  # and at the 88-character floor on line_length, the pair that leaves the least room.
+  # Two variants, because __main__.py renders only without FastAPI and app.py only with it.
+  longest-name:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        use_fastapi: ["false", "true"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      - name: Render the template with a 40-character name
+        env:
+          USE_FASTAPI: ${{ matrix.use_fastapi }}
+        run: |
+          uvx copier copy --defaults --vcs-ref HEAD \
+            -d project_name=demo-app-with-a-deliberately-long-name-x \
+            -d description=Demo -d github_owner=octocat \
+            -d use_docker=true -d "use_fastapi=$USE_FASTAPI" \
+            -d line_length=88 . /tmp/longest
+      - name: Check the rendered source against the project's own ruff config
+        working-directory: /tmp/longest
+        run: |
+          uv sync --all-groups
+          uv run ruff check .
+          uv run ruff format --check .
+
+  # One stable context for the branch ruleset to require. Both jobs above carry their
+  # matrix values in the job name, so adding an axis renames every context: adding
+  # line_length turned `render-and-check (true, true)` into
+  # `render-and-check (true, true, 88)` and the ruleset sat waiting on four names that
+  # no longer exist. This name never changes, whatever the matrix does.
+  #
+  # always() so a failed dependency still runs it. Without it the job is skipped, and a
+  # skipped required check passes the ruleset.
+  template-ok:
+    if: always()
+    needs: [render-and-check, longest-name]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail unless every template job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for result in $RESULTS; do
+            [ "$result" = success ] || { echo "a template job did not succeed"; exit 1; }
+          done

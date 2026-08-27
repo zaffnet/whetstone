@@ -1,0 +1,14 @@
+# Paths chezmoi deletes from $HOME. A file dropped from home/ stops being managed but is
+# left behind, so anything that must actually go is listed here.
+#
+# Deliberately absent: ~/.config/yabai/yabairc (yabai is still installed and this is its
+# only config) and VS Code's settings.json and keybindings.json (4b05b14 dropped them from
+# management, not from the machine). This file runs on every apply, so listing a path here
+# destroys it repeatedly.
+
+# Declared a Codex SessionStart hook whose body reads $CLAUDE_ENV_FILE and
+# $CLAUDE_PROJECT_DIR, which only Claude Code sets. Dropped from home/ in 309bee5.
+.codex/hooks.json
+
+# Superseded by ~/.agents/plugins/desired.yaml. Dropped from home/ in 309bee5.
+.agents/plugins/marketplace.json

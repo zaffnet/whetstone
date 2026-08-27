@@ -5,12 +5,12 @@ services:
     # For local dev: IMAGE_TAG=local PULL_POLICY=never docker compose up --build
     pull_policy: ${PULL_POLICY:-always}
 {%- if use_fastapi %}
-    command: [ "uv", "run", "uvicorn", "{{ package_name }}.app:app", "--host", "0.0.0.0", "--port", "8080" ]
+    command: [ "uv", "run", "--no-sync", "uvicorn", "{{ package_name }}.app:app", "--host", "0.0.0.0", "--port", "8080" ]
     ports:
       - "8080:8080"
 {%- else %}
     # Runs the module once and exits; replace with the real entry point.
-    command: [ "uv", "run", "python", "-m", "{{ package_name }}" ]
+    command: [ "uv", "run", "--no-sync", "python", "-m", "{{ package_name }}" ]
     restart: "no"
 {%- endif %}
     depends_on:

@@ -33,6 +33,10 @@ fi
 
 if [[ -f CLAUDE.local.md && -f AGENTS.md ]]; then
   cat AGENTS.md CLAUDE.local.md >AGENTS.override.md
+else
+  # Codex prefers AGENTS.override.md, so a leftover copy would freeze AGENTS.md as it was
+  # when CLAUDE.local.md last existed.
+  rm -f AGENTS.override.md
 fi
 
 AGENT="claude" # "codex"

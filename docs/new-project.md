@@ -5,7 +5,7 @@ uvx copier copy gh:zaffnet/whetstone my-project
 cd my-project
 git init -b main
 uv sync --all-groups
-uv run pre-commit install
+GIT_CONFIG_NOSYSTEM=1 uv run pre-commit install   # ignores a system core.hooksPath
 ```
 
 Copier renders the latest tagged release of the template. Add `--vcs-ref HEAD` for the tip
@@ -15,8 +15,8 @@ of `main`.
 
 | Question | Effect |
 | --- | --- |
-| `project_name` | Distribution name in `pyproject.toml`, repo name in README and CI |
-| `package_name` | Import name; defaults to `project_name` with hyphens turned into underscores |
+| `project_name` | Distribution name in `pyproject.toml`, repo name in README and CI; kebab-case, 40 characters or fewer |
+| `package_name` | Import name; defaults to `project_name` with hyphens turned into underscores; same 40-character limit |
 | `description` | `pyproject.toml` description and README first line |
 | `github_owner` | `CODEOWNERS`, clone URL in `docs/DEVELOPMENT.md`, container registry path |
 | `python_version` | `requires-python`, `.python-version`, `target-version` for ruff, mypy, basedpyright |

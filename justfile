@@ -59,15 +59,22 @@ test-home:
     WHETSTONE_HOME={{ci_home}} bats tests/
 
 # Renders the committed tree (HEAD), so commit template edits first.
+#
+# copier writes the source to .copier-answers.yml verbatim. A relative one resolves to the
+# generated project itself and breaks `uvx copier update` there, and this checkout's path
+# resolves on this machine only, so rewrite it to the origin URL afterwards. An update then
+# needs the ref pushed, which is right for a project someone keeps.
 # Generate a Python project from template/ into DEST.
 new DEST:
-    uv run copier copy --vcs-ref HEAD . "{{DEST}}"
+    uv run copier copy --vcs-ref HEAD "{{justfile_directory()}}" "{{DEST}}"
+    sed -i '' "s|^_src_path: .*|_src_path: $(git remote get-url origin)|" \
+        "{{DEST}}/.copier-answers.yml"
 
 # Plugin and marketplace manifests, and a secret scan over tracked and untracked files.
 validate:
     claude plugin validate .
     claude plugin validate .claude-plugin/plugin.json
-    gitleaks dir --no-banner .
+    gitleaks dir --no-banner --config .gitleaks.dir.toml .
 
 # Remove caches and the throwaway HOME.
 clean:

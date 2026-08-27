@@ -8,8 +8,8 @@ reader looks for a module's tests and how files sort in a directory listing.
 ## Decision
 
 `memory_store.py` has its tests in `memory_store_test.py` in the same directory. No
-`tests/` tree mirroring the package. `python_files = "*_test.py"` is set explicitly in
-`pyproject.toml` so the convention is recorded.
+`tests/` tree mirroring the package. A generated project sets `python_files = "*_test.py"`
+explicitly in its `pyproject.toml` so the convention is recorded.
 
 ## Consequences
 
@@ -17,8 +17,10 @@ reader looks for a module's tests and how files sort in a directory listing.
 - Coverage omits `**/*_test.py` and `**/_test_helpers.py`.
 - Ruff `per-file-ignores` relaxes `S101`, `S105`, `S404`, `S603`, and `PLR2004` for `*_test.py`
   only in generated projects; this repo's own config relaxes `S101` and `PLR2004`.
-- Contributors used to `tests/test_*.py` get a pre-commit failure from the `forbid-test-prefix`
-  hook; without it pytest would silently never collect the file.
+- In a generated project, contributors used to `tests/test_*.py` get a pre-commit failure
+  from the `forbid-test-prefix` hook; without it pytest would silently never collect the
+  file. whetstone itself configures neither, because it runs no pytest suite; its own
+  tests are Bats (`tests/home.bats`), which this decision does not cover.
 
 ## Alternatives considered
 
