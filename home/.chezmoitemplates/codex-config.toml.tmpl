@@ -4,9 +4,7 @@
 # [mcp_servers.*] tables (written by bin/sync-mcp from ~/.agents/mcp.json) and Codex's own
 # [projects.*] and [marketplaces.*] tables are carried over unchanged.
 
-# The model a machine should use is not always one this public repo can name, so it is a
-# [data.work] value like openai_base_url. Unset means the published default.
-model = {{ get $work "codex_model" | default "gpt-5.5" | quote }}
+model = "gpt-5.6-sol"
 approval_policy = "never"
 sandbox_mode = "workspace-write"
 model_reasoning_effort = "high"
