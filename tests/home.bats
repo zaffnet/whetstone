@@ -156,40 +156,49 @@ chezmoi_managed() {
   # iTerm2 keeps these in its own domain, not in the profile, so a Dynamic Profile does not
   # carry them. Focus-follows-mouse is the one you notice within a minute.
   for line in \
-    "defaults write com.googlecode.iterm2 FocusFollowsMouse -bool true" \
-    "defaults write com.googlecode.iterm2 AggressiveFocusFollowsMouse -bool true" \
-    "defaults write com.googlecode.iterm2 FocusNewSplitPaneWithFocusFollowsMouse -bool true" \
-    "defaults write com.googlecode.iterm2 DimInactiveSplitPanes -bool true" \
-    "defaults write com.googlecode.iterm2 SplitPaneDimmingAmount -float 0.2518520555218447" \
-    "defaults write com.googlecode.iterm2 DimBackgroundWindows -bool false" \
-    "defaults write com.googlecode.iterm2 \"Selection Respects Soft Boundaries\" -bool true" \
-    "defaults write com.googlecode.iterm2 CopySelection -bool false" \
-    "defaults write com.googlecode.iterm2 CopyLastNewline -bool true" \
-    "defaults write com.googlecode.iterm2 ClickToSelectCommand -bool false" \
-    "defaults write com.googlecode.iterm2 AllowClipboardAccess -bool true" \
-    "defaults write com.googlecode.iterm2 EnableAPIServer -bool true" \
-    "defaults write com.googlecode.iterm2 HideActivityIndicator -bool false" \
-    "defaults write com.googlecode.iterm2 ShowFullScreenTabBar -bool false" \
-    "defaults write com.googlecode.iterm2 \"Default Bookmark Guid\" -string \"whetstone-default\""; do
+    "  defaults write com.googlecode.iterm2 FocusFollowsMouse -bool true" \
+    "  defaults write com.googlecode.iterm2 AggressiveFocusFollowsMouse -bool true" \
+    "  defaults write com.googlecode.iterm2 FocusNewSplitPaneWithFocusFollowsMouse -bool true" \
+    "  defaults write com.googlecode.iterm2 DimInactiveSplitPanes -bool true" \
+    "  defaults write com.googlecode.iterm2 SplitPaneDimmingAmount -float 0.2518520555218447" \
+    "  defaults write com.googlecode.iterm2 DimBackgroundWindows -bool false" \
+    "  defaults write com.googlecode.iterm2 \"Selection Respects Soft Boundaries\" -bool true" \
+    "  defaults write com.googlecode.iterm2 CopySelection -bool false" \
+    "  defaults write com.googlecode.iterm2 CopyLastNewline -bool true" \
+    "  defaults write com.googlecode.iterm2 ClickToSelectCommand -bool false" \
+    "  defaults write com.googlecode.iterm2 AllowClipboardAccess -bool true" \
+    "  defaults write com.googlecode.iterm2 EnableAPIServer -bool true" \
+    "  defaults write com.googlecode.iterm2 HideActivityIndicator -bool false" \
+    "  defaults write com.googlecode.iterm2 ShowFullScreenTabBar -bool false" \
+    "  defaults write com.googlecode.iterm2 \"Default Bookmark Guid\" -string \"whetstone-default\""; do
     grep -qFx "$line" "$script"
   done
 
+  # The guard skips rather than aborting: an apply is normally run from a shell inside
+  # iTerm2, so exiting non-zero there would fail every apply and block the scripts after it.
   grep -qFx "if pgrep -xq iTerm2; then" "$script"
-  grep -qFx \
-    "  echo \"iTerm2 is running; quit it and rerun apply so settings are not overwritten.\" >&2" \
-    "$script"
-  grep -qFx "  exit 1" "$script"
-  grep -qFx "fi" "$script"
+  run ! grep -qFx "  exit 1" "$script"
+
+  # And nothing reaches iTerm2's domain outside that guard: written while it runs, the
+  # values are discarded when it quits, which looks like success and loses all of them.
+  outside=$(awk '/^if pgrep -xq iTerm2/ { guarded = 1 }
+                 /^fi$/ { guarded = 0 }
+                 /defaults write com.googlecode.iterm2/ && !guarded { print }' "$script")
+  [ -z "$outside" ] || {
+    echo "iTerm2 settings written outside the guard:"
+    echo "$outside"
+    return 1
+  }
 
   # Finder's search scope and new-window target, plus the two hot corners with modifiers:
   # an unset modifier is not the same as zero.
   grep -qFx 'defaults write com.apple.finder FXDefaultSearchScope -string "SCcf"' "$script"
-  grep -qFx 'defaults write com.apple.finder NewWindowTarget -string "PfHm"' "$script"
+  grep -qFx 'defaults write com.apple.finder NewWindowTarget -string "PfAF"' "$script"
   grep -qFx "defaults write com.apple.finder FXRemoveOldTrashItems -bool true" "$script"
   grep -qFx "defaults write com.apple.dock tilesize -int 67" "$script"
   grep -qFx "defaults write com.apple.dock wvous-bl-corner -int 5" "$script"
   grep -qFx "defaults write com.apple.dock wvous-bl-modifier -int 0" "$script"
-  grep -qFx "defaults write com.apple.dock wvous-br-corner -int 4" "$script"
+  grep -qFx "defaults write com.apple.dock wvous-br-corner -int 1" "$script"
   grep -qFx "defaults write com.apple.dock wvous-br-modifier -int 0" "$script"
 }
 
