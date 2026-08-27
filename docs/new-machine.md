@@ -38,7 +38,10 @@ From a fresh macOS install to a working shell, editor, and agents.
    settings go in `~/.gitconfig.local`.
 5. Open a new terminal. Run `p10k configure` only if the prompt glyphs look wrong (the
    Nerd Font casks are in the Brewfile).
-6. Sign in: `gh auth login`, `claude`, `codex`, Cursor.
+6. Install Cursor from [cursor.com](https://www.cursor.com/) if you want it. It is not in
+   the Brewfile: it updates itself, so the cask never upgraded it, and adopting an app
+   already in `/Applications` fails under macOS App Management and takes the app with it.
+7. Sign in: `gh auth login`, `claude`, `codex`, Cursor.
 
 ## Day-to-day
 

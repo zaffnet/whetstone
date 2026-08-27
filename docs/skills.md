@@ -13,9 +13,10 @@ Every agent skill this repo writes or installs, in one place. Three install path
   `home/.chezmoitemplates/codex-config.toml.tmpl` (`[plugins.*]`);
   `home/dot_agents/plugins/desired.yaml` is the inventory kept in step with both.
 
-Keep this file in step with all three when a skill is added or removed. A plugin whose skill
-set is versioned upstream is named below, not enumerated: the list would rot on their
-release, not ours.
+Keep this file in step with all three when a skill is added or removed. The first two tables
+are checked against their sources by `tools/check-skills-doc.py`, which pre-commit runs. The
+plugin table is not: a plugin whose skill set is versioned upstream is named below, not
+enumerated, so there is no file here to compare it against.
 
 ## Written here
 
