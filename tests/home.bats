@@ -123,12 +123,13 @@ chezmoi_managed() {
   [ "$status" -eq 0 ]
   [[ "$output" != *"$hollow"*Cursor.app* ]]
 
-  # Copilot on #32: the loop must not leave its iterator behind, and must not clobber an
-  # inherited one. dot_zshrc.tmpl unsets nvm_sh for the same reason.
-  run env -i HOME="$installed" PATH=/usr/bin:/bin cursor_bin=mine \
-    /bin/zsh -c ". '$H/.zprofile'; printf %s \"\${cursor_bin-<unset>}\""
+  # Copilot on #32, second round: an inherited variable must come out untouched. Unsetting
+  # the iterator destroyed it just as surely as overwriting it did, so there is no iterator
+  # now -- but the assertion is about what the caller sees, not about how it is spelled.
+  run env -i HOME="$installed" PATH=/usr/bin:/bin cursor_bin=mine dir=mine \
+    /bin/zsh -c ". '$H/.zprofile'; printf '%s %s' \"\${cursor_bin-<unset>}\" \"\${dir-<unset>}\""
   [ "$status" -eq 0 ]
-  [ "$output" = "<unset>" ]
+  [ "$output" = "mine mine" ]
 
   # A machine with no Cursor sources the same file without error and without the entry.
   # Skipped when Cursor is installed in /Applications, which the loop finds whatever HOME is.
