@@ -6,11 +6,17 @@
 #   GIT_BRANCH_PREFIX  Prefix for the name, with trailing slash (default: the
 #                      GitHub login from `gh api user`, else the git user name,
 #                      lower-cased with spaces as hyphens).
-#   CODEX_MODEL        Model name passed to `codex exec` (default: gpt-5.5).
-#   CODEX_BASE_URL     OpenAI-compatible proxy (falls back to OPENAI_BASE_URL); OPENAI_API_KEY is the credential.
+#   CODEX_MODEL        Overrides ~/.codex/config.toml's `model` (fallback: gpt-5.5).
+#   CODEX_BASE_URL     Overrides ~/.codex/config.toml's `openai_base_url`, then OPENAI_BASE_URL;
+#                      OPENAI_API_KEY is the credential.
 set -euo pipefail
 
-CODEX_MODEL="${CODEX_MODEL:-gpt-5.5}"
+# The library is symlinked into ~/.local/bin too, so it sits beside this script whichever
+# path reached it. No symlink resolution, which is where the first attempt went wrong.
+# shellcheck source-path=SCRIPTDIR source=_codex-config.sh
+source "${BASH_SOURCE[0]%/*}/_codex-config.sh"
+
+CODEX_MODEL=$(codex_model)
 EFFORT="medium"
 readonly CODEX_MODEL EFFORT
 
@@ -76,7 +82,7 @@ SCHEMA="$(
 readonly SCHEMA
 
 PROVIDER_ARGS=()
-CODEX_BASE_URL="${CODEX_BASE_URL:-${OPENAI_BASE_URL:-}}"
+CODEX_BASE_URL=$(codex_base_url)
 if [[ -n "$CODEX_BASE_URL" ]]; then
   PROVIDER_ARGS=(
     --config 'model_provider="proxy"'
