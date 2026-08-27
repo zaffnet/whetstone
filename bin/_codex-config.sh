@@ -1,5 +1,8 @@
-# shellcheck shell=bash
-# Shared by the bin/ scripts that shell out to `codex exec`. Sourced, not executed.
+#!/usr/bin/env bash
+# Shared by the bin/ scripts that shell out to `codex exec`. Sourced, not executed; the
+# shebang is there so check-shebang-scripts-are-executable keeps it 0755, the same shape
+# as hooks/_common.sh. It is symlinked into ~/.local/bin beside its callers, so a caller
+# finds it next to itself whether it was reached through the repo or through the symlink.
 #
 # Those scripts pass --ignore-user-config so a run cannot pick up hooks, plugins, skills or
 # rules. That flag also drops the model and the proxy, which are not isolation concerns and

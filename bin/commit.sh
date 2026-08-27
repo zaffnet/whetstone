@@ -20,20 +20,10 @@
 # The generated message is saved to $GIT_DIR/COMMIT_MESSAGE.md for reference.
 set -euo pipefail
 
-# Resolve through ~/.local/bin's symlink so the sibling library is found either way.
-# The rewrite applies only when readlink actually ran: prefixing unconditionally turned a
-# relative invocation such as `bin/commit.sh` into `bin/bin/_codex-config.sh`.
-self=${BASH_SOURCE[0]}
-[[ $self == */* ]] || self=./$self
-if [[ -L $self ]]; then
-  link=$(readlink "$self")
-  case $link in
-    /*) self=$link ;;
-    *) self="${self%/*}/$link" ;;
-  esac
-fi
+# The library is symlinked into ~/.local/bin too, so it sits beside this script whichever
+# path reached it. No symlink resolution, which is where the first attempt went wrong.
 # shellcheck source-path=SCRIPTDIR source=_codex-config.sh
-source "${self%/*}/_codex-config.sh"
+source "${BASH_SOURCE[0]%/*}/_codex-config.sh"
 
 CODEX_MODEL=$(codex_model)
 ASSUME_YES=false

@@ -278,14 +278,19 @@ JSON
   [ "$(CODEX_HOME=/nonexistent bash -c "source '$REPO/bin/_codex-config.sh'; codex_model fallback-model")" = fallback-model ]
 }
 
-# Copilot on #28: `bin/commit.sh` sourced bin/bin/_codex-config.sh and died. Every way these
-# scripts are reached has to find the library beside the real file, not beside the symlink.
-# The assertion is the absence of that specific failure, not the exit status: only two of the
-# three have a --help fast path, and the third goes straight to Codex.
+# Copilot on #28: `bin/commit.sh` sourced bin/bin/_codex-config.sh and died. The library is
+# now symlinked into ~/.local/bin beside its callers, so `${BASH_SOURCE[0]%/*}` finds it by
+# whichever path the script was reached -- which is the contract this pins. The assertion is
+# the absence of that specific failure, not the exit status: only two of the three have a
+# --help fast path and the third goes straight to Codex.
 @test "the Codex scripts find their library however they are invoked" {
+  # The applied tree has to put the library beside the scripts, or every one of them breaks.
+  resolves_to "$H/.local/bin/_codex-config.sh" "$REPO/bin/_codex-config.sh"
+
   link_dir="$BATS_TEST_TMPDIR/localbin"
   stub_dir="$BATS_TEST_TMPDIR/stub"
   mkdir -p "$link_dir" "$stub_dir"
+  ln -sf "$REPO/bin/_codex-config.sh" "$link_dir/_codex-config.sh"
 
   # A codex that fails at once, so a script that gets past its source line stops there
   # instead of reaching the network.
