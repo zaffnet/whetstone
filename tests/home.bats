@@ -221,6 +221,71 @@ chezmoi_managed() {
   second="$BATS_TEST_TMPDIR/second.toml"
   bash "$script" <"$first" >"$second"
   diff "$first" "$second"
+
+  # Copilot on #30: a header-looking line inside a preserved multiline value is content,
+  # not a header. Reading it as one dropped the managed [tui] block out of the middle of
+  # the string and left the value unterminated, so the apply wrote a config that does not
+  # parse -- and nothing downstream would have caught that.
+  multiline="$BATS_TEST_TMPDIR/multiline.toml"
+  {
+    printf '[projects."/srv/p"]\ntrust_level = "trusted"\n'
+    printf 'note = """\n[tui]\nstatus_line_use_colors = false\n"""\n'
+  } | bash "$script" >"$multiline"
+  uv run --no-project --python 3.12 python -c \
+    'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$multiline"
+  grep -qF 'trust_level = "trusted"' "$multiline"
+  # The managed table keeps the template's value; the string keeps its own copy of the name.
+  grep -qF 'status_line_use_colors = true' "$multiline"
+  grep -qF 'status_line_use_colors = false' "$multiline"
+
+  # Copilot on #35: `\"""` is how TOML spells a literal `"""` inside a multiline basic
+  # string -- an escaped quote and two plain ones. Read as the closing delimiter, it
+  # reopened the same data loss from the next line on.
+  escaped="$BATS_TEST_TMPDIR/escaped-multiline.toml"
+  {
+    printf '[projects."/srv/q"]\n'
+    printf 'note = """\nliteral three quotes: \\"""\n[tui]\nstill inside\n"""\n'
+    printf 'trust_level = "trusted"\n'
+  } | bash "$script" >"$escaped"
+  uv run --no-project --python 3.12 python -c \
+    'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$escaped"
+  grep -qF 'trust_level = "trusted"' "$escaped"
+  grep -qF 'still inside' "$escaped"
+
+  # Copilot on #35: a header is only a header at the lexical top level, which means outside
+  # an array as well as outside a string. `["tui"]` as an array element on its own line read
+  # as the managed table, so the block was dropped and `custom = [` was left orphaned.
+  nested="$BATS_TEST_TMPDIR/nested-array.toml"
+  printf 'custom = [\n["tui"]\n]\n' | bash "$script" >"$nested"
+  uv run --no-project --python 3.12 python -c \
+    'import sys, tomllib; assert tomllib.load(open(sys.argv[1], "rb"))["custom"] == [["tui"]]' \
+    "$nested"
+
+  # And a key is only a key at the top level too: `model = "inside"` within a preserved
+  # multiline value is that value's text, not the managed key. Reading it as the key dropped
+  # the line and the closing delimiter, leaving `custom = """` unterminated.
+  inner="$BATS_TEST_TMPDIR/inner-key.toml"
+  printf 'custom = """\nmodel = "inside"\n"""\n' | bash "$script" >"$inner"
+  uv run --no-project --python 3.12 python -c \
+    'import sys, tomllib; d = tomllib.load(open(sys.argv[1], "rb")); assert d["custom"] == chr(109) + chr(111) + chr(100) + chr(101) + chr(108) + " = \"inside\"\n", d["custom"]' \
+    "$inner"
+  # The managed `model` key is still the template's, not the one from inside the string.
+  grep -qF 'model = "gpt-5.6-sol"' "$inner"
+
+  # Copilot on #35: the marker line was stripped even when it appeared as content inside a
+  # preserved multiline string. A project note containing the exact marker text lost that
+  # line silently on apply.
+  marker_in_str="$BATS_TEST_TMPDIR/marker-in-string.toml"
+  marker='# --- preserved sections (owned by Codex and bin/sync-mcp; chezmoi keeps them as-is) ---'
+  {
+    printf '[projects."/srv/p"]\n'
+    printf 'note = """\n%s\n"""\n' "$marker"
+    printf 'trust_level = "trusted"\n'
+  } | bash "$script" >"$marker_in_str"
+  uv run --no-project --python 3.12 python -c \
+    'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$marker_in_str"
+  grep -qF "$marker" "$marker_in_str"
+  grep -qF 'trust_level = "trusted"' "$marker_in_str"
 }
 
 # Copilot on #32: table names were compared as captured text, so ["tui"] and [tui] read as
