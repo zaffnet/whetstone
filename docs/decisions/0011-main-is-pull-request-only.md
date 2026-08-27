@@ -15,8 +15,11 @@ bypass list, so it binds the owner as well as any agent:
 - no direct pushes, deletions, or force-pushes;
 - every change arrives as a pull request, and Copilot code review is requested
   automatically;
-- the ten CI checks (`pre-commit`, `plugin-manifests`, `single-source`, `gitleaks`, both
-  `bootstrap` roles, all four `render-and-check` variants) pass.
+- the seven required checks pass: `pre-commit`, `plugin-manifests`, `single-source`,
+  `gitleaks`, both `bootstrap` roles, and `template-ok`. That last one aggregates every
+  `render-and-check` and `longest-name` job, because those carry their matrix values in the
+  job name: adding the `line_length` axis renamed all of them and left the ruleset waiting
+  on four contexts no job produced. Require the aggregate, never a matrix job name.
 
 No approving review is required: Copilot cannot approve, and the owner cannot approve their
 own PR. Bot reviews are advisory: the ruleset does not require threads to be resolved or the

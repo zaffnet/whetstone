@@ -141,6 +141,7 @@ tests/                bats assertions run against an applied home
 - [New machine](docs/new-machine.md)
 - [New project](docs/new-project.md)
 - [Redaction and secrets](docs/redaction.md)
+- [Review instructions](REVIEW.md): what a reviewer flags here, and what to leave alone
 - [Handbook](AGENTS.md): the conventions agents and humans both read
 - [Decisions](docs/decisions/)
 - [Uses](docs/uses.md)
