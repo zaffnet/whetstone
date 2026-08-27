@@ -198,6 +198,46 @@ chezmoi_managed() {
   grep -qF 'status_line_use_colors = false' "$multiline"
 }
 
+# Copilot on #32: table names were compared as captured text, so ["tui"] and [tui] read as
+# two tables. The live one was preserved and the template emitted its own, declaring [tui]
+# twice -- a config.toml Codex cannot parse. Every spelling seeded here is a name the
+# template already declares, written the way TOML also allows.
+@test "the Codex modify script reads equivalent table spellings as one table" {
+  script="$BATS_TEST_TMPDIR/modify.sh"
+  HOME="$H" chezmoi --source "$REPO" execute-template \
+    <"$REPO/home/dot_codex/modify_private_config.toml.tmpl" >"$script"
+
+  seeded="$BATS_TEST_TMPDIR/seeded.toml"
+  {
+    # A managed preamble key and a managed table, each spelled with an escape: decoding
+    # them is what makes the duplicate visible. \u006c is l, \u0069 is i.
+    printf '"mode\\u006c" = "gpt-4"\n\n'
+    printf '["tu\\u0069"]\nstatus_line_use_colors = false\n\n'
+    printf "[ 'plugins' . \"github@claude-plugins-official\" ]\nenabled = false\n\n"
+    # Undeclared, and differing from the declared [tui] only in quoting: still preserved.
+    printf '[ "tui" . model_availability_nux ]\nseen = true\n'
+  } >"$seeded"
+
+  out="$BATS_TEST_TMPDIR/out.toml"
+  bash "$script" <"$seeded" >"$out"
+
+  # tomllib rejects a table declared twice, so parsing is the duplicate check; the values
+  # say the template won and the undeclared table came through.
+  uv run --no-project --python 3.12 python - "$out" <<'PYEOF'
+import sys, tomllib
+
+config = tomllib.load(open(sys.argv[1], "rb"))
+assert config["model"] == "gpt-5.6-sol", config["model"]
+assert config["tui"]["status_line_use_colors"] is True, config["tui"]
+assert config["plugins"]["github@claude-plugins-official"]["enabled"] is True
+assert config["tui"]["model_availability_nux"] == {"seen": True}
+PYEOF
+
+  second="$BATS_TEST_TMPDIR/second.toml"
+  bash "$script" <"$out" >"$second"
+  diff "$out" "$second"
+}
+
 # The Cursor settings were a plain template, so every apply wrote the file whole and
 # deleted whatever Cursor and its extensions had written into it. Seed keys the template
 # does not declare, including a multi-line value holding a blank and a comment line, a
