@@ -8,9 +8,9 @@ compared after rendering ``{{ package_name }}`` to a fixed token, so unescaped q
 backslashes in the TOML string are caught too.
 
 Every key on both sides is accounted for, not just the two that used to be compared. The
-pair in ``SAME`` must be identical; ``MD_ONLY`` is Claude Code's alone and has no Codex
-counterpart; the body pairs with ``developer_instructions``. A key that is on neither list
-is reported rather than ignored, so adding one to a single side cannot pass unnoticed --
+pair in ``SAME`` must be identical; ``MD_ONLY`` and ``TOML_ONLY`` name what each side owns
+alone. A key on none of the three is reported rather than ignored, so adding one to a
+single side cannot pass unnoticed --
 ``name`` addresses the subagent, and the two halves used to be free to disagree about who
 they are.
 """
@@ -40,8 +40,10 @@ SAME = {"name": "name", "description": "description", "effort": "model_reasoning
 # Claude Code's own, with no Codex counterpart: Codex takes the tool set and the model from
 # its own config, and `opus` is a Claude model name that means nothing to it.
 MD_ONLY = frozenset({"tools", "model"})
+# Codex's own: the body lives in a key here rather than after the frontmatter.
+TOML_ONLY = frozenset({"developer_instructions"})
 MD_KEYS = frozenset(SAME) | MD_ONLY
-TOML_KEYS = frozenset(SAME.values()) | {"developer_instructions"}
+TOML_KEYS = frozenset(SAME.values()) | TOML_ONLY
 
 
 def split_markdown(text: str) -> tuple[dict[str, str], str]:
@@ -93,12 +95,13 @@ def compare(md_path: Path, toml_path: Path) -> list[str]:
             f"{md_path}: rendered under {agent_gate(md_path) or 'no condition'}, "
             f"{toml_path} under {agent_gate(toml_path) or 'no condition'}"
         )
-    for path, keys, present in (
-        (md_path, MD_KEYS, frozenset(front)),
-        (toml_path, TOML_KEYS, frozenset(data)),
+    for path, keys, present, only in (
+        (md_path, MD_KEYS, frozenset(front), "MD_ONLY"),
+        (toml_path, TOML_KEYS, frozenset(data), "TOML_ONLY"),
     ):
         problems.extend(
-            f"{path}: key {key!r} is compared against nothing; add it to SAME"
+            f"{path}: key {key!r} is compared against nothing; put it in SAME if the other "
+            f"half must carry the same value, or in {only} if this side owns it alone"
             for key in sorted(present - keys)
         )
         problems.extend(f"{path}: missing key {key!r}" for key in sorted(keys - present))

@@ -240,17 +240,35 @@ JSON
   [[ "$output" == *"cannot read"* ]]
 }
 
-# validate_codex re-reads what was written rather than trusting the string it built.
-@test "the Codex write is validated by reading the file back" {
+@test "an absent Codex private server is a note, not a failure" {
   seed_home <<'JSON'
 {"mcpServers": {"keeper": {"command": "/bin/true"}}}
 JSON
   sync
   [ "$status" -eq 0 ]
-  # Absent private servers are a note on stderr, not a failure: Codex writes them itself on
-  # first launch, so a fresh machine has none.
+  # Codex writes node_repl and friends itself on first launch, so a fresh machine has none.
   [[ "$output" == *"Codex private servers not present yet"* ]]
   toml_get "$FAKE/.codex/config.toml" | grep -q "'keeper'"
+}
+
+# Copilot on #30: the case above passes with validate_codex() deleted, because it re-parses
+# output that generation already got right. This one cannot -- it needs the validator to
+# fire. A dotted server name renders as `[mcp_servers.has.a.dot]`, which is valid TOML and
+# so clears the pre-write tomllib guard, but parses as nested tables rather than a server
+# called `has.a.dot`. Only the post-write re-read notices the server asked for is not the
+# server that landed.
+@test "a name that renders as valid TOML but the wrong table is caught after the write" {
+  seed_home <<'JSON'
+{"mcpServers": {"has.a.dot": {"command": "/bin/true"}}}
+JSON
+  sync
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"Codex missing managed servers: ['has.a.dot']"* ]]
+
+  # The pre-write guard passed, so the file on disk is well-formed and the mismatch is only
+  # visible by reading it back.
+  toml_get "$FAKE/.codex/config.toml" >/dev/null
+  grep -qF '[mcp_servers.has.a.dot]' "$FAKE/.codex/config.toml"
 }
 
 # Issue #22: one fixed backup name was overwritten every run, so a run that corrupted the
