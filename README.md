@@ -60,7 +60,8 @@ npx skills add zaffnet/whetstone
 ```
 
 Installs the eleven skills in `skills/` into Claude Code, Codex, Cursor, or another agent
-that reads `SKILL.md` files.
+that reads `SKILL.md` files. `docs/skills.md` lists every skill this repo writes or
+installs, with its source.
 
 ### Claude Code plugins
 
@@ -117,7 +118,7 @@ home/                 chezmoi source state for $HOME (.chezmoiroot points here)
   dot_codex/          config.toml; MCP servers are written by bin/sync-mcp
   dot_config/         git, gh, uv, commitlint, homebrew/Brewfile
   Library/            Cursor user settings and keybindings
-skills/               Agent Skills (SKILL.md), installable with npx skills
+skills/               Agent Skills (SKILL.md), installable with npx skills (see docs/skills.md)
 agents/               Claude Code reviewer subagents
 codex/agents/         The same reviewers as Codex TOML (linked to ~/.codex/agents)
 hooks/                Claude Code hooks: ruff on edit, worktree setup
