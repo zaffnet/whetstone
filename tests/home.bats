@@ -234,7 +234,9 @@ JSON
 
 # Copilot on #28: the model and proxy lookup had no test. Both defects it named were real —
 # a relative invocation resolved the library to bin/bin/, and the awk lookup kept a trailing
-# comment and the quotes of a TOML literal string.
+# comment and the quotes of a TOML literal string. The header check that followed guessed
+# per line and lost the value to a nested array and to a multiline string opened with
+# content beside it, so the lookup now tracks where a value ends.
 @test "the Codex config lookup reads every TOML spelling, and only top-level keys" {
   home="$BATS_TEST_TMPDIR/codex"
   mkdir -p "$home"
@@ -257,9 +259,20 @@ JSON
   [ "$(value "$(printf 'model\t=\t"tabs"')")" = tabs ]
   [ "$(value "$(printf 'model = "crlf"\r')")" = crlf ]
   [ "$(value "$(printf '# model = "commented"\nmodel = "real"')")" = real ]
-  # A valid multiline value above `model` must not look like the first table header.
-  [ "$(value "$(printf 'notify =\n[\n  [\"turn-ended\"],\n]\nmodel = \"after-array\"')")" = after-array ]
+  # A value above `model` that runs onto later lines must not look like the first table
+  # header. An array runs until its brackets balance, wherever its elements sit and whether
+  # or not the last one has a trailing comma; a multiline string runs until its delimiter
+  # repeats, whether or not it opened with content beside it.
+  [ "$(value "$(printf 'notify = [\n  [\"turn-ended\"],\n]\nmodel = \"after-array\"')")" = after-array ]
+  [ "$(value "$(printf 'notify = [\n  [\"a\", \"b\"]\n]\nmodel = \"after-nested\"')")" = after-nested ]
+  [ "$(value "$(printf 'notify = [\n  \"a]b\",\n]\nmodel = \"after-bracket\"')")" = after-bracket ]
   [ "$(value "$(printf 'note = \"\"\"\n[line]\n\"\"\"\nmodel = \"after-string\"')")" = after-string ]
+  [ "$(value "$(printf 'note = \"\"\"open\n[line]\nclose\"\"\"\nmodel = \"after-open-string\"')")" = after-open-string ]
+  [ "$(value "$(printf 'note = \047\047\047\n[line]\n\047\047\047\nmodel = \"after-literal\"')")" = after-literal ]
+  # A bracket that only sits inside a value is not a header either.
+  [ "$(value "$(printf 'note = \"[tui]\"\nmodel = \"after-quoted\"')")" = after-quoted ]
+  [ "$(value "$(printf '# [tui]\nmodel = \"after-comment\"')")" = after-comment ]
+  [ "$(value "$(printf 'tui = { model = \"inline\" }\nmodel = \"after-inline\"')")" = after-inline ]
   # A key that merely starts with the name must not match.
   [ "$(value "$(printf 'model_reasoning_effort = "high"\nmodel = "after"')")" = after ]
   [ -z "$(value 'notmodel = "x"')" ]

@@ -16,22 +16,49 @@
 # `model` appears inside tables too. awk rather than a TOML parser on purpose: tomllib needs
 # Python 3.11 and the system python3 on macOS is 3.9, which is what broke bin/sync-mcp on a
 # fresh Mac.
+#
+# Finding that first header takes tracking where a value ends, not a per-line guess: an
+# array element and a line inside a multiline string both look like a header on their own.
 codex_config_value() {
   local key=$1
   local config="${CODEX_HOME:-$HOME/.codex}/config.toml"
 
   [[ -r $config ]] || return 0
   awk -v key="$key" '
-    function is_table_header(line) {
-      return line ~ /^[[:space:]]*\[\[?[^]]+\]\]?[[:space:]]*(#.*)?$/
+    # A value stays on its key line unless it is an array, which runs until its brackets
+    # balance, or a multiline string, which runs until its delimiter repeats. Comments and
+    # quoted text are skipped, so a bracket inside either does not count.
+    function end_of_string(line, i, quote,   n, c) {
+      n = length(line)
+      for (i++; i <= n; i++) {
+        c = substr(line, i, 1)
+        if (quote == "\"" && c == "\\") { i++; continue }
+        if (c == quote) return i
+      }
+      return n
     }
-    multiline {
-      if ($0 ~ multiline) multiline = ""
-      next
+    function scan(line,   i, n, c, three) {
+      n = length(line)
+      for (i = 1; i <= n; i++) {
+        three = substr(line, i, 3)
+        if (open != "") {
+          if (three == open) { open = ""; i += 2 }
+          continue
+        }
+        c = substr(line, i, 1)
+        if (three == "\"\"\"" || three == "\047\047\047") { open = three; i += 2; continue }
+        if (c == "#") return
+        if (c == "\"" || c == "\047") { i = end_of_string(line, i, c); continue }
+        if (c == "[" || c == "{") depth++
+        else if ((c == "]" || c == "}") && depth > 0) depth--
+      }
     }
+
+    # The header shape is the one home/dot_codex/modify_private_config.toml.tmpl uses.
+    open == "" && depth == 0 && /^[[:space:]]*\[\[?[^]]+\]\]?[[:space:]]*(#.*)?$/ { exit }
     # A bare, "quoted" or \047literal\047 key are the same key, as bin/sync-mcp and the Codex
     # modify script already treat them.
-    $0 ~ "^[[:space:]]*[\"\047]?" key "[\"\047]?[[:space:]]*=" {
+    open == "" && depth == 0 && $0 ~ "^[[:space:]]*[\"\047]?" key "[\"\047]?[[:space:]]*=" {
       sub(/^[^=]*=[[:space:]]*/, "")
       # A quoted value ends at its closing quote, so a trailing comment goes with it. An
       # escaped quote inside would defeat this; a model name or a URL does not contain one.
@@ -41,14 +68,7 @@ codex_config_value() {
       print
       exit
     }
-    {
-      if (is_table_header($0)) exit
-      if ($0 ~ /=[[:space:]]*"""([[:space:]]*(#.*)?)?$/) multiline = "\"\"\""
-      else if ($0 ~ /=[[:space:]]*\047\047\047([[:space:]]*(#.*)?)?$/) multiline = "\047\047\047"
-      else if (after_equals && $0 ~ /^[[:space:]]*"""/) multiline = "\"\"\""
-      else if (after_equals && $0 ~ /^[[:space:]]*\047\047\047/) multiline = "\047\047\047"
-      after_equals = ($0 ~ /=[[:space:]]*$/)
-    }
+    { scan($0) }
   ' "$config"
 }
 
