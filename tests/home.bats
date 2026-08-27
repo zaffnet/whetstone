@@ -276,6 +276,64 @@ JSON
     | grep -qF '"snyk.yesWelcomeNotification": false'
 }
 
+# Issue #20: this was the only one of the three modify scripts with no coverage, and the
+# only one still on a named allowlist -- model, enabledPlugins and extraKnownMarketplaces
+# won unconditionally, so editing them in the template was a no-op on any machine that
+# already had them. Ownership is per key now, with `model` the one deliberate exception.
+@test "the Claude modify script owns declared keys and keeps the model picker's choice" {
+  script="$BATS_TEST_TMPDIR/claude-modify.sh"
+  HOME="$H" chezmoi --source "$REPO" execute-template \
+    <"$REPO/home/dot_claude/modify_settings.json.tmpl" >"$script"
+
+  seeded="$BATS_TEST_TMPDIR/seeded-claude.json"
+  cat >"$seeded" <<'JSON'
+{
+  "model": "opusplan",
+  "enabledPlugins": {"never-declared@somewhere": true},
+  "extraKnownMarketplaces": {"never-declared": {"source": {"source": "github", "repo": "x/y"}}},
+  "outputStyle": "Explanatory",
+  "someSettingClaudeCodeAdded": 123
+}
+JSON
+
+  first="$BATS_TEST_TMPDIR/first-claude.json"
+  bash "$script" <"$seeded" >"$first"
+
+  # Declared keys come from the repo. This is the assertion #20 was about: the fabricated
+  # plugin and marketplace lose, so desired.yaml and the template can change a machine.
+  run ! jq -e '.enabledPlugins | has("never-declared@somewhere")' "$first"
+  run ! jq -e '.extraKnownMarketplaces | has("never-declared")' "$first"
+  jq -e '.enabledPlugins["github@claude-plugins-official"] == true' "$first"
+  jq -e '.outputStyle == "Concise"' "$first"
+
+  # `model` is the one exception: it is chosen per machine in the model picker.
+  jq -e '.model == "opusplan"' "$first"
+
+  # An undeclared key is Claude Code's and is carried over. It used to be dropped outright,
+  # while this script's header claimed otherwise.
+  jq -e '.someSettingClaudeCodeAdded == 123' "$first"
+  # And it is named on stderr, so an apply says what it carried: JSON has no comment to
+  # label a block with, which is what the Cursor script uses its marker for.
+  bash "$script" <"$seeded" 2>&1 >/dev/null | grep -qF someSettingClaudeCodeAdded
+
+  second="$BATS_TEST_TMPDIR/second-claude.json"
+  bash "$script" <"$first" >"$second"
+  diff "$first" "$second"
+
+  # First apply on a new machine, and a file Claude Code could not parse either: both fall
+  # back to the rendered template rather than emitting half a value.
+  plain="$BATS_TEST_TMPDIR/plain-claude.json"
+  HOME="$H" chezmoi --source "$REPO" execute-template \
+    <"$REPO/home/.chezmoitemplates/claude-settings.json" >"$plain"
+  printf '' | bash "$script" | diff <(jq -S . "$plain") <(jq -S . -)
+  printf '{not json' | bash "$script" 2>/dev/null | diff <(jq -S . "$plain") <(jq -S . -)
+
+  # The live file has to survive its own script unchanged, or an apply rewrites it forever.
+  live="$BATS_TEST_TMPDIR/live-claude.json"
+  jq -S . "$H/.claude/settings.json" >"$live"
+  bash "$script" <"$H/.claude/settings.json" | jq -S . | diff "$live" -
+}
+
 # Copilot on #11: chezmoi replaces a real directory with the managed symlink by deleting it
 # recursively and without a prompt, so an apply could take Cursor-only skills with it.
 @test "an apply refuses while a skills directory is real (CI home only)" {
