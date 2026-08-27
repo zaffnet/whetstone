@@ -31,7 +31,9 @@ given to the code before the push, and the PR waits for a fresh one.
 
 This applies wherever an agent runs: Claude Code and Codex locally, and Claude Code on CI
 through `.github/workflows/claude.yml`, which carries `contents: write` and
-`pull-requests: write` for exactly this. `Allow GitHub Actions to create and approve pull
+`pull-requests: write` for exactly this. That workflow stores no model credential: it
+federates, exchanging the job's OIDC token for an AWS session that reads the key from
+Secrets Manager (`docs/ci-claude-auth.md`). `Allow GitHub Actions to create and approve pull
 requests` is enabled on the repository so a review from CI counts as the approval the gate
 requires.
 

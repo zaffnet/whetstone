@@ -124,7 +124,7 @@ codex/agents/         The same reviewers as Codex TOML (linked to ~/.codex/agent
 hooks/                Claude Code hooks: ruff on edit, worktree setup
 bin/                  Scripts: AI commit messages, PR descriptions, PR merge gate, worktree cleanup, sync-mcp
 template/             Copier template for a Python project (copier.yml is at the root)
-docs/                 Handbook, decisions, runbooks
+docs/                 Handbook, decisions, runbooks (CI agent auth in ci-claude-auth.md)
 tests/                bats assertions run against an applied home
 .github/workflows/    lint, secrets, template, macos
 ```

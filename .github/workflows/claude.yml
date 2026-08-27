@@ -2,8 +2,14 @@ name: claude
 
 # Claude Code on CI, for the same jobs the local agents do: answer an @claude mention,
 # review a pull request, resolve its threads, and land it through bin/merge-pr.sh
-# (ADR 0012). The token is a secret this repo does not ship; until CLAUDE_CODE_OAUTH_TOKEN
-# exists the job skips instead of failing, so a fork sees no red run it cannot fix.
+# (ADR 0012).
+#
+# No model credential is stored in this repository. The run federates: GitHub mints an OIDC
+# token for the job, AWS exchanges it for a session on a role that trusts only this repo,
+# and the Anthropic key is read from Secrets Manager with that session. Nothing here
+# outlives the job. docs/ci-claude-auth.md has the trust policy and the commands that
+# create it; until the two variables exist the job skips instead of failing, so a fork
+# sees no red run it cannot fix.
 
 on:
   issue_comment:
@@ -44,22 +50,47 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check for the Claude token
-        id: token
+      # Variables, not secrets: a role ARN and a secret name are not credentials, and
+      # keeping them in the open is what makes a missing setup say so plainly.
+      - name: Check the federation is configured
+        id: federation
         env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ROLE: ${{ vars.CI_AGENT_ROLE_ARN }}
+          SECRET: ${{ vars.ANTHROPIC_KEY_SECRET_ID }}
         run: |
-          if [ -n "${CLAUDE_CODE_OAUTH_TOKEN}" ]; then
-            echo "present=true" >>"$GITHUB_OUTPUT"
+          if [ -n "$ROLE" ] && [ -n "$SECRET" ]; then
+            echo "ready=true" >>"$GITHUB_OUTPUT"
           else
-            echo "present=false" >>"$GITHUB_OUTPUT"
-            echo "::notice::CLAUDE_CODE_OAUTH_TOKEN is not set; skipping. Add it with: gh secret set CLAUDE_CODE_OAUTH_TOKEN"
+            echo "ready=false" >>"$GITHUB_OUTPUT"
+            echo "::notice::CI_AGENT_ROLE_ARN or ANTHROPIC_KEY_SECRET_ID is unset; skipping. See docs/ci-claude-auth.md"
           fi
 
-      - uses: anthropics/claude-code-action@c3d45e8e941e1b2ad7b278c57482d9c5bf1f35b3 # v1.0.99
-        if: steps.token.outputs.present == 'true'
+      # Exchanges the job's OIDC token for a session on the role. No access key exists to
+      # leak: the session is minted per run and expires with it.
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        if: steps.federation.outputs.ready == 'true'
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          role-to-assume: ${{ vars.CI_AGENT_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+          role-session-name: claude-${{ github.run_id }}
+
+      - name: Read the Anthropic key with that session
+        id: key
+        if: steps.federation.outputs.ready == 'true'
+        env:
+          SECRET: ${{ vars.ANTHROPIC_KEY_SECRET_ID }}
+        run: |
+          key=$(aws secretsmanager get-secret-value --secret-id "$SECRET" \
+            --query SecretString --output text)
+          # Masked before it is written anywhere, so a later `set -x` or a crash dump
+          # cannot print it.
+          echo "::add-mask::$key"
+          echo "value=$key" >>"$GITHUB_OUTPUT"
+
+      - uses: anthropics/claude-code-action@c3d45e8e941e1b2ad7b278c57482d9c5bf1f35b3 # v1.0.99
+        if: steps.federation.outputs.ready == 'true'
+        with:
+          anthropic_api_key: ${{ steps.key.outputs.value }}
           # gh is on the runner and authenticates from GITHUB_TOKEN, so the merge gate,
           # the thread resolver, and `gh pr review` all work without extra setup.
           claude_args: |
