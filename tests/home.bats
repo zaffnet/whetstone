@@ -1,9 +1,24 @@
 #!/usr/bin/env bats
 bats_require_minimum_version 1.5.0
 # Assertions against an applied chezmoi tree. Run against the real home with `just test`,
-# or against the throwaway CI home with `just test-home` (sets WHETSTONE_HOME). Two tests
-# skip on a real home; the macOS workflow applies into the runner's own HOME, so CI=1 also
-# counts as a throwaway home.
+# or against the throwaway CI home with `just test-home` (sets WHETSTONE_HOME). The macOS
+# workflow applies into the runner's own HOME, so CI=1 also counts as a throwaway home.
+#
+# Four conditions skip a test. The rule, not a count, because a count goes stale the moment
+# a case is added -- and a skip nobody knows about is what let the regression through on #10:
+#
+#   real home without CI  the cases named "(CI home only)", which write to or delete from
+#                         the home, and `the secrets file is not managed`, which a
+#                         hand-made ~/.zsh_secrets would fail
+#   role is work          `git identity comes from chezmoi data`, the one role where
+#                         .gitconfig is deliberately unmanaged
+#   config predates       `a bare chezmoi command resolves this checkout`; a throwaway or
+#   sourceDir             CI home is regenerated every time, so there it always runs
+#   no ~/.zsh_secrets     `the secrets file, when present, is readable only by its owner`,
+#                         which therefore never runs in CI -- only a real machine with
+#                         secrets exercises it
+#
+# macos.yml asserts that exactly this set skips, so a new one cannot arrive unannounced.
 
 setup() {
   REPO="$(git -C "$BATS_TEST_DIRNAME" rev-parse --show-toplevel)"
@@ -127,6 +142,35 @@ chezmoi_managed() {
   if [ "$(chezmoi_role)" = work ]; then skip ".gitconfig is unmanaged when role is work"; fi
   [ "$(git config -f "$H/.gitconfig" user.name)" = T ]
   [ "$(git config -f "$H/.gitconfig" user.email)" = t@example.com ]
+}
+
+# Issue #25: the modify_ scripts render to bash that runs on every apply, and nothing
+# checked the result parses. While writing #19 the Cursor one did not -- a rendered body
+# with an unbalanced apostrophe broke a heredoc inside $( ) under bash 3.2, the system bash
+# on macOS. It surfaced only because the script was being run by hand at the time; an apply
+# would have failed on a real machine.
+@test "every modify_ script renders to bash that parses" {
+  found=0
+  while IFS= read -r -d "" tmpl; do
+    found=$((found + 1))
+    script="$BATS_TEST_TMPDIR/rendered-$found.sh"
+    HOME="$H" chezmoi --source "$REPO" execute-template <"$tmpl" >"$script"
+    # /bin/bash is 3.2 on macOS and is what an apply runs the script under. A newer bash
+    # earlier on PATH accepts what 3.2 rejects, so parse under both rather than either.
+    for shell in bash /bin/bash; do
+      command -v "$shell" >/dev/null || continue
+      run "$shell" -n "$script"
+      if [ "$status" -ne 0 ]; then
+        echo "$tmpl does not parse under $("$shell" --version | head -1)"
+        echo "$output"
+        return 1
+      fi
+    done
+  done < <(find "$REPO/home" -name "modify_*.tmpl" -print0)
+
+  # Data-driven, so a new modify script is covered without touching this test. The floor is
+  # a vacuity guard: a rename that stops matching the glob would otherwise pass silently.
+  [ "$found" -ge 3 ]
 }
 
 # Copilot on #10: nothing fed live state through the modify script, which is where two
@@ -363,6 +407,64 @@ JSON
       }
     done
   done
+}
+
+# Issue #20: this was the only one of the three modify scripts with no coverage, and the
+# only one still on a named allowlist -- model, enabledPlugins and extraKnownMarketplaces
+# won unconditionally, so editing them in the template was a no-op on any machine that
+# already had them. Ownership is per key now, with `model` the one deliberate exception.
+@test "the Claude modify script owns declared keys and keeps the model picker's choice" {
+  script="$BATS_TEST_TMPDIR/claude-modify.sh"
+  HOME="$H" chezmoi --source "$REPO" execute-template \
+    <"$REPO/home/dot_claude/modify_settings.json.tmpl" >"$script"
+
+  seeded="$BATS_TEST_TMPDIR/seeded-claude.json"
+  cat >"$seeded" <<'JSON'
+{
+  "model": "opusplan",
+  "enabledPlugins": {"never-declared@somewhere": true},
+  "extraKnownMarketplaces": {"never-declared": {"source": {"source": "github", "repo": "x/y"}}},
+  "outputStyle": "Explanatory",
+  "someSettingClaudeCodeAdded": 123
+}
+JSON
+
+  first="$BATS_TEST_TMPDIR/first-claude.json"
+  bash "$script" <"$seeded" >"$first"
+
+  # Declared keys come from the repo. This is the assertion #20 was about: the fabricated
+  # plugin and marketplace lose, so desired.yaml and the template can change a machine.
+  run ! jq -e '.enabledPlugins | has("never-declared@somewhere")' "$first"
+  run ! jq -e '.extraKnownMarketplaces | has("never-declared")' "$first"
+  jq -e '.enabledPlugins["github@claude-plugins-official"] == true' "$first"
+  jq -e '.outputStyle == "Concise"' "$first"
+
+  # `model` is the one exception: it is chosen per machine in the model picker.
+  jq -e '.model == "opusplan"' "$first"
+
+  # An undeclared key is Claude Code's and is carried over. It used to be dropped outright,
+  # while this script's header claimed otherwise.
+  jq -e '.someSettingClaudeCodeAdded == 123' "$first"
+  # And it is named on stderr, so an apply says what it carried: JSON has no comment to
+  # label a block with, which is what the Cursor script uses its marker for.
+  bash "$script" <"$seeded" 2>&1 >/dev/null | grep -qF someSettingClaudeCodeAdded
+
+  second="$BATS_TEST_TMPDIR/second-claude.json"
+  bash "$script" <"$first" >"$second"
+  diff "$first" "$second"
+
+  # First apply on a new machine, and a file Claude Code could not parse either: both fall
+  # back to the rendered template rather than emitting half a value.
+  plain="$BATS_TEST_TMPDIR/plain-claude.json"
+  HOME="$H" chezmoi --source "$REPO" execute-template \
+    <"$REPO/home/.chezmoitemplates/claude-settings.json" >"$plain"
+  printf '' | bash "$script" | diff <(jq -S . "$plain") <(jq -S . -)
+  printf '{not json' | bash "$script" 2>/dev/null | diff <(jq -S . "$plain") <(jq -S . -)
+
+  # The live file has to survive its own script unchanged, or an apply rewrites it forever.
+  live="$BATS_TEST_TMPDIR/live-claude.json"
+  jq -S . "$H/.claude/settings.json" >"$live"
+  bash "$script" <"$H/.claude/settings.json" | jq -S . | diff "$live" -
 }
 
 # Copilot on #11: chezmoi replaces a real directory with the managed symlink by deleting it

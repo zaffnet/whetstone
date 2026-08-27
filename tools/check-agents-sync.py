@@ -2,11 +2,17 @@
 """Check that each reviewer subagent's Claude markdown and Codex TOML carry the same text.
 
 Pairs: ``agents/<n>.md`` with ``codex/agents/<n>.toml``, and the template copies under
-``template/project/.claude/agents`` and ``template/project/.codex/agents``. The TOML's
-``description`` must equal the markdown frontmatter description, and ``developer_instructions``
-must equal the markdown body. Template files keep their Jinja as literal text; a TOML file
-whose body still contains the placeholder is compared after rendering ``{{ package_name }}``
-to a fixed token, so unescaped quotes or backslashes in the TOML string are caught too.
+``template/project/.claude/agents`` and ``template/project/.codex/agents``. Template files
+keep their Jinja as literal text; a TOML file whose body still contains the placeholder is
+compared after rendering ``{{ package_name }}`` to a fixed token, so unescaped quotes or
+backslashes in the TOML string are caught too.
+
+Every key on both sides is accounted for, not just the two that used to be compared. The
+pair in ``SAME`` must be identical; ``MD_ONLY`` and ``TOML_ONLY`` name what each side owns
+alone. A key on none of the three is reported rather than ignored, so adding one to a
+single side cannot pass unnoticed --
+``name`` addresses the subagent, and the two halves used to be free to disagree about who
+they are.
 """
 
 from __future__ import annotations
@@ -28,18 +34,30 @@ PAIRS = (
 FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n(.*)\Z", re.DOTALL)
 JINJA_NAME = re.compile(r"\{%.*?%\}")
 
+# Markdown frontmatter key -> Codex TOML key. Codex spells the effort differently; the rest
+# pair by the same name.
+SAME = {"name": "name", "description": "description", "effort": "model_reasoning_effort"}
+# Claude Code's own, with no Codex counterpart: Codex takes the tool set and the model from
+# its own config, and `opus` is a Claude model name that means nothing to it.
+MD_ONLY = frozenset({"tools", "model"})
+# Codex's own: the body lives in a key here rather than after the frontmatter.
+TOML_ONLY = frozenset({"developer_instructions"})
+MD_KEYS = frozenset(SAME) | MD_ONLY
+TOML_KEYS = frozenset(SAME.values()) | TOML_ONLY
 
-def split_markdown(text: str) -> tuple[str, str]:
+
+def split_markdown(text: str) -> tuple[dict[str, str], str]:
+    """Frontmatter as a key -> value mapping, and the body."""
     match = FRONTMATTER.match(text)
     if match is None:
         msg = "missing frontmatter"
         raise ValueError(msg)
-    description = ""
+    front: dict[str, str] = {}
     for line in match.group(1).splitlines():
-        key, _, value = line.partition(":")
-        if key.strip() == "description":
-            description = value.strip()
-    return description, match.group(2).strip()
+        key, separator, value = line.partition(":")
+        if separator:
+            front[key.strip()] = value.strip()
+    return front, match.group(2).strip()
 
 
 def agent_name(path: Path) -> str:
@@ -49,19 +67,56 @@ def agent_name(path: Path) -> str:
     return stem.removesuffix(".md").removesuffix(".toml")
 
 
+def agent_gate(path: Path) -> str:
+    """Return the Jinja conditional wrapped around the filename, or "" when there is none.
+
+    agent_name() strips it so a gated file pairs with its twin. That is what lets
+    ``{% if use_fastapi %}async-safety-reviewer.md{% endif %}.jinja`` find its TOML half --
+    and, until this was compared, what let two halves gated on *different* conditions pair
+    and report no problem, shipping half an agent.
+    """
+    return "".join(JINJA_NAME.findall(path.name))
+
+
 def render(text: str) -> str:
     return text.replace("{{ package_name }}", "pkg")
 
 
 def compare(md_path: Path, toml_path: Path) -> list[str]:
     problems: list[str] = []
-    md_description, md_body = split_markdown(render(md_path.read_text()))
+    front, md_body = split_markdown(render(md_path.read_text()))
     try:
         data = tomllib.loads(render(toml_path.read_text()))
     except tomllib.TOMLDecodeError as exc:
         return [f"{toml_path}: invalid TOML: {exc}"]
-    if data.get("description", "").strip() != md_description:
-        problems.append(f"{toml_path}: description differs from {md_path}")
+
+    if agent_gate(md_path) != agent_gate(toml_path):
+        problems.append(
+            f"{md_path}: rendered under {agent_gate(md_path) or 'no condition'}, "
+            f"{toml_path} under {agent_gate(toml_path) or 'no condition'}"
+        )
+    for path, keys, present, only in (
+        (md_path, MD_KEYS, frozenset(front), "MD_ONLY"),
+        (toml_path, TOML_KEYS, frozenset(data), "TOML_ONLY"),
+    ):
+        problems.extend(
+            f"{path}: key {key!r} is compared against nothing; put it in SAME if the other "
+            f"half must carry the same value, or in {only} if this side owns it alone"
+            for key in sorted(present - keys)
+        )
+        problems.extend(f"{path}: missing key {key!r}" for key in sorted(keys - present))
+    for md_key, toml_key in SAME.items():
+        md_value = front.get(md_key, "")
+        toml_value = str(data.get(toml_key, "")).strip()
+        if md_value != toml_value:
+            problems.append(
+                f"{toml_path}: {toml_key} is {toml_value!r}, {md_path} {md_key} is {md_value!r}"
+            )
+    # `name` is what addresses the subagent, so it also has to be the name of the file the
+    # agent is loaded from.
+    if front.get("name", "") != agent_name(md_path):
+        problems.append(f"{md_path}: name {front.get('name', '')!r} is not the file's name")
+
     toml_body = str(data.get("developer_instructions", "")).strip()
     if toml_body != md_body:
         diff = difflib.unified_diff(
