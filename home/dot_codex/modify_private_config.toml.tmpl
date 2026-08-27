@@ -30,7 +30,7 @@ current = os.environ["CURRENT"]
 # Byte for byte the TABLE_HEADER in bin/sync-mcp; see the note there. A key part is a run
 # of ordinary characters or a whole quoted string, so a ] or a # inside a quoted table name
 # is content and the table is not mistaken for ordinary lines and dropped.
-HEADER = re.compile(r"^\[\[?((?:[^]\"']|\"(?:[^\"\\]|\\.)*\"|'[^']*')+)\]\]?\s*(?:#.*)?$")
+HEADER = re.compile(r"^[ \t]*\[\[?((?:[^]\"']|\"(?:[^\"\\]|\\.)*\"|'[^']*')+)\]\]?\s*(?:#.*)?$")
 BARE_KEY = re.compile(r'''^\s*("[^"]+"|'[^']+'|[A-Za-z0-9_.-]+)\s*=''')
 
 

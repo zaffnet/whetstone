@@ -207,44 +207,87 @@ TOML
   run ! grep -qF 'stale-unmanaged' "$FAKE/.codex/config.toml"
 }
 
+# Copilot on #30, the fourth instance: TOML allows whitespace before a table header and
+# inside its brackets, and the pattern allowed neither, so an indented table was absorbed
+# into the dropped server above it -- including an indented private server, which was then
+# not recognised as private.
+@test "an indented header, and one padded inside its brackets, are still headers" {
+  seed_home <<'JSON'
+{"mcpServers": {"keeper": {"command": "/bin/true"}}}
+JSON
+  cat >"$FAKE/.codex/config.toml" <<'TOML'
+[mcp_servers.stale-unmanaged]
+command = "/bin/false"
+
+  [projects."/srv/p"]
+  trust_level = "indented"
+
+  [ mcp_servers.node_repl ]
+  command = "/codex/node_repl"
+TOML
+  toml_get "$FAKE/.codex/config.toml" >/dev/null
+
+  sync
+  [ "$status" -eq 0 ]
+  grep -qF 'trust_level = "indented"' "$FAKE/.codex/config.toml"
+  grep -qF '/codex/node_repl' "$FAKE/.codex/config.toml"
+  run ! grep -qF 'stale-unmanaged' "$FAKE/.codex/config.toml"
+}
+
 # The chunker and the Codex modify script split the same file. A shape one recognises and
-# the other does not is a silent deletion, which is how both misses above got in, so the
-# patterns are pinned to each other rather than to a literal.
+# the other does not is a silent deletion, which is how four separate misses got in, so the
+# patterns are pinned to each other -- and to the shapes Codex actually writes, because
+# string equality alone would have passed happily while both were wrong together.
 @test "the chunker and the Codex modify script use the same header pattern" {
   rendered="$BATS_TEST_TMPDIR/modify.sh"
   HOME="${WHETSTONE_HOME:-$HOME}" chezmoi --source "$REPO" execute-template \
     <"$REPO/home/dot_codex/modify_private_config.toml.tmpl" >"$rendered"
 
-  chunker=$(sed -nE 's/^TABLE_HEADER = re\.compile\((r".*")\)$/\1/p' "$REPO/bin/sync-mcp")
-  modify=$(sed -nE 's/^HEADER = re\.compile\((r".*")\)$/\1/p' "$rendered")
-  [ -n "$chunker" ]
-  [ -n "$modify" ]
-  [ "$chunker" = "$modify" ]
-
-  # And that they agree on the shapes Codex actually writes, so the pin is about behaviour
-  # rather than about two strings happening to match.
-  CHUNKER="$chunker" "$PY" - <<'PYEOF'
+  CHUNKER_SRC="$REPO/bin/sync-mcp" MODIFY_SRC="$rendered" "$PY" - <<'PYEOF'
 import ast
 import os
 import re
 import sys
 
-pattern = re.compile(ast.literal_eval(os.environ["CHUNKER"]))
+# Tolerates the formatter wrapping the assignment onto its own line.
+ASSIGNMENT = re.compile(r"(?:TABLE_HEADER|HEADER) = re\.compile\(\s*(r\"(?:[^\"\\]|\\.)*\")\s*,?\s*\)")
+
+
+def literal(path):
+    found = ASSIGNMENT.search(open(path).read())
+    if found is None:
+        sys.exit(f"no header pattern found in {path}")
+    return found.group(1)
+
+
+chunker, modify = literal(os.environ["CHUNKER_SRC"]), literal(os.environ["MODIFY_SRC"])
+if chunker != modify:
+    sys.exit(f"patterns differ:\n  bin/sync-mcp   {chunker}\n  modify script  {modify}")
+
+# TOML's grammar is `ws table ws [ comment ]`, and every one of these is a shape Codex
+# writes or a line that must not be mistaken for one.
 expected = {
-    '[tui]': 'tui',
-    '[tui] # note': 'tui',
-    '[[history]]': 'history',
-    '[[history]] # note': 'history',
-    '[mcp_servers.node_repl]': 'mcp_servers.node_repl',
-    '[projects."/some/path"]': 'projects."/some/path"',
+    "[tui]": "tui",
+    "  [tui]": "tui",
+    "\t[tui]": "tui",
+    "[tui] # note": "tui",
+    "   [tui]   # note": "tui",
+    "[[history]]": "history",
+    "  [[history]] # note": "history",
+    "[mcp_servers.node_repl]": "mcp_servers.node_repl",
+    "[ mcp_servers.node_repl ]": " mcp_servers.node_repl ",
+    '[projects."/srv/some/path"]': 'projects."/srv/some/path"',
     '[projects."/srv/my]weird[repo"]': 'projects."/srv/my]weird[repo"',
     '[projects."/srv/has#hash"] # note': 'projects."/srv/has#hash"',
-    "[projects.'/lit]eral']": "projects.'/lit]eral'",
+    "[projects.'/srv/lit]eral']": "projects.'/srv/lit]eral'",
+    '[tui]\r': "tui",
     'command = "/bin/true"': None,
-    '  indented = 1': None,
-    '# [not a table]': None,
-    '': None,
+    "  key = 1": None,
+    "# [not a table]": None,
+    "   ": None,
+    "": None,
 }
+pattern = re.compile(ast.literal_eval(chunker))
 bad = []
 for line, want in expected.items():
     match = pattern.match(line)

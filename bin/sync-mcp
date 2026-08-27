@@ -31,12 +31,15 @@ CODEX_PRIVATE = frozenset({"node_repl", "computer-use", "event-stream"})
 # into the chunk above it, and when that chunk is an unmanaged [mcp_servers.*] table being
 # dropped, it goes with it.
 #
-# So it follows TOML's own grammar rather than approximating it, which three rounds of
-# patching a `[^]]+` key did not: that missed [[array.of.tables]], missed a header with a
-# trailing comment, and stopped at the first ] inside a quoted key -- and Codex writes all
-# three. A key part here is a run of ordinary characters or a whole quoted string, so a ]
-# or a # inside quotes is content, exactly as TOML says.
-TABLE_HEADER = re.compile(r"^\[\[?((?:[^]\"']|\"(?:[^\"\\]|\\.)*\"|'[^']*')+)\]\]?\s*(?:#.*)?$")
+# So it is read off TOML's own ABNF rather than approximated, which four rounds of patching
+# a `[^]]+` key were not. Each round fixed the shape that had been reported and shipped the
+# next one: [[array.of.tables]], then a trailing comment, then a ] inside a quoted key, then
+# a leading indent. The grammar is `ws table ws [ comment ]`, where a key part is an
+# unquoted run or a whole quoted string -- so leading tabs and spaces are allowed, and a ]
+# or a # inside quotes is content.
+TABLE_HEADER = re.compile(
+    r"^[ \t]*\[\[?((?:[^]\"']|\"(?:[^\"\\]|\\.)*\"|'[^']*')+)\]\]?\s*(?:#.*)?$"
+)
 ENV_PLACEHOLDER = re.compile(r"^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
 BEARER_PLACEHOLDER = re.compile(r"^Bearer \$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
 # env keys whose values are configuration, not credentials, and may be literal.
@@ -229,9 +232,15 @@ def split_toml_tables(text: str) -> list[tuple[str | None, str]]:
 
 
 def mcp_server_name(header: str | None) -> str | None:
-    if header is None or not header.startswith("mcp_servers."):
+    # Stripped, because TOML allows whitespace inside the brackets: `[ mcp_servers.x ]` is
+    # the same table as `[mcp_servers.x]`. table_name() in the Codex modify script does the
+    # same, and the two have to agree on what a table is called.
+    if header is None:
         return None
-    return header.split(".")[1]
+    header = header.strip()
+    if not header.startswith("mcp_servers."):
+        return None
+    return header.split(".")[1].strip()
 
 
 def sync_codex(servers: dict[str, dict]) -> None:
