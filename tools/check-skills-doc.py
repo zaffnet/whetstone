@@ -42,15 +42,29 @@ def row_names(block: str) -> set[str]:
     return {match.group(1) for line in block.splitlines() if (match := ROW_NAME.match(line))}
 
 
-def txt_skills(path: Path) -> set[str]:
-    """Every skill named in skills.txt, across all repos."""
+def txt_skills(path: Path) -> tuple[set[str], list[str]]:
+    """Return every skill named in skills.txt, and a problem per line that names none.
+
+    A line of just ``owner/repo`` is a form the installer supports: it expands to every
+    skill in that repo. What that set contains is only knowable from the network, so a
+    table row for it cannot be verified here. Rather than pass such a line silently --
+    which would let the whole repo go missing from the doc -- it is reported, and the
+    fix is to list the skills the line means.
+    """
     names: set[str] = set()
-    for line in path.read_text().splitlines():
+    problems: list[str] = []
+    for number, line in enumerate(path.read_text().splitlines(), start=1):
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
-        names.update(stripped.split()[1:])
-    return names
+        repo, *skills = stripped.split()
+        if not skills:
+            problems.append(
+                f"{path}:{number}: {repo} names no skills, so it means every skill in the "
+                f"repo and this check cannot tell what those are; name them here"
+            )
+        names.update(skills)
+    return names, problems
 
 
 def compare(label: str, listed: set[str], actual: set[str]) -> list[str]:
@@ -68,9 +82,9 @@ def main() -> int:
     written = row_names(section(text, WRITTEN_HERE, INSTALLED))
     installed = row_names(section(text, INSTALLED, FROM_PLUGINS))
     on_disk = {p.name for p in SKILLS_DIR.iterdir() if (p / "SKILL.md").is_file()}
-    in_txt = txt_skills(SKILLS_TXT)
+    in_txt, problems = txt_skills(SKILLS_TXT)
 
-    problems = compare("written-here", written, on_disk) + compare(
+    problems += compare("written-here", written, on_disk) + compare(
         "installed-from-elsewhere", installed, in_txt
     )
     for problem in problems:
