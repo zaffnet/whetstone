@@ -18,7 +18,7 @@ and secrets.
 
 | Value | Location |
 | --- | --- |
-| Proxy URL, AWS profile, private index, branch prefix | `[data.work]` in `~/.config/chezmoi/chezmoi.toml` |
+| Proxy URL, AWS profile, private index, branch prefix, model name | `[data.work]` in `~/.config/chezmoi/chezmoi.toml` |
 | Shell exports specific to one machine | `~/.zshrc.local` |
 | Commit signing program, certificate, CA bundle | `~/.gitconfig.local` |
 | API keys | `~/.zsh_secrets` |
