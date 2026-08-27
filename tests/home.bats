@@ -210,6 +210,26 @@ JSON
     <"$REPO/home/.chezmoitemplates/cursor-settings.json.tmpl" >"$plain"
   bash "$script" </dev/null | diff "$plain" -
   printf '{\n\t"a": [1,\n' | bash "$script" | diff "$plain" -
+
+  # Copilot on #19: depth alone let a malformed file through. `[1}` reaches depth zero, so
+  # the slice was preserved and the emitted file would not parse at all -- worse than the
+  # deletions this script exists to stop. A closer now has to match its opener.
+  printf '{\n\t"extension.value": [1}\n}\n' | bash "$script" | diff "$plain" -
+  # And nothing but whitespace or a comment may follow the root object, so a second one
+  # cannot have a winner silently picked for it.
+  printf '{\n\t"a.b": 1\n}\n{\n\t"c.d": 2\n}\n' | bash "$script" | diff "$plain" -
+  printf '{\n\t"a.b": 1\n}\ngarbage\n' | bash "$script" | diff "$plain" -
+
+  # Copilot on #19: a key name is compared decoded. Spelled with an escape it is still the
+  # declared key, so it loses to the template rather than being appended after it and
+  # winning as a duplicate once Cursor parses the result.
+  escaped="$BATS_TEST_TMPDIR/escaped.json"
+  printf '{\n\t"editor\\u002eformatOnSave": false\n}\n' | bash "$script" >"$escaped"
+  diff "$plain" "$escaped"
+
+  # A trailing comma is legal in settings.json, so a file carrying one still merges.
+  printf '{\n\t"snyk.yesWelcomeNotification": false,\n}\n' | bash "$script" \
+    | grep -qF '"snyk.yesWelcomeNotification": false'
 }
 
 # Copilot on #11: chezmoi replaces a real directory with the managed symlink by deleting it

@@ -33,10 +33,31 @@ MANAGED
 cat >"$current"
 
 MANAGED_FILE="$managed" CURRENT_FILE="$current" python3 - <<'PY'
+import json
 import os
 import sys
 
 MARKER = "\t// --- preserved: written by Cursor or an extension, not declared here ---"
+
+
+def only_blanks_and_comments(text, index):
+    """True when nothing but whitespace and comments follows -- a second root object is not
+    a settings file, and preserving keys out of one would silently pick a winner."""
+    length = len(text)
+    while index < length:
+        if text[index : index + 2] == "//":
+            newline = text.find("\n", index)
+            index = length if newline < 0 else newline
+        elif text[index : index + 2] == "/*":
+            end = text.find("*/", index + 2)
+            if end < 0:
+                return False
+            index = end + 2
+        elif text[index].isspace():
+            index += 1
+        else:
+            return False
+    return True
 
 
 def scan(text):
@@ -57,10 +78,17 @@ def scan(text):
         "[python]" are ordinary, and so is a glob value like "**/{node_modules,dist}".
       - A blank or comment line inside a multi-line value is inside the slice, so capture
         does not stop at it.
+      - A closer has to match its opener, so `{"a": [1}}` is rejected rather than reaching
+        depth zero and preserving `"a": [1}`, which would leave Cursor a file it cannot
+        parse at all -- worse than the deletions this script exists to stop.
+      - A key name is compared decoded, so a live `"editor\u002eformatOnSave"` is the
+        declared `editor.formatOnSave` and loses to it, instead of being appended after it
+        and winning as a duplicate when Cursor parses the result.
     """
     length = len(text)
     index = 0
     depth = 0
+    expected = []  # the closer each open delimiter requires, innermost last
     close = None
     keys = {}
     content_end = 0
@@ -99,7 +127,10 @@ def scan(text):
             if end >= length:
                 return {}, None
             if depth == 1 and awaiting == "key":
-                name = text[index + 1 : end]
+                try:
+                    name = json.loads(text[index : end + 1])
+                except ValueError:
+                    return {}, None
                 start = index
                 awaiting = "colon"
             index = content_end = end + 1
@@ -111,11 +142,12 @@ def scan(text):
                 if char != "{" or seen_root:
                     return {}, None
                 seen_root = True
+            expected.append("}" if char == "{" else "]")
             depth += 1
         elif char in "}]":
-            depth -= 1
-            if depth < 0:
+            if not expected or expected.pop() != char:
                 return {}, None
+            depth -= 1
             if depth == 0:
                 commit()
                 close = index
@@ -125,6 +157,8 @@ def scan(text):
         index += 1
         content_end = index
     if close is None:
+        return {}, None
+    if not only_blanks_and_comments(text, close + 1):
         return {}, None
     return keys, close
 
