@@ -250,6 +250,17 @@ JSON
   [ "$(value 'model="no-spaces"')" = no-spaces ]
   [ "$(value '  model = "indented"')" = indented ]
   [ "$(value 'model = bare # note')" = bare ]
+  # Copilot on #28, second round: a quoted key is the same key.
+  [ "$(value '"model" = "quoted-key"')" = quoted-key ]
+  [ "$(value "'model' = \"literal-key\"")" = literal-key ]
+  # A tab separator, a trailing CR, and a commented-out line above the real one.
+  [ "$(value "$(printf 'model\t=\t"tabs"')")" = tabs ]
+  [ "$(value "$(printf 'model = "crlf"\r')")" = crlf ]
+  [ "$(value "$(printf '# model = "commented"\nmodel = "real"')")" = real ]
+  # A key that merely starts with the name must not match.
+  [ "$(value "$(printf 'model_reasoning_effort = "high"\nmodel = "after"')")" = after ]
+  [ -z "$(value 'notmodel = "x"')" ]
+  [ -z "$(value '"notmodel" = "x"')" ]
 
   # `model` appears inside tables too, so only a key above the first header counts.
   [ -z "$(value "$(printf '[tui]\nmodel = "in-table"')")" ]
