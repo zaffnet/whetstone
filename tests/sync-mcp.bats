@@ -143,6 +143,52 @@ TOML
   run ! grep -qF 'stale-unmanaged' "$FAKE/.codex/config.toml"
 }
 
+# Copilot on #30: the fix above was not the whole shape. TABLE_HEADER had dropped the
+# trailing-comment branch, so `[projects."/x"] # note` read as an ordinary line and the
+# whole table went with the dropped server above it. Codex writes those comments itself, so
+# this deleted a real trust decision. Reproduced before fixing.
+@test "a header carrying a trailing comment is still a header" {
+  seed_home <<'JSON'
+{"mcpServers": {"keeper": {"command": "/bin/true"}}}
+JSON
+  cat >"$FAKE/.codex/config.toml" <<'TOML'
+[mcp_servers.stale-unmanaged]
+command = "/bin/false"
+
+[mcp_servers.node_repl] # Codex's own
+command = "/codex/node_repl"
+
+[projects."/some/path"] # trusted at some point
+trust_level = "trusted"
+
+[[history]] # and the other shape, commented
+kept = true
+TOML
+  sync
+  [ "$status" -eq 0 ]
+
+  grep -qF 'trust_level = "trusted"' "$FAKE/.codex/config.toml"
+  grep -qF 'kept = true' "$FAKE/.codex/config.toml"
+  # A commented header on a private server still identifies it, so it is not dropped.
+  grep -qF '/codex/node_repl' "$FAKE/.codex/config.toml"
+  run ! grep -qF 'stale-unmanaged' "$FAKE/.codex/config.toml"
+}
+
+# The chunker and the Codex modify script split the same file. A shape one recognises and
+# the other does not is a silent deletion, which is how both misses above got in, so the
+# patterns are pinned to each other rather than to a literal.
+@test "the chunker and the Codex modify script use the same header pattern" {
+  rendered="$BATS_TEST_TMPDIR/modify.sh"
+  HOME="${WHETSTONE_HOME:-$HOME}" chezmoi --source "$REPO" execute-template \
+    <"$REPO/home/dot_codex/modify_private_config.toml.tmpl" >"$rendered"
+
+  chunker=$(sed -nE 's/^TABLE_HEADER = re\.compile\((r".*")\)$/\1/p' "$REPO/bin/sync-mcp")
+  modify=$(sed -nE 's/^HEADER = re\.compile\((r".*")\)$/\1/p' "$rendered")
+  [ -n "$chunker" ]
+  [ -n "$modify" ]
+  [ "$chunker" = "$modify" ]
+}
+
 @test "a literal secret is refused and nothing is written" {
   seed_home <<'JSON'
 {"mcpServers": {"bad": {"url": "https://example/mcp", "headers": {"Authorization": "Bearer sk-live-abc"}}}}

@@ -25,12 +25,14 @@ CLAUDE_JSON = HOME / ".claude.json"
 CODEX_TOML = HOME / ".codex" / "config.toml"
 
 CODEX_PRIVATE = frozenset({"node_repl", "computer-use", "event-stream"})
-# `[[array.of.tables]]` as well as `[table]`. Matching only the single-bracket form left an
-# array-of-tables block looking like an ordinary line, so it was absorbed into the chunk
-# above it -- and when that chunk was an unmanaged [mcp_servers.*] table being dropped, the
-# block went with it. Codex writes [[history]] itself, so this deleted real state. Same
-# shape as HEADER in home/dot_codex/modify_private_config.toml.tmpl.
-TABLE_HEADER = re.compile(r"^\[\[?([^]]+)\]\]?\s*$")
+# Byte for byte the HEADER in home/dot_codex/modify_private_config.toml.tmpl, and it has to
+# stay that way: the two split the same file, so a shape one recognises and the other does
+# not is a silent deletion. Anything this misses reads as an ordinary line and is absorbed
+# into the chunk above it, and when that chunk is an unmanaged [mcp_servers.*] table being
+# dropped, it goes with it. Both misses were exactly that: an array-of-tables header, which
+# Codex writes itself as history, and a header carrying a trailing comment, which Codex
+# writes on its project tables.
+TABLE_HEADER = re.compile(r"^\[\[?([^\]]+)\]\]?\s*(?:#.*)?$")
 ENV_PLACEHOLDER = re.compile(r"^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
 BEARER_PLACEHOLDER = re.compile(r"^Bearer \$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
 # env keys whose values are configuration, not credentials, and may be literal.
