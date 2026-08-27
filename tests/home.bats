@@ -180,6 +180,33 @@ chezmoi_managed() {
   second="$BATS_TEST_TMPDIR/second.toml"
   bash "$script" <"$first" >"$second"
   diff "$first" "$second"
+
+  # Copilot on #30: both of these used to emit a config that does not parse, which an apply
+  # would have written straight into ~/.codex/config.toml.
+  #
+  # ["tui"] is the same table as [tui]. Compared as raw text they looked like two, so the
+  # live one was preserved beside the managed one and both were declared.
+  spellings="$BATS_TEST_TMPDIR/spellings.toml"
+  printf '["tui"]\nstatus_line_use_colors = false\n' | bash "$script" >"$spellings"
+  [ "$(grep -cE '^[[:space:]]*\[("tui"|tui)\]' "$spellings")" -eq 1 ]
+  grep -qF 'status_line_use_colors = true' "$spellings"
+  uv run --no-project --python 3.12 python -c \
+    'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$spellings"
+
+  # A header-looking line inside a preserved multiline value is content, not a header.
+  # Reading it as one dropped the managed [tui] block out of the middle of the string and
+  # left the value unterminated.
+  multiline="$BATS_TEST_TMPDIR/multiline.toml"
+  {
+    printf '[projects."/srv/p"]\ntrust_level = "trusted"\n'
+    printf 'note = """\n[tui]\nstatus_line_use_colors = false\n"""\n'
+  } | bash "$script" >"$multiline"
+  uv run --no-project --python 3.12 python -c \
+    'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$multiline"
+  grep -qF 'trust_level = "trusted"' "$multiline"
+  # The managed table keeps the template's value; the string keeps its own copy of the name.
+  grep -qF 'status_line_use_colors = true' "$multiline"
+  grep -qF 'status_line_use_colors = false' "$multiline"
 }
 
 # The Cursor settings were a plain template, so every apply wrote the file whole and

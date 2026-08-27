@@ -34,24 +34,135 @@ HEADER = re.compile(r"^[ \t]*\[\[?((?:[^]\"']|\"(?:[^\"\\]|\\.)*\"|'[^']*')+)\]\
 BARE_KEY = re.compile(r'''^\s*("[^"]+"|'[^']+'|[A-Za-z0-9_.-]+)\s*=''')
 
 
+# A key part, so a table name can be compared as what TOML says it is rather than as the
+# characters someone happened to type. `["tui"]` and `[tui]` are one table, and treating
+# them as two preserved the live one alongside the managed one and emitted both -- a
+# duplicate declaration, which is not valid TOML at all.
+KEY_PART = re.compile(r"""\s*(?:"((?:[^"\\]|\\.)*)"|'([^']*)'|([A-Za-z0-9_-]+))\s*""")
+ESCAPES = {"b": "\b", "t": "\t", "n": "\n", "f": "\f", "r": "\r", '"': '"', "\\": "\\"}
+
+
+def unescape(text):
+    out = []
+    index = 0
+    while index < len(text):
+        char = text[index]
+        if char == "\\" and index + 1 < len(text):
+            following = text[index + 1]
+            if following in ESCAPES:
+                out.append(ESCAPES[following])
+                index += 2
+                continue
+            if following in "uU":
+                width = 4 if following == "u" else 8
+                digits = text[index + 2 : index + 2 + width]
+                if len(digits) == width:
+                    try:
+                        out.append(chr(int(digits, 16)))
+                    except ValueError:
+                        return None
+                    index += 2 + width
+                    continue
+            return None
+        out.append(char)
+        index += 1
+    return "".join(out)
+
+
+def key_path(raw):
+    """The dotted key as a tuple of decoded parts, or None if it is not one."""
+    parts = []
+    position = 0
+    while position < len(raw):
+        match = KEY_PART.match(raw, position)
+        if match is None:
+            return None
+        basic, literal, bare = match.groups()
+        if basic is not None:
+            decoded = unescape(basic)
+            if decoded is None:
+                return None
+            parts.append(decoded)
+        else:
+            parts.append(literal if literal is not None else bare)
+        position = match.end()
+        if position < len(raw):
+            if raw[position] != ".":
+                return None
+            position += 1
+    return tuple(parts) if parts else None
+
+
 def table_name(line):
     match = HEADER.match(line)
-    return match.group(1).strip() if match else None
+    if match is None:
+        return None
+    # Fall back to the raw text when it is not a key TOML would accept, so an oddity is
+    # still recognised as a table and preserved rather than folded into the block above it.
+    return key_path(match.group(1)) or match.group(1).strip()
 
 
 def key_name(line):
     match = BARE_KEY.match(line)
+    if match is None:
+        return None
     # "notify" and notify are the same key.
-    return match.group(1).strip("\"'") if match else None
+    return key_path(match.group(1)) or match.group(1).strip("\"'")
+
+
+def close_multiline(line, opener):
+    """The multiline delimiter still open at the end of `line`, or None.
+
+    A table header is only a header outside a multiline string. Without this, a `[tui]`
+    line inside a preserved value read as the managed [tui] table, that block was dropped,
+    and the value was truncated mid-string -- leaving a config that does not parse.
+    """
+    index = 0
+    length = len(line)
+    while index < length:
+        if opener is not None:
+            if line.startswith(opener, index):
+                opener = None
+                index += 3
+            else:
+                index += 1
+            continue
+        three = line[index : index + 3]
+        if three in ('"""', "'''"):
+            opener = three
+            index += 3
+            continue
+        char = line[index]
+        if char == "#":
+            break
+        if char in "\"'":
+            index += 1
+            while index < length and line[index] != char:
+                index += 2 if char == '"' and line[index] == "\\" else 1
+            index += 1
+            continue
+        index += 1
+    return opener
 
 
 # What the template declares. A table it declares wins outright. A table merely nested
 # under one does not: `[tui.model_availability_nux]` is Codex's own state, the old KEEP
 # allowlist named it for that reason, and the template declaring `[tui]` says nothing
 # about it. Only an exact match is managed; everything else is preserved.
+def headers(lines):
+    """Table name per line, None where the line is not a header at the top level."""
+    opener = None
+    for line in lines:
+        yield line, (None if opener is not None else table_name(line))
+        opener = close_multiline(line, opener)
+
+
 managed_lines = managed.splitlines()
-first_table = next((i for i, l in enumerate(managed_lines) if table_name(l)), len(managed_lines))
-managed_tables = {name for l in managed_lines if (name := table_name(l))}
+managed_headers = list(headers(managed_lines))
+first_table = next(
+    (i for i, (_, name) in enumerate(managed_headers) if name), len(managed_lines)
+)
+managed_tables = {name for _, name in managed_headers if name}
 managed_keys = {name for l in managed_lines[:first_table] if (name := key_name(l))}
 
 kept_keys: list[str] = []
@@ -69,10 +180,9 @@ def flush() -> None:
             kept_tables.append("")
 
 
-for line in current.splitlines():
+for line, name in headers(current.splitlines()):
     if line.strip() == MARKER:
         continue
-    name = table_name(line)
     if name is not None:
         flush()
         block = []
