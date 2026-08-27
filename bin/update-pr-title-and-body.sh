@@ -7,7 +7,7 @@
 # Usage: update-pr-title-and-body.sh PR_NUMBER [-y|--yes]
 #
 # Environment:
-#   CODEX_MODEL      Model name passed to `codex exec` (default: gpt-5.5).
+#   CODEX_MODEL      Overrides ~/.codex/config.toml's `model` (fallback: gpt-5.5).
 #   CODEX_BASE_URL   OpenAI-compatible proxy (falls back to OPENAI_BASE_URL); OPENAI_API_KEY is the credential.
 set -euo pipefail
 
@@ -35,7 +35,14 @@ JSON
 )
 readonly SCHEMA
 
-CODEX_MODEL="${CODEX_MODEL:-gpt-5.5}"
+# Resolve through ~/.local/bin's symlink so the sibling library is found either way.
+self=${BASH_SOURCE[0]}
+[[ -L $self ]] && self=$(readlink "$self")
+case $self in /*) ;; *) self="${BASH_SOURCE[0]%/*}/$self" ;; esac
+# shellcheck source-path=SCRIPTDIR source=_codex-config.sh
+source "${self%/*}/_codex-config.sh"
+
+CODEX_MODEL=$(codex_model)
 ASSUME_YES=false
 PR_NUMBER=""
 readonly CODEX_MODEL
@@ -131,7 +138,7 @@ readonly ASSUME_YES PR_NUMBER
 
 # Optional OpenAI-compatible proxy. Empty array means Codex uses its default provider.
 PROVIDER_ARGS=()
-CODEX_BASE_URL="${CODEX_BASE_URL:-${OPENAI_BASE_URL:-}}"
+CODEX_BASE_URL=$(codex_base_url)
 if [[ -n "$CODEX_BASE_URL" ]]; then
   PROVIDER_ARGS=(
     --config 'model_provider="proxy"'

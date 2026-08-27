@@ -1,0 +1,46 @@
+# shellcheck shell=bash
+# Shared by the bin/ scripts that shell out to `codex exec`. Sourced, not executed.
+#
+# Those scripts pass --ignore-user-config so a run cannot pick up hooks, plugins, skills or
+# rules. That flag also drops the model and the proxy, which are not isolation concerns and
+# which every script then had to restate -- three copies of `gpt-5.5` that went stale the
+# day the machine moved on, and a proxy taken from $OPENAI_BASE_URL while interactive Codex
+# used ~/.codex/config.toml. The two disagreed: the env var was the bare host, the config
+# carried the /v1 suffix. Reading the config here means a script cannot reach an endpoint
+# or a model that interactive Codex is not already using.
+
+# Top-level keys only. Everything from the first [table] header on belongs to a table, and
+# `model` appears inside tables too. awk rather than a TOML parser on purpose: tomllib needs
+# Python 3.11 and the system python3 on macOS is 3.9, which is what broke bin/sync-mcp on a
+# fresh Mac.
+codex_config_value() {
+  local key=$1
+  local config="${CODEX_HOME:-$HOME/.codex}/config.toml"
+
+  [[ -r $config ]] || return 0
+  awk -v key="$key" '
+    /^\[/ { exit }
+    $0 ~ "^" key "[[:space:]]*=" {
+      sub(/^[^=]*=[[:space:]]*/, "")
+      gsub(/^"|"[[:space:]]*$/, "")
+      print
+      exit
+    }
+  ' "$config"
+}
+
+# Precedence: explicit environment, then the Codex config, then the argument as a last
+# resort so a machine with no Codex config still runs.
+codex_model() {
+  local fallback=${1:-gpt-5.5}
+  local value=${CODEX_MODEL:-}
+
+  [[ -n $value ]] || value=$(codex_config_value model)
+  printf '%s' "${value:-$fallback}"
+}
+
+codex_base_url() {
+  local from_config
+  from_config=$(codex_config_value openai_base_url)
+  printf '%s' "${CODEX_BASE_URL:-${from_config:-${OPENAI_BASE_URL:-}}}"
+}
