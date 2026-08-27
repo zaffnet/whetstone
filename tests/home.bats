@@ -149,9 +149,13 @@ chezmoi_managed() {
 # currently has them -- a real home may have been changed by hand since.
 @test "the defaults script writes the settings that differed between machines" {
   script="$BATS_TEST_TMPDIR/defaults.sh"
+  iterm_script="$BATS_TEST_TMPDIR/iterm-defaults.sh"
   HOME="$H" chezmoi --source "$REPO" execute-template \
     <"$REPO/home/.chezmoiscripts/run_onchange_20-macos-defaults.sh.tmpl" >"$script"
+  HOME="$H" chezmoi --source "$REPO" execute-template \
+    <"$REPO/home/.chezmoiscripts/run_after_20-macos-iterm2-defaults.sh.tmpl" >"$iterm_script"
   bash -n "$script"
+  bash -n "$iterm_script"
 
   # iTerm2 keeps these in its own domain, not in the profile, so a Dynamic Profile does not
   # carry them. Focus-follows-mouse is the one you notice within a minute.
@@ -171,24 +175,28 @@ chezmoi_managed() {
     "  defaults write com.googlecode.iterm2 HideActivityIndicator -bool false" \
     "  defaults write com.googlecode.iterm2 ShowFullScreenTabBar -bool false" \
     "  defaults write com.googlecode.iterm2 \"Default Bookmark Guid\" -string \"whetstone-default\""; do
-    grep -qFx "$line" "$script"
+    grep -qFx "$line" "$iterm_script"
   done
 
   # The guard skips rather than aborting: an apply is normally run from a shell inside
   # iTerm2, so exiting non-zero there would fail every apply and block the scripts after it.
-  grep -qFx "if pgrep -xq iTerm2; then" "$script"
-  run ! grep -qFx "  exit 1" "$script"
+  grep -qFx "if pgrep -x iTerm2 >/dev/null; then" "$iterm_script"
+  run ! grep -qFx "  exit 1" "$iterm_script"
 
   # And nothing reaches iTerm2's domain outside that guard: written while it runs, the
   # values are discarded when it quits, which looks like success and loses all of them.
-  outside=$(awk '/^if pgrep -xq iTerm2/ { guarded = 1 }
+  outside=$(awk '$0 == "if pgrep -x iTerm2 >/dev/null; then" { guarded = 1 }
                  /^fi$/ { guarded = 0 }
-                 /defaults write com.googlecode.iterm2/ && !guarded { print }' "$script")
+                 /defaults write com.googlecode.iterm2/ && !guarded { print }' "$iterm_script")
   [ -z "$outside" ] || {
     echo "iTerm2 settings written outside the guard:"
     echo "$outside"
     return 1
   }
+
+  # iTerm2 writes are in a run_after_ script so a skip while the app runs does not make an
+  # onchange script look complete forever.
+  run ! grep -q "com.googlecode.iterm2" "$script"
 
   # Finder's search scope and new-window target, plus the two hot corners with modifiers:
   # an unset modifier is not the same as zero.

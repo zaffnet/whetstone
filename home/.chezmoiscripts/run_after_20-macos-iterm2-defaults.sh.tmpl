@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# iTerm2 rewrites its preferences plist on quit, so values written while it is running can
+# be discarded. This runs after every apply, so a skipped run while iTerm2 is open does not
+# mark the settings done forever like run_onchange_ scripts do.
+set -euo pipefail
+
+# iTerm2 settings that live in the app's own domain rather than in a profile. This is the
+# same trap as the key bindings: a Dynamic Profile carries what is inside `New Bookmarks`
+# and nothing else, so focus-follows-mouse, split-pane dimming and the copy behaviour all
+# stayed on one machine. Comparing the two Macs' plists is what surfaced them; reading one
+# machine's could not, because there is no way to tell a set value from a default.
+if pgrep -x iTerm2 >/dev/null; then
+  printf 'iTerm2 is running; leaving its settings alone. Quit it and re-apply to set them.\n' >&2
+else
+  defaults write com.googlecode.iterm2 FocusFollowsMouse -bool true
+  defaults write com.googlecode.iterm2 AggressiveFocusFollowsMouse -bool true
+  defaults write com.googlecode.iterm2 FocusNewSplitPaneWithFocusFollowsMouse -bool true
+  defaults write com.googlecode.iterm2 DimInactiveSplitPanes -bool true
+  defaults write com.googlecode.iterm2 SplitPaneDimmingAmount -float 0.2518520555218447
+  defaults write com.googlecode.iterm2 DimBackgroundWindows -bool false
+  defaults write com.googlecode.iterm2 "Selection Respects Soft Boundaries" -bool true
+  defaults write com.googlecode.iterm2 CopySelection -bool false
+  defaults write com.googlecode.iterm2 CopyLastNewline -bool true
+  defaults write com.googlecode.iterm2 ClickToSelectCommand -bool false
+  defaults write com.googlecode.iterm2 AllowClipboardAccess -bool true
+  defaults write com.googlecode.iterm2 EnableAPIServer -bool true
+  defaults write com.googlecode.iterm2 HideActivityIndicator -bool false
+  defaults write com.googlecode.iterm2 ShowFullScreenTabBar -bool false
+
+  # iTerm2: make the managed profile the default. The profile itself is a Dynamic Profile
+  # (Library/Application Support/iTerm2/DynamicProfiles/whetstone.json), which iTerm2 reads
+  # and never writes back -- the reason it is not the preferences plist: 44 of that file's 99
+  # keys are window frames, timestamps and NoSync* state rewritten on every quit, so managing
+  # it would put churn in every diff. Only the pointer to the profile lives here.
+  defaults write com.googlecode.iterm2 "Default Bookmark Guid" -string "whetstone-default"
+fi
