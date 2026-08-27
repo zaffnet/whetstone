@@ -276,6 +276,106 @@ JSON
     | grep -qF '"snyk.yesWelcomeNotification": false'
 }
 
+# Copilot on #28: the model and proxy lookup had no test. Both defects it named were real —
+# a relative invocation resolved the library to bin/bin/, and the awk lookup kept a trailing
+# comment and the quotes of a TOML literal string. The header check that followed guessed
+# per line and lost the value to a nested array and to a multiline string opened with
+# content beside it, so the lookup now tracks where a value ends.
+@test "the Codex config lookup reads every TOML spelling, and only top-level keys" {
+  home="$BATS_TEST_TMPDIR/codex"
+  mkdir -p "$home"
+
+  value() {
+    printf '%s\n' "$1" >"$home/config.toml"
+    CODEX_HOME="$home" bash -c "source '$REPO/bin/_codex-config.sh'; codex_config_value model"
+  }
+
+  [ "$(value 'model = "plain"')" = plain ]
+  [ "$(value 'model = "with-comment" # note')" = with-comment ]
+  [ "$(value "model = 'literal'")" = literal ]
+  [ "$(value 'model="no-spaces"')" = no-spaces ]
+  [ "$(value '  model = "indented"')" = indented ]
+  [ "$(value 'model = bare # note')" = bare ]
+  # Copilot on #28, second round: a quoted key is the same key.
+  [ "$(value '"model" = "quoted-key"')" = quoted-key ]
+  [ "$(value "'model' = \"literal-key\"")" = literal-key ]
+  # A tab separator, a trailing CR, and a commented-out line above the real one.
+  [ "$(value "$(printf 'model\t=\t"tabs"')")" = tabs ]
+  [ "$(value "$(printf 'model = "crlf"\r')")" = crlf ]
+  [ "$(value "$(printf '# model = "commented"\nmodel = "real"')")" = real ]
+  # A value above `model` that runs onto later lines must not look like the first table
+  # header. An array runs until its brackets balance, wherever its elements sit and whether
+  # or not the last one has a trailing comma; a multiline string runs until its delimiter
+  # repeats, whether or not it opened with content beside it.
+  [ "$(value "$(printf 'notify = [\n  [\"turn-ended\"],\n]\nmodel = \"after-array\"')")" = after-array ]
+  [ "$(value "$(printf 'notify = [\n  [\"a\", \"b\"]\n]\nmodel = \"after-nested\"')")" = after-nested ]
+  [ "$(value "$(printf 'notify = [\n  \"a]b\",\n]\nmodel = \"after-bracket\"')")" = after-bracket ]
+  [ "$(value "$(printf 'note = \"\"\"\n[line]\n\"\"\"\nmodel = \"after-string\"')")" = after-string ]
+  [ "$(value "$(printf 'note = \"\"\"open\n[line]\nclose\"\"\"\nmodel = \"after-open-string\"')")" = after-open-string ]
+  [ "$(value "$(printf 'note = \047\047\047\n[line]\n\047\047\047\nmodel = \"after-literal\"')")" = after-literal ]
+  # A bracket that only sits inside a value is not a header either.
+  [ "$(value "$(printf 'note = \"[tui]\"\nmodel = \"after-quoted\"')")" = after-quoted ]
+  [ "$(value "$(printf '# [tui]\nmodel = \"after-comment\"')")" = after-comment ]
+  [ "$(value "$(printf 'tui = { model = \"inline\" }\nmodel = \"after-inline\"')")" = after-inline ]
+  # A key that merely starts with the name must not match.
+  [ "$(value "$(printf 'model_reasoning_effort = "high"\nmodel = "after"')")" = after ]
+  [ -z "$(value 'notmodel = "x"')" ]
+  [ -z "$(value '"notmodel" = "x"')" ]
+
+  # `model` appears inside tables too, so only a key above the first header counts.
+  [ -z "$(value "$(printf '[tui]\nmodel = "in-table"')")" ]
+  [ -z "$(value "$(printf '  [tui]\n  model = "in-table"')")" ]
+
+  # Missing file and missing key are both empty, not an error: a machine with no Codex
+  # config still has to run the script.
+  [ -z "$(CODEX_HOME=/nonexistent bash -c "source '$REPO/bin/_codex-config.sh'; codex_config_value model")" ]
+  [ -z "$(value 'other = "x"')" ]
+
+  # Precedence: environment beats the config, config beats the literal fallback.
+  printf 'model = "from-config"\n' >"$home/config.toml"
+  [ "$(CODEX_HOME="$home" bash -c "source '$REPO/bin/_codex-config.sh'; codex_model")" = from-config ]
+  [ "$(CODEX_HOME="$home" CODEX_MODEL=from-env bash -c "source '$REPO/bin/_codex-config.sh'; codex_model")" = from-env ]
+  [ "$(CODEX_HOME=/nonexistent bash -c "source '$REPO/bin/_codex-config.sh'; codex_model fallback-model")" = fallback-model ]
+}
+
+# Copilot on #28: `bin/commit.sh` sourced bin/bin/_codex-config.sh and died. The library is
+# now symlinked into ~/.local/bin beside its callers, so `${BASH_SOURCE[0]%/*}` finds it by
+# whichever path the script was reached -- which is the contract this pins. The assertion is
+# the absence of that specific failure, not the exit status: only two of the three have a
+# --help fast path and the third goes straight to Codex.
+@test "the Codex scripts find their library however they are invoked" {
+  # The applied tree has to put the library beside the scripts, or every one of them breaks.
+  resolves_to "$H/.local/bin/_codex-config.sh" "$REPO/bin/_codex-config.sh"
+
+  link_dir="$BATS_TEST_TMPDIR/localbin"
+  stub_dir="$BATS_TEST_TMPDIR/stub"
+  mkdir -p "$link_dir" "$stub_dir"
+  ln -sf "$REPO/bin/_codex-config.sh" "$link_dir/_codex-config.sh"
+
+  # A codex that fails at once, so a script that gets past its source line stops there
+  # instead of reaching the network.
+  printf '#!/usr/bin/env bash\nexit 1\n' >"$stub_dir/codex"
+  chmod +x "$stub_dir/codex"
+
+  for script in commit.sh update-pr-title-and-body.sh suggest-branch-name.sh; do
+    ln -sf "$REPO/bin/$script" "$link_dir/$script"
+
+    for invocation in \
+      "cd '$REPO' && bin/$script" \
+      "cd '$REPO' && ./bin/$script" \
+      "cd / && bash '$REPO/bin/$script'" \
+      "cd / && bash '$link_dir/$script'" \
+      "cd / && $script"; do
+      run env PATH="$stub_dir:$link_dir:$PATH" bash -c "$invocation --help"
+      [[ $output != *_codex-config.sh* ]] || {
+        echo "library not found for: $invocation" >&2
+        echo "$output" >&2
+        return 1
+      }
+    done
+  done
+}
+
 # Issue #20: this was the only one of the three modify scripts with no coverage, and the
 # only one still on a named allowlist -- model, enabledPlugins and extraKnownMarketplaces
 # won unconditionally, so editing them in the template was a no-op on any machine that

@@ -7,17 +7,25 @@
 #
 # Usage: commit.sh [-y|--yes]
 #
+# The model and the proxy come from ~/.codex/config.toml (see bin/_codex-config.sh), so this
+# agrees with interactive Codex by construction.
+#
 # Environment:
-#   CODEX_MODEL      Model name passed to `codex exec` (default: gpt-5.5).
-#   CODEX_BASE_URL   OpenAI-compatible proxy (falls back to OPENAI_BASE_URL). When set, requests go through it
-#                    with OPENAI_API_KEY as the credential. Unset = OpenAI direct.
+#   CODEX_MODEL      Overrides the config's `model` (fallback: gpt-5.5).
+#   CODEX_BASE_URL   Overrides the config's `openai_base_url`, then OPENAI_BASE_URL. When set,
+#                    requests go through it with OPENAI_API_KEY. Unset = OpenAI direct.
 #   COMMIT_SIGN      Set to 1 to force `git commit -S`. Otherwise the commit is
 #                    signed only when `git config commit.gpgsign` is true.
 #
 # The generated message is saved to $GIT_DIR/COMMIT_MESSAGE.md for reference.
 set -euo pipefail
 
-CODEX_MODEL="${CODEX_MODEL:-gpt-5.5}"
+# The library is symlinked into ~/.local/bin too, so it sits beside this script whichever
+# path reached it. No symlink resolution, which is where the first attempt went wrong.
+# shellcheck source-path=SCRIPTDIR source=_codex-config.sh
+source "${BASH_SOURCE[0]%/*}/_codex-config.sh"
+
+CODEX_MODEL=$(codex_model)
 ASSUME_YES=false
 readonly CODEX_MODEL
 
@@ -105,7 +113,7 @@ esac
 
 # Optional OpenAI-compatible proxy. Empty array means Codex uses its default provider.
 PROVIDER_ARGS=()
-CODEX_BASE_URL="${CODEX_BASE_URL:-${OPENAI_BASE_URL:-}}"
+CODEX_BASE_URL=$(codex_base_url)
 if [[ -n "$CODEX_BASE_URL" ]]; then
   PROVIDER_ARGS=(
     --config 'model_provider="proxy"'
