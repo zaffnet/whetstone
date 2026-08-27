@@ -174,6 +174,39 @@ TOML
   run ! grep -qF 'stale-unmanaged' "$FAKE/.codex/config.toml"
 }
 
+# Copilot on #30, the third instance of the same class: a `]` inside a quoted table name
+# ended the key early for a `[^]]+` pattern, so the header did not match and the table went
+# with the dropped server above it. A directory called my]weird[repo is a legal path and
+# Codex writes it into a [projects.*] header verbatim. The pattern follows TOML's grammar
+# now rather than approximating it.
+@test "a quoted table name holding brackets or a hash is still a header" {
+  seed_home <<'JSON'
+{"mcpServers": {"keeper": {"command": "/bin/true"}}}
+JSON
+  cat >"$FAKE/.codex/config.toml" <<'TOML'
+[mcp_servers.stale-unmanaged]
+command = "/bin/false"
+
+[projects."/srv/my]weird[repo"]
+trust_level = "bracketed"
+
+[projects."/srv/has#hash"] # and a trailing comment
+trust_level = "hashed"
+
+[projects.'/srv/lit]eral']
+trust_level = "literal"
+TOML
+  # The seed is valid TOML, so nothing here is asking the chunker to guess.
+  toml_get "$FAKE/.codex/config.toml" >/dev/null
+
+  sync
+  [ "$status" -eq 0 ]
+  grep -qF 'trust_level = "bracketed"' "$FAKE/.codex/config.toml"
+  grep -qF 'trust_level = "hashed"' "$FAKE/.codex/config.toml"
+  grep -qF 'trust_level = "literal"' "$FAKE/.codex/config.toml"
+  run ! grep -qF 'stale-unmanaged' "$FAKE/.codex/config.toml"
+}
+
 # The chunker and the Codex modify script split the same file. A shape one recognises and
 # the other does not is a silent deletion, which is how both misses above got in, so the
 # patterns are pinned to each other rather than to a literal.
@@ -187,6 +220,39 @@ TOML
   [ -n "$chunker" ]
   [ -n "$modify" ]
   [ "$chunker" = "$modify" ]
+
+  # And that they agree on the shapes Codex actually writes, so the pin is about behaviour
+  # rather than about two strings happening to match.
+  CHUNKER="$chunker" "$PY" - <<'PYEOF'
+import os
+import re
+import sys
+
+pattern = re.compile(eval(os.environ["CHUNKER"]))  # noqa: S307 -- a regex literal from our own source
+expected = {
+    '[tui]': 'tui',
+    '[tui] # note': 'tui',
+    '[[history]]': 'history',
+    '[[history]] # note': 'history',
+    '[mcp_servers.node_repl]': 'mcp_servers.node_repl',
+    '[projects."/some/path"]': 'projects."/some/path"',
+    '[projects."/srv/my]weird[repo"]': 'projects."/srv/my]weird[repo"',
+    '[projects."/srv/has#hash"] # note': 'projects."/srv/has#hash"',
+    "[projects.'/lit]eral']": "projects.'/lit]eral'",
+    'command = "/bin/true"': None,
+    '  indented = 1': None,
+    '# [not a table]': None,
+    '': None,
+}
+bad = []
+for line, want in expected.items():
+    match = pattern.match(line)
+    got = match.group(1) if match else None
+    if got != want:
+        bad.append(f"{line!r}: got {got!r}, want {want!r}")
+if bad:
+    sys.exit("\n".join(bad))
+PYEOF
 }
 
 @test "a literal secret is refused and nothing is written" {

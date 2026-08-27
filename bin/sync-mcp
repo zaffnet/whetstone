@@ -29,10 +29,14 @@ CODEX_PRIVATE = frozenset({"node_repl", "computer-use", "event-stream"})
 # stay that way: the two split the same file, so a shape one recognises and the other does
 # not is a silent deletion. Anything this misses reads as an ordinary line and is absorbed
 # into the chunk above it, and when that chunk is an unmanaged [mcp_servers.*] table being
-# dropped, it goes with it. Both misses were exactly that: an array-of-tables header, which
-# Codex writes itself as history, and a header carrying a trailing comment, which Codex
-# writes on its project tables.
-TABLE_HEADER = re.compile(r"^\[\[?([^\]]+)\]\]?\s*(?:#.*)?$")
+# dropped, it goes with it.
+#
+# So it follows TOML's own grammar rather than approximating it, which three rounds of
+# patching a `[^]]+` key did not: that missed [[array.of.tables]], missed a header with a
+# trailing comment, and stopped at the first ] inside a quoted key -- and Codex writes all
+# three. A key part here is a run of ordinary characters or a whole quoted string, so a ]
+# or a # inside quotes is content, exactly as TOML says.
+TABLE_HEADER = re.compile(r"^\[\[?((?:[^]\"']|\"(?:[^\"\\]|\\.)*\"|'[^']*')+)\]\]?\s*(?:#.*)?$")
 ENV_PLACEHOLDER = re.compile(r"^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
 BEARER_PLACEHOLDER = re.compile(r"^Bearer \$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
 # env keys whose values are configuration, not credentials, and may be literal.
