@@ -68,3 +68,24 @@ jobs:
             ~/.agents/mcp.json
           grep -q 'proxy.example' ~/.codex/config.toml
           grep -q 'pypi.example' ~/.config/uv/uv.toml
+
+  # One stable context for the branch ruleset to require. `bootstrap` carries its matrix
+  # value in the job name, so adding a role or a second macOS version renames both required
+  # contexts and the ruleset waits on names no job produces. That blocked main outright once
+  # already, on template.yml, which is why template-ok exists; this name never changes.
+  #
+  # always() so a failed dependency still runs it. Without it the job is skipped, and a
+  # skipped required check passes the ruleset.
+  macos-ok:
+    if: always()
+    needs: [bootstrap]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail unless every bootstrap job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for result in $RESULTS; do
+            [ "$result" = success ] || { echo "a bootstrap job did not succeed"; exit 1; }
+          done
