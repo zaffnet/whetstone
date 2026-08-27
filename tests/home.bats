@@ -1,9 +1,24 @@
 #!/usr/bin/env bats
 bats_require_minimum_version 1.5.0
 # Assertions against an applied chezmoi tree. Run against the real home with `just test`,
-# or against the throwaway CI home with `just test-home` (sets WHETSTONE_HOME). Two tests
-# skip on a real home; the macOS workflow applies into the runner's own HOME, so CI=1 also
-# counts as a throwaway home.
+# or against the throwaway CI home with `just test-home` (sets WHETSTONE_HOME). The macOS
+# workflow applies into the runner's own HOME, so CI=1 also counts as a throwaway home.
+#
+# Four conditions skip a test. The rule, not a count, because a count goes stale the moment
+# a case is added -- and a skip nobody knows about is what let the regression through on #10:
+#
+#   real home without CI  the cases named "(CI home only)", which write to or delete from
+#                         the home, and `the secrets file is not managed`, which a
+#                         hand-made ~/.zsh_secrets would fail
+#   role is work          `git identity comes from chezmoi data`, the one role where
+#                         .gitconfig is deliberately unmanaged
+#   config predates       `a bare chezmoi command resolves this checkout`; a throwaway or
+#   sourceDir             CI home is regenerated every time, so there it always runs
+#   no ~/.zsh_secrets     `the secrets file, when present, is readable only by its owner`,
+#                         which therefore never runs in CI -- only a real machine with
+#                         secrets exercises it
+#
+# macos.yml asserts that exactly this set skips, so a new one cannot arrive unannounced.
 
 setup() {
   REPO="$(git -C "$BATS_TEST_DIRNAME" rev-parse --show-toplevel)"

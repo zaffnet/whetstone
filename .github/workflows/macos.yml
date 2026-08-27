@@ -41,7 +41,23 @@ jobs:
           start=$SECONDS
           chezmoi apply --source "$GITHUB_WORKSPACE"
           echo "Apply (CI mode, no package installs): $((SECONDS - start))s" >> "$GITHUB_STEP_SUMMARY"
-      - run: bats tests/
+      - name: Run the suite, and check that only the known cases skip
+        env:
+          ROLE: ${{ matrix.role }}
+        run: |
+          bats --formatter tap tests/ | tee /tmp/tap.txt
+          # tests/home.bats states which conditions skip a case. Pinning the set here is
+          # what keeps that honest: a skip nobody declared is the shape that let the
+          # regression through on #10, where a guard fired exactly when the behaviour
+          # under test broke.
+          expected=$(
+            echo "the secrets file, when present, is readable only by its owner"
+            if [ "$ROLE" = work ]; then
+              echo "git identity comes from chezmoi data (CI home only)"
+            fi
+          )
+          skipped=$(sed -nE 's/^ok [0-9]+ (.*) # skip .*/\1/p' /tmp/tap.txt)
+          diff <(printf '%s\n' "$expected" | sort) <(printf '%s\n' "$skipped" | sort)
       - name: Rendered config parses and carries the work values
         if: matrix.role == 'work'
         run: |
