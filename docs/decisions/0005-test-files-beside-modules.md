@@ -19,7 +19,8 @@ explicitly in its `pyproject.toml` so the convention is recorded.
   only in generated projects; this repo's own config relaxes `S101` and `PLR2004`.
 - In a generated project, contributors used to `tests/test_*.py` get a pre-commit failure
   from the `forbid-test-prefix` hook; without it pytest would silently never collect the
-  file. whetstone itself configures neither, because it has no tests of its own.
+  file. whetstone itself configures neither, because it runs no pytest suite; its own
+  tests are Bats (`tests/home.bats`), which this decision does not cover.
 
 ## Alternatives considered
 

@@ -2,12 +2,12 @@ import re
 import tomllib
 from pathlib import Path
 
-import {{ package_name }}
+from {{ package_name }} import __version__
 
 
 def test_version_matches_pyproject() -> None:
     """The package version and the pyproject version are one number, not two."""
     pyproject_path = Path(__file__).parents[1] / "pyproject.toml"
     pyproject = tomllib.loads(pyproject_path.read_text())
-    assert {{ package_name }}.__version__ == pyproject["project"]["version"]
-    assert re.fullmatch(r"\d+\.\d+\.\d+", {{ package_name }}.__version__)
+    assert __version__ == pyproject["project"]["version"]
+    assert re.fullmatch(r"\d+\.\d+\.\d+", __version__)

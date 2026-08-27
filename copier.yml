@@ -30,21 +30,30 @@ _message_after_copy: |
 
   Later, pull template updates with `uvx copier update`.
 
+# 40 is the widest name the rendered Python can carry. The name is interpolated inline,
+# and the widest of those lines is `runpy.run_module("<package_name>", ...)` in
+# __main___test.py: 45 characters of fixed text, so 40 lands at 85, inside the
+# 88-character floor on line_length. The template CI renders a 40-character name at 88.
 project_name:
   type: str
-  help: Project name (kebab-case; also the repository and distribution name)
+  help: Project name (kebab-case, 40 characters or fewer; also the repository and distribution name)
   validator: >-
     {% if not (project_name | regex_search('^[a-z][a-z0-9]*(-[a-z0-9]+)*$')) %}
     Use kebab-case: lowercase letters, digits, single hyphens.
+    {% elif project_name | length > 40 %}
+    Keep it to 40 characters or fewer: it is interpolated into rendered Python, and
+    those lines have to fit the narrowest line_length the template supports.
     {% endif %}
 
 package_name:
   type: str
-  help: Python import name
+  help: Python import name (40 characters or fewer)
   default: "{{ project_name | replace('-', '_') }}"
   validator: >-
     {% if not (package_name | regex_search('^[a-z][a-z0-9_]*$')) %}
     Use a valid lowercase identifier.
+    {% elif package_name | length > 40 %}
+    Keep it to 40 characters or fewer, for the same reason as project_name.
     {% endif %}
 
 description:

@@ -15,8 +15,8 @@ of `main`.
 
 | Question | Effect |
 | --- | --- |
-| `project_name` | Distribution name in `pyproject.toml`, repo name in README and CI |
-| `package_name` | Import name; defaults to `project_name` with hyphens turned into underscores |
+| `project_name` | Distribution name in `pyproject.toml`, repo name in README and CI; kebab-case, 40 characters or fewer |
+| `package_name` | Import name; defaults to `project_name` with hyphens turned into underscores; same 40-character limit |
 | `description` | `pyproject.toml` description and README first line |
 | `github_owner` | `CODEOWNERS`, clone URL in `docs/DEVELOPMENT.md`, container registry path |
 | `python_version` | `requires-python`, `.python-version`, `target-version` for ruff, mypy, basedpyright |

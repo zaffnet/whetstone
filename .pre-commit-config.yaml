@@ -83,22 +83,30 @@ repos:
 
       # Each reviewer subagent exists as Claude markdown and Codex TOML; the
       # bodies must stay identical.
+      #
+      # always_run, not a `files` filter: pre-commit leaves deleted paths out of the
+      # staged filename set, so a commit that only deletes one half of a pair would
+      # skip the check and land the orphan.
       - id: check-agents-sync
         name: agents md/toml in sync
         # The script needs tomllib (3.11+); the system python3 on macOS is older.
         entry: uv run --no-sync python tools/check-agents-sync.py
         language: system
         pass_filenames: false
-        files: ^(agents|codex/agents|template/project/\.(claude|codex)/agents)/
+        always_run: true
 
       # `claude plugin validate .` checks plugin.json's paths but not the ones written
       # in marketplace.json, so a renamed agent file passes it.
+      #
+      # always_run for the same reason as check-agents-sync: deleting a path that
+      # marketplace.json still names is exactly the break this catches, and a
+      # deletion-only commit matches no `files` filter.
       - id: check-marketplace-paths
         name: marketplace paths exist
         entry: bin/check-marketplace-paths
         language: script
         pass_filenames: false
-        files: ^(\.claude-plugin/|agents/|skills/|hooks/)
+        always_run: true
 
       # commit-msg stage: conventional commits via the user-level commitlint config.
       - id: commitlint

@@ -74,3 +74,34 @@ jobs:
             docker compose run --rm app
           fi
           docker compose down -v
+
+  # The name is interpolated inline into rendered Python, so a long one can push a line
+  # past the project's own ruff gate. copier.yml caps it at 40; this renders at the cap
+  # and at the 88-character floor on line_length, the pair that leaves the least room.
+  # Two variants, because __main__.py renders only without FastAPI and app.py only with it.
+  longest-name:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        use_fastapi: ["false", "true"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      - name: Render the template with a 40-character name
+        env:
+          USE_FASTAPI: ${{ matrix.use_fastapi }}
+        run: |
+          uvx copier copy --defaults --vcs-ref HEAD \
+            -d project_name=demo-app-with-a-deliberately-long-name-x \
+            -d description=Demo -d github_owner=octocat \
+            -d use_docker=true -d "use_fastapi=$USE_FASTAPI" \
+            -d line_length=88 . /tmp/longest
+      - name: Check the rendered source against the project's own ruff config
+        working-directory: /tmp/longest
+        run: |
+          uv sync --all-groups
+          uv run ruff check .
+          uv run ruff format --check .

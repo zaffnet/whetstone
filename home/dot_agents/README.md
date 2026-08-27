@@ -14,7 +14,7 @@ Remove: delete that folder.
 
 ## MCP
 
-Every stdio server is pinned to a version (`pkg@X.Y.Z`). Bump the pin by hand, then sync.
+Every stdio server that runs a published package is pinned to a version (`pkg@X.Y.Z`). Bump the pin by hand, then sync. `code-scan` is the exception: its command is a local executable path from `[data.work]`, so there is no package and nothing to pin.
 
 Sync means `uv run --no-project --python 3.12 python ~/.agents/bin/sync-mcp`. The script needs tomllib and the system python3 on macOS is 3.9, so the bare path fails on a fresh Mac. An apply runs it this way for you (`home/.chezmoiscripts/run_after_40-sync-mcp.sh.tmpl`).
 
