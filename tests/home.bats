@@ -111,6 +111,35 @@ chezmoi_managed() {
   [ "$(git config -f "$H/.gitconfig" user.email)" = t@example.com ]
 }
 
+# Issue #25: the modify_ scripts render to bash that runs on every apply, and nothing
+# checked the result parses. While writing #19 the Cursor one did not -- a rendered body
+# with an unbalanced apostrophe broke a heredoc inside $( ) under bash 3.2, the system bash
+# on macOS. It surfaced only because the script was being run by hand at the time; an apply
+# would have failed on a real machine.
+@test "every modify_ script renders to bash that parses" {
+  found=0
+  while IFS= read -r -d "" tmpl; do
+    found=$((found + 1))
+    script="$BATS_TEST_TMPDIR/rendered-$found.sh"
+    HOME="$H" chezmoi --source "$REPO" execute-template <"$tmpl" >"$script"
+    # /bin/bash is 3.2 on macOS and is what an apply runs the script under. A newer bash
+    # earlier on PATH accepts what 3.2 rejects, so parse under both rather than either.
+    for shell in bash /bin/bash; do
+      command -v "$shell" >/dev/null || continue
+      run "$shell" -n "$script"
+      if [ "$status" -ne 0 ]; then
+        echo "$tmpl does not parse under $("$shell" --version | head -1)"
+        echo "$output"
+        return 1
+      fi
+    done
+  done < <(find "$REPO/home" -name "modify_*.tmpl" -print0)
+
+  # Data-driven, so a new modify script is covered without touching this test. The floor is
+  # a vacuity guard: a rename that stops matching the glob would otherwise pass silently.
+  [ "$found" -ge 3 ]
+}
+
 # Copilot on #10: nothing fed live state through the modify script, which is where two
 # keys were being dropped. Seed a bare key and three tables the template does not declare,
 # one of them nested under a table it does declare.
