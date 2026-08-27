@@ -105,3 +105,25 @@ jobs:
           uv sync --all-groups
           uv run ruff check .
           uv run ruff format --check .
+
+  # One stable context for the branch ruleset to require. Both jobs above carry their
+  # matrix values in the job name, so adding an axis renames every context: adding
+  # line_length turned `render-and-check (true, true)` into
+  # `render-and-check (true, true, 88)` and the ruleset sat waiting on four names that
+  # no longer exist. This name never changes, whatever the matrix does.
+  #
+  # always() so a failed dependency still runs it. Without it the job is skipped, and a
+  # skipped required check passes the ruleset.
+  template-ok:
+    if: always()
+    needs: [render-and-check, longest-name]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail unless every template job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for result in $RESULTS; do
+            [ "$result" = success ] || { echo "a template job did not succeed"; exit 1; }
+          done
