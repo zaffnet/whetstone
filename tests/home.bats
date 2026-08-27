@@ -196,6 +196,20 @@ chezmoi_managed() {
   # The managed table keeps the template's value; the string keeps its own copy of the name.
   grep -qF 'status_line_use_colors = true' "$multiline"
   grep -qF 'status_line_use_colors = false' "$multiline"
+
+  # Copilot on #35: `\"""` is how TOML spells a literal `"""` inside a multiline basic
+  # string -- an escaped quote and two plain ones. Read as the closing delimiter, it
+  # reopened the same data loss from the next line on.
+  escaped="$BATS_TEST_TMPDIR/escaped-multiline.toml"
+  {
+    printf '[projects."/srv/q"]\n'
+    printf 'note = """\nliteral three quotes: \\"""\n[tui]\nstill inside\n"""\n'
+    printf 'trust_level = "trusted"\n'
+  } | bash "$script" >"$escaped"
+  uv run --no-project --python 3.12 python -c \
+    'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$escaped"
+  grep -qF 'trust_level = "trusted"' "$escaped"
+  grep -qF 'still inside' "$escaped"
 }
 
 # Copilot on #32: table names were compared as captured text, so ["tui"] and [tui] read as

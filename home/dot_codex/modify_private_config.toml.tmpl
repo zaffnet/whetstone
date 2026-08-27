@@ -119,6 +119,13 @@ def close_multiline(line, opener):
     length = len(line)
     while index < length:
         if opener is not None:
+            # A basic string keeps its escapes, so a backslash consumes what follows it.
+            # Without that, the three quotes in `\"""` -- an escaped quote and two plain
+            # ones, which is how TOML spells a literal `"""` inside a multiline string --
+            # read as the closing delimiter. A literal string has no escapes.
+            if opener == '"""' and line[index] == "\\":
+                index += 2
+                continue
             if line.startswith(opener, index):
                 opener = None
                 index += 3
