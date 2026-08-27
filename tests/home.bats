@@ -138,6 +138,100 @@ chezmoi_managed() {
   diff "$first" "$second"
 }
 
+# The Cursor settings were a plain template, so every apply wrote the file whole and
+# deleted whatever Cursor and its extensions had written into it. Seed keys the template
+# does not declare, including a multi-line value holding a blank and a comment line, a
+# string holding `//`, and a string holding an escaped quote and a brace -- the input that
+# makes a line-oriented or regex-stripping merge produce a plausible but wrong file.
+@test "the Cursor modify script keeps undeclared settings and is idempotent" {
+  script="$BATS_TEST_TMPDIR/modify.sh"
+  HOME="$H" chezmoi --source "$REPO" execute-template \
+    <"$REPO/home/Library/Application Support/Cursor/User/modify_settings.json.tmpl" >"$script"
+
+  seeded="$BATS_TEST_TMPDIR/seeded.json"
+  cat >"$seeded" <<'JSON'
+{
+	// a stray { and } in a comment must not move the depth
+	"editor.formatOnSave": false,
+	"[python]": {
+		"editor.defaultFormatter": "someone.else"
+	},
+	"python.defaultInterpreterPath": "/opt/py/bin/python3.14",
+	"sonarlint.rules": {
+		// a comment and a blank line inside a value: capture must not stop here
+
+		"python:S1234": { "level": "off" }
+	},
+	"myext.docsUrl": "https://example.com//docs",
+	"myext.quote": "say \"hi\" }",
+	"snyk.yesWelcomeNotification": false,
+}
+JSON
+
+  first="$BATS_TEST_TMPDIR/first.json"
+  bash "$script" <"$seeded" >"$first"
+
+  # Undeclared keys survive, whole values and all, under the marker.
+  grep -qF '"python.defaultInterpreterPath": "/opt/py/bin/python3.14"' "$first"
+  grep -qF '"snyk.yesWelcomeNotification": false' "$first"
+  grep -qF '"python:S1234"' "$first"
+  grep -qF 'https://example.com//docs' "$first"
+  grep -qF 'say \"hi\" }' "$first"
+  grep -qF '// --- preserved' "$first"
+
+  # A declared key still loses to the template, and is written once.
+  grep -qF '"editor.formatOnSave": true' "$first"
+  run grep -qF '"editor.formatOnSave": false' "$first"
+  [ "$status" -ne 0 ]
+  run grep -qF 'someone.else' "$first"
+  [ "$status" -ne 0 ]
+  # Anchored to one tab: the template also sets this key inside a per-language block, so
+  # a plain count would be 2 for a correct file.
+  [ "$(grep -cE '^\t"editor\.formatOnSave":' "$first")" -eq 1 ]
+
+  # The template's own comments are documentation and survive verbatim.
+  grep -qF 'SC2121' "$first"
+  grep -qF 'FiraCode-VF.ttf' "$first"
+
+  # Valid JSONC: the seeded trailing comma is gone and it parses once out-of-string //
+  # comments do. This stripper tracks strings but not keys or depth, so it is independent
+  # of the code under test.
+  python3 "$REPO/tests/strip-jsonc-comments.py" "$first" | python3 -c 'import json,sys; json.load(sys.stdin)'
+
+  second="$BATS_TEST_TMPDIR/second.json"
+  bash "$script" <"$first" >"$second"
+  diff "$first" "$second"
+
+  # First apply on a new machine: no live file, so no marker and no block, and the output
+  # is the rendered template byte for byte. A truncated file Cursor could not read either
+  # falls back the same way rather than emitting half a value.
+  plain="$BATS_TEST_TMPDIR/plain.json"
+  HOME="$H" chezmoi --source "$REPO" execute-template \
+    <"$REPO/home/.chezmoitemplates/cursor-settings.json.tmpl" >"$plain"
+  bash "$script" </dev/null | diff "$plain" -
+  printf '{\n\t"a": [1,\n' | bash "$script" | diff "$plain" -
+
+  # Copilot on #19: depth alone let a malformed file through. `[1}` reaches depth zero, so
+  # the slice was preserved and the emitted file would not parse at all -- worse than the
+  # deletions this script exists to stop. A closer now has to match its opener.
+  printf '{\n\t"extension.value": [1}\n}\n' | bash "$script" | diff "$plain" -
+  # And nothing but whitespace or a comment may follow the root object, so a second one
+  # cannot have a winner silently picked for it.
+  printf '{\n\t"a.b": 1\n}\n{\n\t"c.d": 2\n}\n' | bash "$script" | diff "$plain" -
+  printf '{\n\t"a.b": 1\n}\ngarbage\n' | bash "$script" | diff "$plain" -
+
+  # Copilot on #19: a key name is compared decoded. Spelled with an escape it is still the
+  # declared key, so it loses to the template rather than being appended after it and
+  # winning as a duplicate once Cursor parses the result.
+  escaped="$BATS_TEST_TMPDIR/escaped.json"
+  printf '{\n\t"editor\\u002eformatOnSave": false\n}\n' | bash "$script" >"$escaped"
+  diff "$plain" "$escaped"
+
+  # A trailing comma is legal in settings.json, so a file carrying one still merges.
+  printf '{\n\t"snyk.yesWelcomeNotification": false,\n}\n' | bash "$script" \
+    | grep -qF '"snyk.yesWelcomeNotification": false'
+}
+
 # Copilot on #11: chezmoi replaces a real directory with the managed symlink by deleting it
 # recursively and without a prompt, so an apply could take Cursor-only skills with it.
 @test "an apply refuses while a skills directory is real (CI home only)" {

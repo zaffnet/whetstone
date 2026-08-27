@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+# chezmoi modify script: receives the current Cursor settings.json on stdin and prints the
+# new file. Ownership is per top-level key. A key the template declares is rewritten; every
+# other key belongs to another writer -- Cursor itself, or an extension -- and is carried
+# over into a labelled block above the closing brace, so an apply never undoes a setting
+# made inside the editor. It used to: this was a plain template, so every apply wrote the
+# file whole and deleted whatever Cursor had added.
+#
+# Preserving by key has a consequence worth naming: a key dropped from the template stops
+# being declared, so it relocates into that block instead of leaving the machine. Removing
+# a setting is two steps -- delete it from the template, then delete it once from the
+# block. The Codex script escapes this by owning whole tables; a flat JSON key space has
+# none, so the marker buys visibility instead, and the relocation shows up in a
+# `chezmoi diff` rather than as nothing at all.
+#
+# Rejected owning a prefix as the table analogue, on a case from this very file:
+# python.analysis.diagnosticMode is managed and python.defaultInterpreterPath is machine
+# state, so owning `python.*` would delete the key that prompted this change.
+set -euo pipefail
+
+# Not `managed=$(cat <<'MANAGED' ... )`. The rendered body holds an odd number of
+# apostrophes ("the variable font's wght axis", "'Fira Code'"), and bash 3.2 -- the system
+# bash this runs under -- mis-parses a heredoc inside command substitution when one is
+# unbalanced: the stray quote swallows the rest of the script. A plain redirect is immune.
+managed=$(mktemp)
+current=$(mktemp)
+trap 'rm -f "$managed" "$current"' EXIT
+
+cat >"$managed" <<'MANAGED'
+{{ template "cursor-settings.json.tmpl" . }}
+MANAGED
+
+cat >"$current"
+
+MANAGED_FILE="$managed" CURRENT_FILE="$current" python3 - <<'PY'
+import json
+import os
+import sys
+
+MARKER = "\t// --- preserved: written by Cursor or an extension, not declared here ---"
+
+
+def only_blanks_and_comments(text, index):
+    """True when nothing but whitespace and comments follows -- a second root object is not
+    a settings file, and preserving keys out of one would silently pick a winner."""
+    length = len(text)
+    while index < length:
+        if text[index : index + 2] == "//":
+            newline = text.find("\n", index)
+            index = length if newline < 0 else newline
+        elif text[index : index + 2] == "/*":
+            end = text.find("*/", index + 2)
+            if end < 0:
+                return False
+            index = end + 2
+        elif text[index].isspace():
+            index += 1
+        else:
+            return False
+    return True
+
+
+def scan(text):
+    """Top-level keys as name -> (start, end), and the offset of the root closing brace.
+
+    text[start:end] is exactly `"name": <value>`, with no trailing comma and no trailing
+    comment, because the end offset is taken before the separator is consumed. Returns
+    ({}, None) for anything that is not one well-formed JSONC object, so a file Cursor
+    itself could not read preserves nothing rather than half a value.
+
+    Character-wise rather than line-wise, which is what makes the awkward cases fall out
+    instead of needing rules:
+      - `//` inside a string is content, not a comment: the template holds
+        "https://use.fontawesome.com/releases/v5.7.1/css/all.css".
+      - `\\"` does not end a string, so a value like "say \\"hi\\" }" cannot end early and
+        have its `}` read as the root close, silently truncating every key below it.
+      - Braces and brackets inside strings and comments are not depth: key names such as
+        "[python]" are ordinary, and so is a glob value like "**/{node_modules,dist}".
+      - A blank or comment line inside a multi-line value is inside the slice, so capture
+        does not stop at it.
+      - A closer has to match its opener, so `{"a": [1}}` is rejected rather than reaching
+        depth zero and preserving `"a": [1}`, which would leave Cursor a file it cannot
+        parse at all -- worse than the deletions this script exists to stop.
+      - A key name is compared decoded, so a live `"editor\u002eformatOnSave"` is the
+        declared `editor.formatOnSave` and loses to it, instead of being appended after it
+        and winning as a duplicate when Cursor parses the result.
+    """
+    length = len(text)
+    index = 0
+    depth = 0
+    expected = []  # the closer each open delimiter requires, innermost last
+    close = None
+    keys = {}
+    content_end = 0
+    name = None
+    start = None
+    awaiting = "key"
+    seen_root = False
+
+    def commit():
+        nonlocal name, start, awaiting
+        if name is not None:
+            keys[name] = (start, content_end)  # a duplicate key is last-wins, as in JSON
+        name = None
+        start = None
+        awaiting = "key"
+
+    while index < length:
+        char = text[index]
+        if text[index : index + 2] == "//":
+            newline = text.find("\n", index)
+            index = length if newline < 0 else newline
+            continue
+        if text[index : index + 2] == "/*":
+            end = text.find("*/", index + 2)
+            if end < 0:
+                return {}, None
+            index = end + 2
+            continue
+        if char.isspace():
+            index += 1
+            continue
+        if char == '"':
+            end = index + 1
+            while end < length and text[end] != '"':
+                end += 2 if text[end] == "\\" else 1
+            if end >= length:
+                return {}, None
+            if depth == 1 and awaiting == "key":
+                try:
+                    name = json.loads(text[index : end + 1])
+                except ValueError:
+                    return {}, None
+                start = index
+                awaiting = "colon"
+            index = content_end = end + 1
+            continue
+        if char == ":" and depth == 1 and awaiting == "colon":
+            awaiting = "value"
+        elif char in "{[":
+            if depth == 0:
+                if char != "{" or seen_root:
+                    return {}, None
+                seen_root = True
+            expected.append("}" if char == "{" else "]")
+            depth += 1
+        elif char in "}]":
+            if not expected or expected.pop() != char:
+                return {}, None
+            depth -= 1
+            if depth == 0:
+                commit()
+                close = index
+                break
+        elif char == "," and depth == 1:
+            commit()
+        index += 1
+        content_end = index
+    if close is None:
+        return {}, None
+    if not only_blanks_and_comments(text, close + 1):
+        return {}, None
+    return keys, close
+
+
+managed = open(os.environ["MANAGED_FILE"]).read().rstrip("\n")
+declared, closing_brace = scan(managed)
+if closing_brace is None:
+    sys.exit("cursor-settings.json.tmpl did not render as one JSONC object")
+
+current = open(os.environ["CURRENT_FILE"]).read().lstrip("﻿")
+live, live_close = scan(current)
+if current.strip() and live_close is None:
+    print("cursor settings.json did not parse; undeclared keys not preserved", file=sys.stderr)
+
+extra = sorted(key for key in live if key not in declared)
+if not extra:
+    # First apply on a new machine, or nothing to carry: byte-identical to the template.
+    sys.stdout.write(managed + "\n")
+    raise SystemExit(0)
+
+head = managed[:closing_brace].rstrip()
+if not head.endswith(("{", ",")):
+    head += ","
+blocks = ",\n".join("\t" + current[slice(*live[key])] for key in extra)
+sys.stdout.write(head + "\n" + MARKER + "\n" + blocks + "\n" + managed[closing_brace:].strip() + "\n")
+PY

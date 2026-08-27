@@ -46,7 +46,7 @@ From a fresh macOS install to a working shell, editor, and agents.
 | --- | --- |
 | Edit a managed file | `chezmoi edit ~/.zshrc` then `chezmoi apply`, or edit in the repo and `just apply` |
 | See what apply would change | `just diff` (run `just init` first on a new machine; it only writes the config) |
-| Pull edits made directly in `$HOME` back into the repo | `just sync` (non-template files only; `chezmoi re-add` skips templates such as `.zshrc`, `.gitconfig`, `mcp.json`, and the Cursor settings, so edit those with `chezmoi edit` or in `home/`) |
+| Pull edits made directly in `$HOME` back into the repo | `just sync` (non-template files only; `chezmoi re-add` skips templates such as `.zshrc`, `.gitconfig`, and `mcp.json`, and modify scripts such as the Claude and Codex configs and the Cursor settings, so edit those with `chezmoi edit` or in `home/`) |
 | Re-run the Brewfile after editing it | `just apply` (the script re-runs on Brewfile change) |
 | Update the repo from GitHub and apply | `chezmoi update` |
 
