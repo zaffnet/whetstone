@@ -100,6 +100,47 @@ chezmoi_managed() {
   jq -e 'has("env") | not' "$H/.claude/settings.json"
 }
 
+# The `cursor` CLI lives inside the app bundle and nothing else puts it on PATH, so a login
+# shell without this has no `cursor` -- which ~/.codex/config.toml names as file_opener. It
+# used to be a hand-added line in ~/.zprofile, so an apply deleted it.
+@test ".zprofile puts Cursor on PATH when it is installed, and is quiet when it is not" {
+  installed="$BATS_TEST_TMPDIR/installed"
+  mkdir -p "$installed/Applications/Cursor.app/Contents/Resources/app/bin"
+  : >"$installed/Applications/Cursor.app/Contents/Resources/app/bin/cursor"
+  chmod +x "$installed/Applications/Cursor.app/Contents/Resources/app/bin/cursor"
+
+  run env -i HOME="$installed" PATH=/usr/bin:/bin \
+    /bin/zsh -c ". '$H/.zprofile'; command -v cursor"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$installed/Applications/Cursor.app/Contents/Resources/app/bin/cursor" ]
+
+  # Copilot on #32: a bundle left half-deleted keeps an empty bin/, which must not be picked
+  # and must not stop the search -- the launcher is what makes a directory worth adding.
+  hollow="$BATS_TEST_TMPDIR/hollow"
+  mkdir -p "$hollow/Applications/Cursor.app/Contents/Resources/app/bin"
+  run env -i HOME="$hollow" PATH=/usr/bin:/bin \
+    /bin/zsh -c ". '$H/.zprofile'; printf %s \"\$PATH\""
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"$hollow"*Cursor.app* ]]
+
+  # Copilot on #32, second round: an inherited variable must come out untouched. Unsetting
+  # the iterator destroyed it just as surely as overwriting it did, so there is no iterator
+  # now -- but the assertion is about what the caller sees, not about how it is spelled.
+  run env -i HOME="$installed" PATH=/usr/bin:/bin cursor_bin=mine dir=mine \
+    /bin/zsh -c ". '$H/.zprofile'; printf '%s %s' \"\${cursor_bin-<unset>}\" \"\${dir-<unset>}\""
+  [ "$status" -eq 0 ]
+  [ "$output" = "mine mine" ]
+
+  # A machine with no Cursor sources the same file without error and without the entry.
+  # Skipped when Cursor is installed in /Applications, which the loop finds whatever HOME is.
+  if [ ! -d /Applications/Cursor.app ]; then
+    run env -i HOME="$BATS_TEST_TMPDIR/bare" PATH=/usr/bin:/bin \
+      /bin/zsh -c ". '$H/.zprofile'; printf %s \"\$PATH\""
+    [ "$status" -eq 0 ]
+    [[ "$output" != *Cursor.app* ]]
+  fi
+}
+
 @test ".zshrc exports no CA bundle" {
   run ! grep -Eq '(SSL_CERT_FILE|REQUESTS_CA_BUNDLE|NODE_EXTRA_CA_CERTS|CURL_CA_BUNDLE)=' "$H/.zshrc"
 }
