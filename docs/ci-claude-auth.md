@@ -8,8 +8,7 @@ variables -- a role ARN and a secret name -- neither of which is a credential.
 
 Anthropic's API does not exchange an OIDC token for a key, so the key itself is long-lived.
 What federation buys is where it lives: in one AWS secret with rotation and CloudTrail,
-never in GitHub, and reachable only by a job on this repository. To remove the long-lived
-key as well, see [Bedrock instead](#bedrock-instead) at the end.
+never in GitHub, and reachable only by a job on this repository.
 
 Run these once, in an AWS account you own. `docs/redaction.md` applies: the account id is
 not written into this repo.
@@ -117,20 +116,3 @@ match the pattern in the trust policy.
 Nothing above is stored on a developer machine, so rotating the key is
 `aws secretsmanager put-secret-value` and nothing else. Revoking CI's access entirely is
 `aws iam delete-role-policy`.
-
-## Bedrock instead
-
-Bedrock removes the long-lived key. The same role gains
-`bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream` on the model ARNs you
-enable, steps 3 and the key-reading step in the workflow drop out, and the action runs with:
-
-```yaml
-with:
-  use_bedrock: "true"
-env:
-  ANTHROPIC_BEDROCK_BASE_URL: https://bedrock-runtime.us-east-1.amazonaws.com
-```
-
-Then no Anthropic credential exists anywhere: the OIDC session is the whole authentication
-path. It is the better shape; it is not the default here only because it needs Bedrock model
-access granted in the account first.
