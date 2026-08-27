@@ -224,11 +224,12 @@ TOML
   # And that they agree on the shapes Codex actually writes, so the pin is about behaviour
   # rather than about two strings happening to match.
   CHUNKER="$chunker" "$PY" - <<'PYEOF'
+import ast
 import os
 import re
 import sys
 
-pattern = re.compile(eval(os.environ["CHUNKER"]))  # noqa: S307 -- a regex literal from our own source
+pattern = re.compile(ast.literal_eval(os.environ["CHUNKER"]))
 expected = {
     '[tui]': 'tui',
     '[tui] # note': 'tui',
