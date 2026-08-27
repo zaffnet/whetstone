@@ -1,2 +1,21 @@
 # Login-shell PATH. Interactive setup lives in .zshrc.
 export PATH="$HOME/.local/bin:$HOME/go/bin:$PATH"
+
+# Cursor keeps its `cursor` CLI inside the app bundle and nothing else puts it on PATH, so
+# without this a login shell has no `cursor` -- the command ~/.codex/config.toml names as
+# file_opener, and the one `just` recipes and hooks reach for. It was on this machine as a
+# hand-added line, which meant an apply deleted it.
+#
+# Tested at login rather than templated at apply, so installing, moving or removing Cursor
+# needs no `chezmoi apply` to follow it. The launcher itself, not the directory holding it:
+# a bundle left half-deleted keeps its empty bin/, which would otherwise be picked and mask
+# a working install in /Applications.
+#
+# Spelled out rather than looped, because there is no loop variable to get wrong: a `for`
+# needs a name, and any name it picks either overwrites one the login shell inherited or
+# leaves ours behind. Two candidates do not earn that.
+if [ -x "$HOME/Applications/Cursor.app/Contents/Resources/app/bin/cursor" ]; then
+  export PATH="$HOME/Applications/Cursor.app/Contents/Resources/app/bin:$PATH"
+elif [ -x "/Applications/Cursor.app/Contents/Resources/app/bin/cursor" ]; then
+  export PATH="/Applications/Cursor.app/Contents/Resources/app/bin:$PATH"
+fi
