@@ -2,9 +2,11 @@
 
 - Machine: MacBook Pro (Apple silicon), macOS.
 - Terminal: iTerm2, zsh, Oh My Zsh, Powerlevel10k in the Pure style with an added segment for
-  the branch's open PR number. Terminal font: Fira Code Medium, selected by hand in the
-  iTerm2 profile. The Brewfile installs the Nerd Font casks; nothing under `home/`
-  selects a font or manages the profile.
+  the branch's open PR number. Terminal font: Fira Code Medium. The profile is managed, as an
+  iTerm2 Dynamic Profile in `home/Library/Application Support/iTerm2/DynamicProfiles/` --
+  iTerm2 reads that file and never writes back, so it survives an apply. The preferences
+  plist is not managed: most of its keys are window frames and session state that the app
+  rewrites on every quit.
 - Editor: Cursor. Editor font:
   Fira Code; terminal font inside the editor: JetBrainsMono Nerd Font. Theme: Quiet Light.
 - Python: uv, ruff, mypy, basedpyright, pyrefly, pytest.

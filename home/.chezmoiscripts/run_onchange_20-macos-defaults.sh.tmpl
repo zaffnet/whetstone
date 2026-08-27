@@ -26,4 +26,16 @@ defaults write com.apple.screencapture location -string "$HOME/Screenshots"
 defaults write com.apple.screencapture type -string "png"
 defaults write com.apple.screencapture disable-shadow -bool true
 
+# iTerm2: make the managed profile the default. The profile itself is a Dynamic Profile
+# (Library/Application Support/iTerm2/DynamicProfiles/whetstone.json), which iTerm2 reads
+# and never writes back -- the reason it is not the preferences plist: 44 of that file's 99
+# keys are window frames, timestamps and NoSync* state rewritten on every quit, so managing
+# it would put churn in every diff. Only the pointer to the profile lives here.
+#
+# Not applied while iTerm2 is running: it rewrites its plist on quit and would overwrite
+# this. The next launch picks it up.
+if ! pgrep -xq iTerm2; then
+  defaults write com.googlecode.iterm2 "Default Bookmark Guid" -string "whetstone-default"
+fi
+
 killall Finder Dock 2>/dev/null || true
