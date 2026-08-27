@@ -125,6 +125,8 @@ chezmoi_managed() {
   [ "$(jq -r '.Profiles[0]["Keyboard Map"] | length' "$profile")" -ge 18 ]
   # Option+Delete sends ^W, which is what deletes a word backward.
   [ "$(jq -r '.Profiles[0]["Keyboard Map"]["0x7f-0x80000-0x33"].Text' "$profile")" = "0x17" ]
+  # Option+d sends Esc-d, which is what deletes a word forward.
+  [ "$(jq -r '.Profiles[0]["Keyboard Map"]["0x64-0x80000-0x2"].Text' "$profile")" = "0x1b 0x64" ]
   # Option+Left and Option+Right send the word-motion escapes.
   [ "$(jq -r '.Profiles[0]["Keyboard Map"]["0xf702-0x280000-0x7b"].Text' "$profile")" = b ]
   [ "$(jq -r '.Profiles[0]["Keyboard Map"]["0xf703-0x280000-0x7c"].Text' "$profile")" = f ]
