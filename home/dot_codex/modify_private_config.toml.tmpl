@@ -45,13 +45,61 @@ def key_name(line):
     return match.group(1).strip("\"'") if match else None
 
 
+def close_multiline(line, opener):
+    """The multiline delimiter still open at the end of `line`, or None.
+
+    A table header is only a header outside a multiline string. Without this, a `[tui]`
+    line inside a preserved value reads as the managed [tui] table: that block is dropped
+    out of the middle of the string, the value is left unterminated, and the apply writes
+    a ~/.codex/config.toml that does not parse. There is no guard downstream to catch it,
+    and there cannot easily be one -- system python3 on macOS is 3.9, which has no tomllib.
+    """
+    index = 0
+    length = len(line)
+    while index < length:
+        if opener is not None:
+            if line.startswith(opener, index):
+                opener = None
+                index += 3
+            else:
+                index += 1
+            continue
+        three = line[index : index + 3]
+        if three in ('"""', "'''"):
+            opener = three
+            index += 3
+            continue
+        char = line[index]
+        if char == "#":
+            break
+        if char in "\"'":
+            index += 1
+            while index < length and line[index] != char:
+                index += 2 if char == '"' and line[index] == "\\" else 1
+            index += 1
+            continue
+        index += 1
+    return opener
+
+
+def headers(lines):
+    """Each line with its table name, or None where it is not a header at the top level."""
+    opener = None
+    for line in lines:
+        yield line, (None if opener is not None else table_name(line))
+        opener = close_multiline(line, opener)
+
+
 # What the template declares. A table it declares wins outright. A table merely nested
 # under one does not: `[tui.model_availability_nux]` is Codex's own state, the old KEEP
 # allowlist named it for that reason, and the template declaring `[tui]` says nothing
 # about it. Only an exact match is managed; everything else is preserved.
 managed_lines = managed.splitlines()
-first_table = next((i for i, l in enumerate(managed_lines) if table_name(l)), len(managed_lines))
-managed_tables = {name for l in managed_lines if (name := table_name(l))}
+managed_headers = list(headers(managed_lines))
+first_table = next(
+    (i for i, (_, name) in enumerate(managed_headers) if name), len(managed_lines)
+)
+managed_tables = {name for _, name in managed_headers if name}
 managed_keys = {name for l in managed_lines[:first_table] if (name := key_name(l))}
 
 kept_keys: list[str] = []
@@ -69,10 +117,9 @@ def flush() -> None:
             kept_tables.append("")
 
 
-for line in current.splitlines():
+for line, name in headers(current.splitlines()):
     if line.strip() == MARKER:
         continue
-    name = table_name(line)
     if name is not None:
         flush()
         block = []

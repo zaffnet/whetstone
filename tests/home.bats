@@ -180,6 +180,22 @@ chezmoi_managed() {
   second="$BATS_TEST_TMPDIR/second.toml"
   bash "$script" <"$first" >"$second"
   diff "$first" "$second"
+
+  # Copilot on #30: a header-looking line inside a preserved multiline value is content,
+  # not a header. Reading it as one dropped the managed [tui] block out of the middle of
+  # the string and left the value unterminated, so the apply wrote a config that does not
+  # parse -- and nothing downstream would have caught that.
+  multiline="$BATS_TEST_TMPDIR/multiline.toml"
+  {
+    printf '[projects."/srv/p"]\ntrust_level = "trusted"\n'
+    printf 'note = """\n[tui]\nstatus_line_use_colors = false\n"""\n'
+  } | bash "$script" >"$multiline"
+  uv run --no-project --python 3.12 python -c \
+    'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$multiline"
+  grep -qF 'trust_level = "trusted"' "$multiline"
+  # The managed table keeps the template's value; the string keeps its own copy of the name.
+  grep -qF 'status_line_use_colors = true' "$multiline"
+  grep -qF 'status_line_use_colors = false' "$multiline"
 }
 
 # The Cursor settings were a plain template, so every apply wrote the file whole and
