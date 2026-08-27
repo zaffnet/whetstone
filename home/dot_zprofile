@@ -9,11 +9,14 @@ export PATH="$HOME/.local/bin:$HOME/go/bin:$PATH"
 # Tested at login rather than templated at apply, so installing, moving or removing Cursor
 # needs no `chezmoi apply` to follow it. The launcher itself, not the directory holding it:
 # a bundle left half-deleted keeps its empty bin/, which would otherwise be picked and mask
-# a working install in /Applications.
-for dir in "$HOME/Applications/Cursor.app/Contents/Resources/app/bin" \
+# a working install in /Applications. The iterator is named for what it holds and unset
+# after, as dot_zshrc.tmpl does with nvm_sh: `dir` is a name a login shell may already
+# carry, and leaving it set exports our value over theirs.
+for cursor_bin in "$HOME/Applications/Cursor.app/Contents/Resources/app/bin" \
   "/Applications/Cursor.app/Contents/Resources/app/bin"; do
-  if [ -x "$dir/cursor" ]; then
-    export PATH="$dir:$PATH"
+  if [ -x "$cursor_bin/cursor" ]; then
+    export PATH="$cursor_bin:$PATH"
     break
   fi
 done
+unset cursor_bin
