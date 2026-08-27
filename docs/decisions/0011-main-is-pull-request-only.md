@@ -1,5 +1,8 @@
 # 0011: `main` takes pull requests only
 
+Superseded by [0012](0012-agents-merge-their-own-pull-requests.md) on the last point:
+the protection below stands, but agents now merge.
+
 ## Context
 
 Until now every change landed on `main` as a direct push, including rounds of agent-made
@@ -21,11 +24,12 @@ bypass list, so it binds the owner as well as any agent:
   job name: adding the `line_length` axis renamed all of them and left the ruleset waiting
   on four contexts no job produced. Require the aggregate, never a matrix job name.
 
-No approving review is required: Copilot cannot approve, and the owner cannot approve their
-own PR. Bot reviews are advisory: the ruleset does not require threads to be resolved or the
-branch to be up to date with `main`, because with one contributor and several review bots
-either requirement turns two open PRs into a queue. Merging is the owner's action. Agents
-open PRs, request reviews, and address comments; they do not merge.
+No approving review is required by the ruleset: the owner cannot approve their own PR, so
+requiring one would need a bypass to land anything. The ruleset also does not require
+threads to be resolved or the branch to be up to date with `main`, because with one
+contributor and several review bots either requirement turns two open PRs into a queue.
+Merging was the owner's action; ADR 0012 moved it to the agents, behind a gate that does
+require an approval and resolved threads.
 
 ## Consequences
 

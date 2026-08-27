@@ -1,0 +1,68 @@
+name: claude
+
+# Claude Code on CI, for the same jobs the local agents do: answer an @claude mention,
+# review a pull request, resolve its threads, and land it through bin/merge-pr.sh
+# (ADR 0012). The token is a secret this repo does not ship; until CLAUDE_CODE_OAUTH_TOKEN
+# exists the job skips instead of failing, so a fork sees no red run it cannot fix.
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [assigned]
+
+permissions:
+  contents: write # push review fixes to the PR branch, and merge
+  pull-requests: write # approve, comment, resolve threads, enable auto-merge
+  issues: write
+  actions: read # read its own check runs when deciding whether a PR is fit to merge
+  id-token: write
+
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  claude:
+    # Only on an explicit @claude, and never on a bot's own comment: Copilot's review text
+    # quotes the code under review, and a mention inside it would loop the two of them.
+    if: |
+      github.event.sender.type != 'Bot' && (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && github.event.assignee.login == 'claude')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check for the Claude token
+        id: token
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -n "${CLAUDE_CODE_OAUTH_TOKEN}" ]; then
+            echo "present=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "present=false" >>"$GITHUB_OUTPUT"
+            echo "::notice::CLAUDE_CODE_OAUTH_TOKEN is not set; skipping. Add it with: gh secret set CLAUDE_CODE_OAUTH_TOKEN"
+          fi
+
+      - uses: anthropics/claude-code-action@c3d45e8e941e1b2ad7b278c57482d9c5bf1f35b3 # v1.0.99
+        if: steps.token.outputs.present == 'true'
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # gh is on the runner and authenticates from GITHUB_TOKEN, so the merge gate,
+          # the thread resolver, and `gh pr review` all work without extra setup.
+          claude_args: |
+            --allowed-tools "Bash,Read,Edit,Write,Grep,Glob"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

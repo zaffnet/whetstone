@@ -28,8 +28,10 @@ a turn is a stop, not a wait.
 Small PRs, one logical change each. Conventional commits, imperative mood, first line of
 72 characters or fewer.
 
-In whetstone, never push to `main` and never merge a pull request: push a branch, open the
-PR, request a Copilot review, resolve every thread, and leave the merge to zaffnet.
+In whetstone, never push to `main`: push a branch, open the PR, request a Copilot review,
+address and resolve every thread, then land it with `merge-pr.sh <pr>`. That script is the
+only way an agent merges -- it enables auto-merge once an approving review stands and no
+thread is open, and refuses otherwise (`docs/decisions/0012-agents-merge-their-own-pull-requests.md`).
 Copilot is the only review bot to ask. Never comment `@codex review`.
 
 ## Skills
