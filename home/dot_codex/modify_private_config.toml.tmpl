@@ -196,7 +196,7 @@ def flush() -> None:
 
 
 for line, name, at_top in headers(current.splitlines()):
-    if line.strip() == MARKER:
+    if at_top and line.strip() == MARKER:
         continue
     if name is not None:
         flush()

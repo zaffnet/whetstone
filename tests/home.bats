@@ -230,6 +230,21 @@ chezmoi_managed() {
     "$inner"
   # The managed `model` key is still the template's, not the one from inside the string.
   grep -qF 'model = "gpt-5.6-sol"' "$inner"
+
+  # Copilot on #35: the marker line was stripped even when it appeared as content inside a
+  # preserved multiline string. A project note containing the exact marker text lost that
+  # line silently on apply.
+  marker_in_str="$BATS_TEST_TMPDIR/marker-in-string.toml"
+  marker='# --- preserved sections (owned by Codex and bin/sync-mcp; chezmoi keeps them as-is) ---'
+  {
+    printf '[projects."/srv/p"]\n'
+    printf 'note = """\n%s\n"""\n' "$marker"
+    printf 'trust_level = "trusted"\n'
+  } | bash "$script" >"$marker_in_str"
+  uv run --no-project --python 3.12 python -c \
+    'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$marker_in_str"
+  grep -qF "$marker" "$marker_in_str"
+  grep -qF 'trust_level = "trusted"' "$marker_in_str"
 }
 
 # Copilot on #32: table names were compared as captured text, so ["tui"] and [tui] read as
