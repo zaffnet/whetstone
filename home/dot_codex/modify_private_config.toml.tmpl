@@ -34,15 +34,76 @@ HEADER = re.compile(r"^[ \t]*\[\[?((?:[^]\"']|\"(?:[^\"\\]|\\.)*\"|'[^']*')+)\]\
 BARE_KEY = re.compile(r'''^\s*("[^"]+"|'[^']+'|[A-Za-z0-9_.-]+)\s*=''')
 
 
+# TOML's escapes inside a basic string. A table name carrying one is rare, but decoding
+# half of them would put us back where comparing the raw text was: two spellings of one
+# name reading as two names.
+ESCAPES = {"b": "\b", "t": "\t", "n": "\n", "f": "\f", "r": "\r", '"': '"', "\\": "\\"}
+
+
+def unquote(part):
+    """One key part as the string TOML reads it: 'tui', "tui", and tui are all tui."""
+    if len(part) > 1 and part[0] == part[-1] == "'":
+        return part[1:-1]  # a literal string has no escapes
+    if not (len(part) > 1 and part[0] == part[-1] == '"'):
+        return part
+    body, out, i = part[1:-1], [], 0
+    while i < len(body):
+        if body[i] == "\\" and i + 1 < len(body):
+            after = body[i + 1]
+            if after in ESCAPES:
+                out.append(ESCAPES[after])
+                i += 2
+                continue
+            if after in "uU":
+                width = 4 if after == "u" else 8
+                digits = body[i + 2 : i + 2 + width]
+                if len(digits) == width:
+                    out.append(chr(int(digits, 16)))
+                    i += 2 + width
+                    continue
+        out.append(body[i])
+        i += 1
+    return "".join(out)
+
+
+def key_path(name):
+    """A key as the parts TOML resolves it to, so ["tui"] and [tui] are one table.
+
+    Compared as text they are two, and the script would preserve the live spelling while
+    the template emits its own -- one table declared twice, which is not valid TOML.
+    Splitting is quote-aware: a dot inside quotes is part of the name, not a separator.
+    """
+    parts, part, quote, escaped = [], "", "", False
+    for char in name:
+        if quote:
+            part += char
+            if escaped:
+                escaped = False
+            elif quote == '"' and char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = ""
+        elif char in "\"'":
+            quote = char
+            part += char
+        elif char == ".":
+            parts.append(part)
+            part = ""
+        else:
+            part += char
+    parts.append(part)
+    return tuple(unquote(p.strip()) for p in parts)
+
+
 def table_name(line):
     match = HEADER.match(line)
-    return match.group(1).strip() if match else None
+    return key_path(match.group(1).strip()) if match else None
 
 
 def key_name(line):
     match = BARE_KEY.match(line)
     # "notify" and notify are the same key.
-    return match.group(1).strip("\"'") if match else None
+    return key_path(match.group(1)) if match else None
 
 
 # What the template declares. A table it declares wins outright. A table merely nested
