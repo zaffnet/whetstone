@@ -2,11 +2,11 @@
 
 Every agent skill this repo writes or installs, in one place. Three install paths:
 
-- `skills/` holds the hand-written skills. `home/.chezmoiscripts/run_onchange_after_25-link-skills.sh`
+- `skills/` holds the hand-written skills. `home/.chezmoiscripts/run_onchange_after_25-link-skills.sh.tmpl`
   symlinks each one into `~/.agents/skills`, which Claude Code, Cursor, and Kiro read.
   `npx skills add zaffnet/whetstone` and the `whetstone-skills` plugin install the same set.
 - `home/dot_agents/skills.txt` lists third-party skills.
-  `home/.chezmoiscripts/run_onchange_after_30-agent-skills.sh` installs them with
+  `home/.chezmoiscripts/run_onchange_after_30-agent-skills.sh.tmpl` installs them with
   `npx skills add -g`.
 - Plugins carry skills of their own. Claude Code enables them in
   `home/.chezmoitemplates/claude-settings.json` (`enabledPlugins`) and Codex in
