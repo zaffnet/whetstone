@@ -95,6 +95,19 @@ repos:
         pass_filenames: false
         always_run: true
 
+      # docs/skills.md is hand-written; nothing else notices when a skill is added to
+      # skills/ or skills.txt and the table is not.
+      #
+      # always_run for the same reason as check-agents-sync: removing a skill without
+      # removing its row is drift too, and a deletion-only commit matches no `files`
+      # filter.
+      - id: check-skills-doc
+        name: skills doc in sync
+        entry: uv run --no-sync python tools/check-skills-doc.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
       # `claude plugin validate .` checks plugin.json's paths but not the ones written
       # in marketplace.json, so a renamed agent file passes it.
       #
