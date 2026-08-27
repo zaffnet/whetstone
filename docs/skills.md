@@ -1,6 +1,6 @@
 # Skills
 
-Every agent skill this repo writes or installs, in one place. Two install paths:
+Every agent skill this repo writes or installs, in one place. Three install paths:
 
 - `skills/` holds the hand-written skills. `home/.chezmoiscripts/run_onchange_after_25-link-skills.sh`
   symlinks each one into `~/.agents/skills`, which Claude Code, Cursor, and Kiro read.
@@ -8,8 +8,14 @@ Every agent skill this repo writes or installs, in one place. Two install paths:
 - `home/dot_agents/skills.txt` lists third-party skills.
   `home/.chezmoiscripts/run_onchange_after_30-agent-skills.sh` installs them with
   `npx skills add -g`.
+- Plugins carry skills of their own. Claude Code enables them in
+  `home/.chezmoitemplates/claude-settings.json` (`enabledPlugins`) and Codex in
+  `home/.chezmoitemplates/codex-config.toml.tmpl` (`[plugins.*]`);
+  `home/dot_agents/plugins/desired.yaml` is the inventory kept in step with both.
 
-Keep this file in step with both when a skill is added or removed.
+Keep this file in step with all three when a skill is added or removed. A plugin whose skill
+set is versioned upstream is named below, not enumerated: the list would rot on their
+release, not ours.
 
 ## Written here
 
@@ -77,12 +83,9 @@ From other repos:
 
 ## From plugins
 
-`home/dot_agents/plugins/desired.yaml` enables Claude Code and Codex plugins; one carries a
-skill of its own.
+Source: the `enabledPlugins` and `[plugins.*]` entries above.
 
-| Skill | Plugin | What it does |
-| --- | --- | --- |
-| `claude-md-improver` | `claude-md-management@claude-plugins-official` | Audits and improves a repo's `CLAUDE.md` files. |
-
-`superpowers@claude-plugins-official` is enabled for Codex only and ships its own skill set,
-which it versions upstream.
+| Skill | Plugin | Products | What it does |
+| --- | --- | --- | --- |
+| `claude-md-improver` | `claude-md-management@claude-plugins-official` | Claude Code, Codex | Audits and improves a repo's `CLAUDE.md` files. |
+| its own set, versioned upstream | `superpowers@claude-plugins-official` (`obra/superpowers`) | Codex | Not enumerated here; read the plugin's own `skills/`. |

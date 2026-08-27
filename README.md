@@ -60,8 +60,8 @@ npx skills add zaffnet/whetstone
 ```
 
 Installs the eleven skills in `skills/` into Claude Code, Codex, Cursor, or another agent
-that reads `SKILL.md` files. `docs/skills.md` lists every skill this repo writes or
-installs, with its source.
+that reads `SKILL.md` files. `docs/skills.md` lists the skills this repo writes or
+installs, and where each one comes from.
 
 ### Claude Code plugins
 
