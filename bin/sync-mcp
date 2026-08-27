@@ -14,6 +14,7 @@ import shutil
 import sys
 import tempfile
 import tomllib
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import NoReturn
 
@@ -24,12 +25,28 @@ CLAUDE_JSON = HOME / ".claude.json"
 CODEX_TOML = HOME / ".codex" / "config.toml"
 
 CODEX_PRIVATE = frozenset({"node_repl", "computer-use", "event-stream"})
-TABLE_HEADER = re.compile(r"^\[([^]]+)\]\s*$")
+# Byte for byte the HEADER in home/dot_codex/modify_private_config.toml.tmpl, and it has to
+# stay that way: the two split the same file, so a shape one recognises and the other does
+# not is a silent deletion. Anything this misses reads as an ordinary line and is absorbed
+# into the chunk above it, and when that chunk is an unmanaged [mcp_servers.*] table being
+# dropped, it goes with it.
+#
+# So it is read off TOML's own ABNF rather than approximated, which four rounds of patching
+# a `[^]]+` key were not. Each round fixed the shape that had been reported and shipped the
+# next one: [[array.of.tables]], then a trailing comment, then a ] inside a quoted key, then
+# a leading indent. The grammar is `ws table ws [ comment ]`, where a key part is an
+# unquoted run or a whole quoted string -- so leading tabs and spaces are allowed, and a ]
+# or a # inside quotes is content.
+TABLE_HEADER = re.compile(
+    r"^[ \t]*\[\[?((?:[^]\"']|\"(?:[^\"\\]|\\.)*\"|'[^']*')+)\]\]?\s*(?:#.*)?$"
+)
 ENV_PLACEHOLDER = re.compile(r"^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
 BEARER_PLACEHOLDER = re.compile(r"^Bearer \$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
 # env keys whose values are configuration, not credentials, and may be literal.
 PLAIN_ENV_KEYS = frozenset({"AWS_PROFILE", "AWS_REGION", "AWS_DEFAULT_REGION", "LOG_LEVEL"})
 PLAIN_ENV_SUFFIXES = ("_REGION", "_LOG_LEVEL")
+BACKUP_SUFFIX = ".bak-before-agents-sync-"
+BACKUP_KEEP = 5
 
 
 def die(message: str) -> NoReturn:
@@ -82,10 +99,24 @@ def is_plain_env_key(key: str) -> bool:
 
 
 def backup(path: Path) -> None:
-    """Keep the state before this run. Every run rewrites project-local servers."""
+    """Copy the file aside before this run rewrites it.
+
+    Stamped, not one fixed name. A single name is overwritten every run, so a run that
+    corrupts the file backs up the corrupt copy over the last good one -- the backup is
+    gone exactly when it is wanted. Stamps accumulate, so keep the newest BACKUP_KEEP and
+    delete the rest; the glob also collects the one fixed-name backup older versions left.
+
+    Microseconds, not seconds: two runs in the same second collide on the name and the
+    second overwrites the first, which is the failure this replaced. The width is fixed, so
+    the names still sort oldest-first.
+    """
     if not path.exists() or path.is_symlink():
         return
-    shutil.copy2(path, path.with_name(path.name + ".bak-before-agents-sync"))
+    stamp = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%S.%fZ")
+    shutil.copy2(path, path.with_name(f"{path.name}{BACKUP_SUFFIX}{stamp}"))
+    kept = sorted(path.parent.glob(f"{path.name}.bak-before-agents-sync*"))
+    for stale in kept[:-BACKUP_KEEP]:
+        stale.unlink()
 
 
 def sync_cursor() -> None:
@@ -201,9 +232,15 @@ def split_toml_tables(text: str) -> list[tuple[str | None, str]]:
 
 
 def mcp_server_name(header: str | None) -> str | None:
-    if header is None or not header.startswith("mcp_servers."):
+    # Stripped, because TOML allows whitespace inside the brackets: `[ mcp_servers.x ]` is
+    # the same table as `[mcp_servers.x]`. table_name() in the Codex modify script does the
+    # same, and the two have to agree on what a table is called.
+    if header is None:
         return None
-    return header.split(".")[1]
+    header = header.strip()
+    if not header.startswith("mcp_servers."):
+        return None
+    return header.split(".")[1].strip()
 
 
 def sync_codex(servers: dict[str, dict]) -> None:
