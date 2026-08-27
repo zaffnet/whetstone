@@ -97,7 +97,8 @@ chezmoi_managed() {
 }
 
 # Copilot on #10: nothing fed live state through the modify script, which is where two
-# keys were being dropped. Seed a bare key and two tables the template does not declare.
+# keys were being dropped. Seed a bare key and three tables the template does not declare,
+# one of them nested under a table it does declare.
 @test "the Codex modify script keeps undeclared state and is idempotent" {
   script="$BATS_TEST_TMPDIR/modify.sh"
   HOME="$H" chezmoi --source "$REPO" execute-template \
@@ -109,6 +110,11 @@ chezmoi_managed() {
   {
     printf 'notify = [\n  # the client\n  "/opt/notifier",\n\n  "turn-ended",\n]\n\n'
     printf '[plugins."browser@openai-bundled"] # trailing comment\nenabled = true\n\n'
+    # [tui] is declared, [tui.model_availability_nux] is not: it is Codex's own state, and
+    # the KEEP allowlist this script replaced named it for exactly that reason. The
+    # status_line_use_colors line below it must still lose to the template.
+    printf '[tui]\nstatus_line_use_colors = false\n\n'
+    printf '[tui.model_availability_nux]\nseen = true\n\n'
     printf '[mcp_servers.private]\ncommand = "x"\n'
   } >"$seeded"
 
@@ -117,7 +123,12 @@ chezmoi_managed() {
   grep -qF '"/opt/notifier",' "$first"
   grep -qF '"turn-ended",' "$first"
   grep -qF '[plugins."browser@openai-bundled"]' "$first"
+  grep -qF '[tui.model_availability_nux]' "$first"
   grep -qF '[mcp_servers.private]' "$first"
+  # A declared table is still rewritten whole, so the template's value wins.
+  grep -qF 'status_line_use_colors = true' "$first"
+  run grep -qF 'status_line_use_colors = false' "$first"
+  [ "$status" -ne 0 ]
   # tomllib needs 3.11+; the system python3 on macOS is 3.9.
   uv run --no-project --python 3.12 python -c \
     'import sys, tomllib; tomllib.load(open(sys.argv[1], "rb"))' "$first"
