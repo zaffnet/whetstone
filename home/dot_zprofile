@@ -7,10 +7,12 @@ export PATH="$HOME/.local/bin:$HOME/go/bin:$PATH"
 # hand-added line, which meant an apply deleted it.
 #
 # Tested at login rather than templated at apply, so installing, moving or removing Cursor
-# needs no `chezmoi apply` to follow it.
+# needs no `chezmoi apply` to follow it. The launcher itself, not the directory holding it:
+# a bundle left half-deleted keeps its empty bin/, which would otherwise be picked and mask
+# a working install in /Applications.
 for dir in "$HOME/Applications/Cursor.app/Contents/Resources/app/bin" \
   "/Applications/Cursor.app/Contents/Resources/app/bin"; do
-  if [ -d "$dir" ]; then
+  if [ -x "$dir/cursor" ]; then
     export PATH="$dir:$PATH"
     break
   fi

@@ -99,6 +99,15 @@ chezmoi_managed() {
   [ "$status" -eq 0 ]
   [ "$output" = "$installed/Applications/Cursor.app/Contents/Resources/app/bin/cursor" ]
 
+  # Copilot on #32: a bundle left half-deleted keeps an empty bin/, which must not be picked
+  # and must not stop the search -- the launcher is what makes a directory worth adding.
+  hollow="$BATS_TEST_TMPDIR/hollow"
+  mkdir -p "$hollow/Applications/Cursor.app/Contents/Resources/app/bin"
+  run env -i HOME="$hollow" PATH=/usr/bin:/bin \
+    /bin/zsh -c ". '$H/.zprofile'; printf %s \"\$PATH\""
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"$hollow"*Cursor.app* ]]
+
   # A machine with no Cursor sources the same file without error and without the entry.
   # Skipped when Cursor is installed in /Applications, which the loop finds whatever HOME is.
   if [ ! -d /Applications/Cursor.app ]; then
