@@ -33,8 +33,8 @@ approval count stays 0.
 
 ## Consequences
 
-- A fix takes one more step (branch, PR, wait for checks and review) and lands only when
-  zaffnet merges it.
+- A fix takes one more step (branch, PR, wait for checks and review) and lands when either
+  `pr-medic.yml` or zaffnet merges it (see 0012). Local agents merge nothing.
 - `just release` still releases from a pushed `main`; the tag now arrives with a GitHub Release.
 - Changing this policy means editing the ruleset in the repository settings, which leaves a
   trace in the audit log.

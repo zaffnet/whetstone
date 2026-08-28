@@ -19,7 +19,10 @@ just test-home # apply the chezmoi tree into a throwaway HOME and run the bats s
   here, at what severity, and what our own automation already covers. CI is green
   before merge. `pr-medic.yml` arms auto-merge (or zaffnet merges in the UI);
   local agents do not (`docs/decisions/0011-main-is-pull-request-only.md`,
-  `docs/decisions/0012-the-pr-medic-lands-pull-requests.md`).
+  `docs/decisions/0012-the-pr-medic-lands-pull-requests.md`). A green PR can land before
+  Copilot has posted: the required approval count is 0, and the ruleset only holds a PR for
+  threads that already exist. Ask for a review you want to read before you push the
+  commit that satisfies the gate.
 - Conventional commits: `type(scope): subject`, imperative mood, first line of 72 characters or fewer.
 - One logical change per PR.
 - No private hostnames, account ids, names, absolute home paths, or secrets. Pre-commit
