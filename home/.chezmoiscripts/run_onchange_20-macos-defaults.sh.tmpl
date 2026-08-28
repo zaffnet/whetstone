@@ -1,142 +1,25 @@
 #!/usr/bin/env bash
+# One-off macOS defaults that nothing else owns. The keys this repository manages by
+# declaration -- Finder, Dock, iTerm2 -- live in run_after_20-macos-managed-defaults.sh,
+# which runs every apply so a retired key can be retried.
+#
 # A small, curated set of macOS defaults. Re-runs after every OS upgrade because the
 # build version below changes (Apple resets some preferences on major updates).
 # macOS build: {{ output "sw_vers" "--buildVersion" | trim }}
-#
-# Removing a setting is one step: delete the line. `defaults write` only writes, so the
-# value would otherwise sit on every machine that ever applied it. The managed-key state
-# below records what this script owns, and a key that leaves the list is deleted from the
-# domain on the next apply. Keys the repository never wrote are untouched.
 set -euo pipefail
-
-state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/whetstone"
-managed_finder_keys_file="$state_dir/macos-finder-managed-keys.txt"
-managed_dock_keys_file="$state_dir/macos-dock-managed-keys.txt"
-managed_finder_settings=(
-  "ShowPathbar|-bool|true"
-  "AppleShowAllFiles|-bool|true"
-  # Search the current folder rather than the whole Mac; open a new window on Recents
-  # (PfAF -- the home folder would be PfHm); let the Trash empty items after 30 days.
-  # Captured from this machine, not chosen.
-  "FXDefaultSearchScope|-string|SCcf"
-  "NewWindowTarget|-string|PfAF"
-  "FXRemoveOldTrashItems|-bool|true"
-)
-managed_dock_settings=(
-  "autohide|-bool|true"
-  "show-recents|-bool|false"
-  "expose-group-apps|-bool|true"
-  # Tile size, and both bottom hot corners: bottom left starts the screen saver (5),
-  # bottom right is disabled (1 -- Show Desktop would be 4). Modifiers are written too, an
-  # unset modifier is not the same as zero and the corner behaves differently without one.
-  "tilesize|-int|67"
-  "wvous-bl-corner|-int|5"
-  "wvous-bl-modifier|-int|0"
-  "wvous-br-corner|-int|1"
-  "wvous-br-modifier|-int|0"
-)
-
-prune_retired_defaults_keys() {
-  local domain="$1"
-  local keys_file="$2"
-  shift 2
-  local current_keys=("$@")
-
-  mkdir -p "$(dirname "$keys_file")"
-
-  # Keys still owed a deletion after this run. A `defaults delete` can fail for reasons
-  # that will not be true next time -- the domain locked by a running app, a preferences
-  # daemon mid-write -- and dropping the key from the state on that failure would forget it
-  # for good: no later apply would know it had ever been managed, so the retired value
-  # would sit on the machine forever. A key is only forgotten once it is gone.
-  local carry=()
-  if [ -f "$keys_file" ]; then
-    while IFS= read -r previous_key; do
-      [ -n "$previous_key" ] || continue
-
-      local still_managed=1
-      local key
-      for key in "${current_keys[@]}"; do
-        if [ "$key" = "$previous_key" ]; then
-          still_managed=0
-          break
-        fi
-      done
-      [ "$still_managed" -ne 0 ] || continue
-
-      if defaults delete "$domain" "$previous_key" 2>/dev/null; then
-        continue
-      fi
-
-      # Delete also fails when the key is already absent, which is the wanted end state, so
-      # the two have to be told apart -- and a failed `defaults read` of the key does not
-      # tell them apart, because a permission problem or a cfprefsd hiccup fails exactly
-      # like an absent key. Reading the domain does: if the domain answers, the key really
-      # is gone and there is nothing left to retry; if the domain does not answer either,
-      # the failure is about the domain and the key is carried.
-      #
-      # Carrying every failed deletion would also be safe, and would never converge: an
-      # already-absent key fails `delete` on every apply, so it would sit in the state
-      # forever.
-      if defaults read "$domain" >/dev/null 2>&1; then
-        continue
-      fi
-      carry+=("$previous_key")
-    done <"$keys_file"
-  fi
-
-  # ${carry[@]+...} because bash 3.2, the system bash here, treats an empty array as unset
-  # under `set -u`.
-  printf '%s
-' "${current_keys[@]}" ${carry[@]+"${carry[@]}"} >"$keys_file"
-}
-
-# One declaration per setting -- key, type, value -- and both the writes and the
-# managed-key list are read from it. With two lists, retiring a setting silently did not
-# work: deleting the `defaults write` left the key in the array, so pruning still called it
-# current and the value stayed on the machine, which is the opposite of what the comment
-# above promises.
-apply_managed_defaults() {
-  local domain="$1"
-  local keys_file="$2"
-  shift 2
-  local settings=("$@")
-
-  local keys=()
-  local setting key type value rest
-  for setting in "${settings[@]}"; do
-    key="${setting%%|*}"
-    rest="${setting#*|}"
-    type="${rest%%|*}"
-    value="${rest#*|}"
-    defaults write "$domain" "$key" "$type" "$value"
-    keys+=("$key")
-  done
-
-  # Only now: `set -e` aborts above if any write fails, and a key recorded as owned but
-  # never written could be deleted by a later retirement even though nothing here set it.
-  prune_retired_defaults_keys "$domain" "$keys_file" ${keys[@]+"${keys[@]}"}
-}
 
 # Keyboard: fast repeat, no press-and-hold accent popup (matters in editors).
 defaults write NSGlobalDomain KeyRepeat -int 2
 defaults write NSGlobalDomain InitialKeyRepeat -int 15
 defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
 
-# Finder: show extensions, path bar, and hidden files; no .DS_Store on network shares.
+# Extensions always visible, and no .DS_Store on network shares. The path bar and hidden
+# files are Finder-domain keys, declared in run_after_20-macos-managed-defaults.sh.
 defaults write NSGlobalDomain AppleShowAllExtensions -bool true
 defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true
-
-# Finder and Dock, from the declarations above.
-apply_managed_defaults com.apple.finder "$managed_finder_keys_file" \
-  "${managed_finder_settings[@]}"
-apply_managed_defaults com.apple.dock "$managed_dock_keys_file" \
-  "${managed_dock_settings[@]}"
 
 # Screenshots: PNG into ~/Screenshots, no window shadow.
 mkdir -p "$HOME/Screenshots"
 defaults write com.apple.screencapture location -string "$HOME/Screenshots"
 defaults write com.apple.screencapture type -string "png"
 defaults write com.apple.screencapture disable-shadow -bool true
-
-killall Finder Dock 2>/dev/null || true
