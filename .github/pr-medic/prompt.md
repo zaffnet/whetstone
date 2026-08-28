@@ -18,7 +18,8 @@ which you write. A thread from anyone else is not in that file and is not yours 
    the code now satisfies the comment. Every entry needs a reply. A later step posts these
    and resolves them; you cannot do it yourself.
 3. For each failing check, read `gh run view --log-failed` and fix the cause. Never disable a
-   check or weaken a rule. Re-run instead (`gh run rerun --failed RUN_ID`) when the failure is
+   check or weaken a rule. Re-run instead (`$RUNNER_TEMP/medic/rerun.sh RUN_ID`, which takes
+   one run id and accepts only a run on this PR's head) when the failure is
    infrastructural. You cannot run the test suite or `just` here -- running this pull
    request's own code with a write token would hand it the token -- so reason from the log and
    let CI verify the fix.

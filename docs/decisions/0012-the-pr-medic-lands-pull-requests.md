@@ -247,6 +247,22 @@ Every `git fetch` in the helpers passes `--no-recurse-submodules`. Under the def
 fetches after `restore_pr_config` has put the pull request's copy back -- in the step that
 holds the write token. A test asserts the flag on every fetch rather than trusting review.
 
+`gh run rerun` is not on the model's allowlist either. With the `actions: write` token,
+`Bash(gh run rerun:*)` is the run id of anything in the repository -- an old release or
+deployment run -- and the model reads pull-request-controlled check logs, so an injected
+instruction had a privileged side effect within reach. `rerun.sh` takes one run id and checks it
+against this repository, this pull request's head, and not `pr-medic.yml` itself, which a medic
+re-running would turn into a loop no gate result can end.
+
+Undoing a resolution is verified and retried, and its failure is not a warning. The job going
+red is not a control here: `pr-medic` is deliberately not a required check, so a later wake
+would read the thread as satisfied and merge. If a thread cannot be reopened the pull request
+gets the skip label, which `pick.jq` drops and `gate.jq` refuses, and which takes a person to
+clear. `apply` also records the threads it resolved to a file outside `--add-dir`, because its
+own per-resolve check cannot cover the time `after.sh` spends reading the gate and attempting
+the merge -- a push landing there leaves the resolutions attached to a head nothing judged, and
+the refused merge does not undo them. `after.sh` reopens them instead.
+
 On `schedule`, `workflow_dispatch` and `workflow_run` the workflow file itself is trusted, so
 the copy in `RUNNER_TEMP` is what the gate runs and the chain holds. On an entity event the
 workflow file is the pull request's as well, so nothing written in the file can help: that is a

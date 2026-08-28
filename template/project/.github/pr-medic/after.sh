@@ -126,6 +126,27 @@ echo "- PR #$PR gate: \`$action\` ($reason)" >>"$GITHUB_STEP_SUMMARY"
 
 # --match-head-commit pins the merge to the head the gate just judged, so a push landing
 # between that read and this call cannot slip in unevaluated. No --auto: see gate.jq.
+#
+# Either way the resolutions have to be accounted for. apply checks the head at each resolve,
+# but it cannot cover the time spent here: the gate read above and this call both take a while,
+# and a push landing in that window leaves this run's resolutions attached to a head nothing
+# judged. The refused merge is not the fix -- a later run would read those threads as satisfied
+# and merge the new head -- so they are reopened instead.
 case "$action" in
-  merge) gh pr merge "$PR" --repo "$REPO" "--$MERGE_METHOD" --match-head-commit "$remote_head" ;;
+  merge)
+    gh pr merge "$PR" --repo "$REPO" "--$MERGE_METHOD" --match-head-commit "$remote_head" || {
+      echo "::error::PR #$PR: the merge was refused on ${remote_head:0:7}; undoing this run's resolutions"
+      "$here/threads.sh" undo
+      exit 1
+    }
+    ;;
+  *)
+    # No merge this run, so the resolutions have to hold until another one judges the head.
+    now=$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid)
+    [ "$now" = "$remote_head" ] || {
+      echo "::error::PR #$PR moved to ${now:0:7} after the gate read ${remote_head:0:7}; undoing"
+      "$here/threads.sh" undo
+      exit 1
+    }
+    ;;
 esac

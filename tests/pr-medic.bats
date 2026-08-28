@@ -384,6 +384,81 @@ SH
 # substring or an undo would read as a resolve.
 resolved_in_log() { grep -qE '(^|[^[:alpha:]])resolveReviewThread' "$GH_LOG"; }
 
+# rerun.sh exists so `Bash(gh run rerun:*)` need not be on the model's allowlist: with the
+# actions: write token that wildcard is the run id of anything in the repository, and the model
+# reads PR-controlled check logs.
+setup_rerun() {
+  export PR=7 REPO=o/r
+  export RERUN_LOG="$BATS_TEST_TMPDIR/rerun.log"
+  : >"$RERUN_LOG"
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  cat >"$BATS_TEST_TMPDIR/bin/gh" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$RERUN_LOG"
+case "$*" in
+  *"--json headRefOid"*) printf '%s\n' "$STUB_PR_HEAD" ;;
+  *actions/runs/*)
+    printf '{"sha":"%s","path":"%s","repo":"%s"}\n' "$STUB_RUN_SHA" "$STUB_RUN_PATH" "$STUB_RUN_REPO"
+    ;;
+esac
+exit 0
+SH
+  chmod +x "$BATS_TEST_TMPDIR/bin/gh"
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+  export PATH
+  export STUB_PR_HEAD=headsha STUB_RUN_SHA=headsha STUB_RUN_REPO=o/r
+  export STUB_RUN_PATH=.github/workflows/lint.yml
+}
+
+@test "rerun.sh re-runs a failed run on this PR's head" {
+  setup_rerun
+  "$MEDIC/rerun.sh" 123
+  grep -q 'run rerun 123 --failed' "$RERUN_LOG"
+}
+
+# An earlier head says nothing about the code the gate is about to judge.
+@test "rerun.sh refuses a run on another head" {
+  setup_rerun
+  STUB_RUN_SHA=oldsha run "$MEDIC/rerun.sh" 123
+  [ "$status" -ne 0 ]
+  run ! grep -q 'run rerun' "$RERUN_LOG"
+}
+
+@test "rerun.sh refuses a run in another repository" {
+  setup_rerun
+  STUB_RUN_REPO=other/repo run "$MEDIC/rerun.sh" 123
+  [ "$status" -ne 0 ]
+  run ! grep -q 'run rerun' "$RERUN_LOG"
+}
+
+# A medic re-running itself is a loop no gate result can end.
+@test "rerun.sh refuses pr-medic's own run" {
+  setup_rerun
+  STUB_RUN_PATH=.github/workflows/pr-medic.yml run "$MEDIC/rerun.sh" 123
+  [ "$status" -ne 0 ]
+  run ! grep -q 'run rerun' "$RERUN_LOG"
+}
+
+@test "rerun.sh takes one run id and nothing else" {
+  setup_rerun
+  run "$MEDIC/rerun.sh"
+  [ "$status" -eq 2 ]
+  run "$MEDIC/rerun.sh" 123 456
+  [ "$status" -eq 2 ]
+  run "$MEDIC/rerun.sh" --failed
+  [ "$status" -eq 2 ]
+  run "$MEDIC/rerun.sh" '123 --workflow deploy'
+  [ "$status" -eq 2 ]
+  run ! grep -q 'run rerun' "$RERUN_LOG"
+}
+
+@test "the model cannot reach gh run rerun directly" {
+  local wf="$REPO/.github/workflows/pr-medic.yml"
+  run ! grep -qF 'Bash(gh run rerun' "$wf"
+  # shellcheck disable=SC2016  # grepping for the literal.
+  grep -qF 'Bash(${{ runner.temp }}/medic/rerun.sh:*)' "$wf"
+}
+
 setup_threads() {
   export PR=7 REPO=o/r RUNNER_TEMP="$BATS_TEST_TMPDIR"
   export THREADS_FILE="$BATS_TEST_TMPDIR/threads.json"
@@ -396,6 +471,8 @@ setup_threads() {
   export EXPECTED_HEAD=c0ffee1
   # The medic's own reply must not withhold the thread it was posted to.
   export TRUSTED_BOTS='medic[bot]'
+  # The marker a failed reopen falls back to.
+  export SKIP_LABEL=no-medic
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'SH'
 #!/usr/bin/env bash
@@ -421,7 +498,11 @@ case "$*" in
         else . end]' "$STUB_THREADS" >"$STUB_THREADS.new"
     mv "$STUB_THREADS.new" "$STUB_THREADS"
     ;;
-  *unresolveReviewThread*) ;;
+  *unresolveReviewThread*)
+    # The mutation's own answer is what unresolve checks, so STUB_UNRESOLVE_FAILS is a call
+    # that reports success and leaves the thread resolved -- the case a warning used to hide.
+    if [ -n "${STUB_UNRESOLVE_FAILS:-}" ]; then printf 'true\n'; else printf 'false\n'; fi
+    ;;
   *resolveReviewThread*)
     # STUB_PUSH_ON_RESOLVE is an author pushing the instant a thread is resolved: no
     # per-resolve check can see it, so apply has to notice afterwards and undo.
@@ -691,6 +772,43 @@ SH
   grep -qF 'EXPECTED_HEAD=$remote_head "$here/threads.sh" apply' "$MEDIC/after.sh"
 }
 
+# A failed reopen was a warning, which is no control at all: the job goes red, but pr-medic is
+# deliberately not a required check, so the next wake reads the thread as satisfied and merges.
+@test "threads.sh labels the PR when a resolution cannot be undone" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
+  STUB_UNRESOLVE_FAILS=1 STUB_PUSH_ON_RESOLVE=deadbee run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  grep -q 'unresolveReviewThread' "$GH_LOG"
+  grep -q -- '--add-label no-medic' "$GH_LOG"
+}
+
+# The other half: a reopen that works must not label anything.
+@test "threads.sh does not label the PR when the undo works" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
+  STUB_PUSH_ON_RESOLVE=deadbee run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  run ! grep -q -- '--add-label' "$GH_LOG"
+  # And it leaves nothing for after.sh to undo a second time.
+  [ "$(jq length "$RUNNER_TEMP/pr-medic-state/resolved.json")" = 0 ]
+}
+
+@test "threads.sh records what it resolved for after.sh" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
+  "$MEDIC/threads.sh" apply
+  [ "$(jq -r '.[0]' "$RUNNER_TEMP/pr-medic-state/resolved.json")" = T_known ]
+}
+
+@test "threads.sh undo reopens what a previous step recorded" {
+  setup_threads
+  mkdir -p "$RUNNER_TEMP/pr-medic-state"
+  printf '%s\n' '["T_one","T_two"]' >"$RUNNER_TEMP/pr-medic-state/resolved.json"
+  "$MEDIC/threads.sh" undo
+  [ "$(grep -c 'unresolveReviewThread' "$GH_LOG")" -ge 2 ]
+}
+
 @test "threads.sh apply is a no-op when the model wrote nothing" {
   setup_threads
   printf '[]\n' >"$REPLIES_FILE"
@@ -733,13 +851,34 @@ setup_after() {
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$GH_LOG"
 case "$*" in
-  *"comments(last"*) printf '[]\n' ;;
+  *"comments(last"*) cat "$STUB_AFTER_THREADS" ;;
+  *collaborators/writer/permission*) printf 'write\n' ;;
+  *collaborators/*/permission*) exit 1 ;;
+  *addPullRequestReviewThreadReply*)
+    args="$*"
+    id=${args#*threadId=}
+    id=${id%% *}
+    jq --arg i "$id" '[.[] | if .thread_id == $i then
+        .comments += [{author: "medic[bot]", body: "a reply"}] else . end]' \
+      "$STUB_AFTER_THREADS" >"$STUB_AFTER_THREADS.new"
+    mv "$STUB_AFTER_THREADS.new" "$STUB_AFTER_THREADS"
+    ;;
   *"api graphql"*) printf '0\n' ;;
   *"api repos/o/r"*) printf 'main\n' ;;
   *"--json mergeStateStatus"*) printf 'CLEAN\n' ;;
-  *"--json headRefOid"*) printf '%s\n' "$STUB_REMOTE_HEAD" ;;
+  *"--json headRefOid"*)
+    # The override file only exists once STUB_PUSH_AFTER_GATE has fired, so the gate's own
+    # read still sees the head it judged.
+    if [ -f "${STUB_HEAD_FILE:-}" ]; then cat "$STUB_HEAD_FILE"; else printf '%s\n' "$STUB_REMOTE_HEAD"; fi
+    ;;
   *"--json headRefName"*) printf 'main\n' ;;
-  *"--json state"*) printf '%s\n' "$STUB_VIEW" ;;
+  *"--json state"*)
+    printf '%s\n' "$STUB_VIEW"
+    # The gate read is where the push lands: after every check apply could make.
+    if [ -n "${STUB_PUSH_AFTER_GATE:-}" ]; then printf '%s\n' "$STUB_PUSH_AFTER_GATE" >"$STUB_HEAD_FILE"; fi
+    ;;
+  *unresolveReviewThread*) printf 'false\n' ;;
+  *"pr merge"*) exit "${STUB_MERGE_STATUS:-0}" ;;
 esac
 exit 0
 SH
@@ -754,9 +893,14 @@ SH
   REPLIES_FILE="$BATS_TEST_TMPDIR/replies.json"
   # apply intersects the current threads with the snapshot dump took, so both must exist.
   THREAD_SNAPSHOT="$BATS_TEST_TMPDIR/snapshot.json"
+  STUB_AFTER_THREADS="$BATS_TEST_TMPDIR/stub-after-threads.json"
   printf '[]\n' >"$THREADS_FILE"
   printf '[]\n' >"$REPLIES_FILE"
   printf '[]\n' >"$THREAD_SNAPSHOT"
+  printf '[]\n' >"$STUB_AFTER_THREADS"
+  export STUB_AFTER_THREADS
+  TRUSTED_BOTS='medic[bot]'
+  export TRUSTED_BOTS
   HEAD_BEFORE=$LOCAL_HEAD
   PR=7
   REPO=o/r
@@ -775,6 +919,11 @@ SH
   # from the plain clean-worktree check.
   TRUSTED_STATE_FILE="$BATS_TEST_TMPDIR/trusted-state"
   export TRUSTED_STATE_FILE
+  # threads.sh undo reads this. Empty by default: only the compensation cases give it work.
+  RESOLVED_FILE="$BATS_TEST_TMPDIR/pr-medic-state/resolved.json"
+  STUB_HEAD_FILE="$BATS_TEST_TMPDIR/moved-head"
+  SKIP_LABEL=no-medic
+  export RESOLVED_FILE STUB_HEAD_FILE SKIP_LABEL
   # shellcheck source=/dev/null
   (cd "$WORK" && . "$MEDIC/lib.sh" && trusted_state) >"$TRUSTED_STATE_FILE"
 }
@@ -793,6 +942,16 @@ setup_upstream() {
   git -C "$WORK" branch -q --set-upstream-to=origin/main main
   GITHUB_SERVER_URL="$BATS_TEST_TMPDIR/remotes"
   export GITHUB_SERVER_URL BARE
+}
+
+# Give apply a thread to resolve, so RESOLVED_FILE is written by the run rather than by hand --
+# apply truncates it on entry, which is what keeps a stale file from being undone twice.
+after_resolves_a_thread() {
+  local thread='[{"thread_id":"T_resolved","path":"file","line":1,"comments":[{"author":"writer","body":"fix this"}]}]'
+  printf '%s\n' "$thread" >"$STUB_AFTER_THREADS"
+  printf '%s\n' "$thread" >"$THREAD_SNAPSHOT"
+  printf '%s\n' "$thread" >"$THREADS_FILE"
+  printf '%s\n' '[{"thread_id":"T_resolved","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
 }
 
 run_after() { (cd "$WORK" && bash "$MEDIC/after.sh"); }
@@ -890,6 +1049,35 @@ commit_and_push() {
   unguarded=$(grep -hE '^ *git fetch ' "$MEDIC"/*.sh "$REPO/.github/workflows/pr-medic.yml" \
     | grep -v -- '--no-recurse-submodules' || true)
   [ -z "$unguarded" ]
+}
+
+# apply pins every resolve to the head, but it cannot cover the time after it returns: the gate
+# read and the merge attempt both take a while. A refused merge is not the fix on its own -- the
+# threads would stay resolved for a later run to act on.
+@test "the gate reopens its resolutions when the merge is refused" {
+  setup_after
+  after_resolves_a_thread
+  STUB_MERGE_STATUS=1 run run_after
+  [ "$status" -ne 0 ]
+  grep -q 'unresolveReviewThread' "$GH_LOG"
+}
+
+@test "the gate reopens its resolutions when the head moves after the gate read" {
+  setup_after
+  after_resolves_a_thread
+  MAY_MERGE=false # so this run does not merge and the resolutions must survive to the next one
+  export MAY_MERGE
+  STUB_PUSH_AFTER_GATE=deadbee run run_after
+  [ "$status" -ne 0 ]
+  grep -q 'unresolveReviewThread' "$GH_LOG"
+}
+
+@test "the gate leaves its resolutions alone when nothing moved" {
+  setup_after
+  after_resolves_a_thread
+  run_after
+  run ! grep -q 'unresolveReviewThread' "$GH_LOG"
+  grep -q 'pr merge' "$GH_LOG"
 }
 
 @test "the gate never delegates to auto-merge" {

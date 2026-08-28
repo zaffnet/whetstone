@@ -108,7 +108,7 @@ jobs:
           permission-issues: write
           permission-checks: read
           permission-statuses: read
-          permission-actions: write # write: the prompt uses `gh run rerun --failed`
+          permission-actions: write # write: rerun.sh re-runs this PR's failed checks
 
       # For the Claude step alone, with no contents: write -- the action puts the token it is
       # given into the origin URL, so this keeps a pushing credential out of the model.
@@ -191,7 +191,7 @@ jobs:
             --max-turns ${{ env.MAX_TURNS }}
             --permission-mode acceptEdits
             --add-dir ${{ runner.temp }}/pr-medic
-            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff),Bash(git diff --stat),Bash(git diff --cached),Bash(git diff HEAD),Bash(git log --oneline -20),Bash(git rev-parse HEAD),Bash(git add:*),Bash(git checkout --ours:*),Bash(git checkout --theirs:*),Bash(git rebase --continue),Bash(git rebase --abort),Bash(${{ runner.temp }}/medic/rebase.sh),Bash(${{ runner.temp }}/medic/commit.sh:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh run rerun:*)"
+            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff),Bash(git diff --stat),Bash(git diff --cached),Bash(git diff HEAD),Bash(git log --oneline -20),Bash(git rev-parse HEAD),Bash(git add:*),Bash(git checkout --ours:*),Bash(git checkout --theirs:*),Bash(git rebase --continue),Bash(git rebase --abort),Bash(${{ runner.temp }}/medic/rebase.sh),Bash(${{ runner.temp }}/medic/commit.sh:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh run list:*),Bash(${{ runner.temp }}/medic/rerun.sh:*)"
           prompt: ${{ steps.bot.outputs.prompt }}
 
       - if: failure()

@@ -20,6 +20,10 @@ here=$(dirname "$0")
 # Outside pr-medic/, so outside --add-dir: what the threads looked like when the model was
 # given them, which is the only thing its `resolve: true` can honestly refer to.
 : "${THREAD_SNAPSHOT:=${RUNNER_TEMP:?}/pr-medic-state/threads.json}"
+# What this run resolved, so after.sh can put it back if the head moves after apply has
+# returned -- while the gate reads state, or while the merge is refused. Same directory as the
+# snapshot, and for the same reason: the model must not be able to edit it.
+: "${RESOLVED_FILE:=${RUNNER_TEMP:?}/pr-medic-state/resolved.json}"
 
 # Of these logins, the ones whose text may be put in front of the model: push access, or one
 # of the bots the workflow names. A bot holds no collaborator permission, so it cannot be
@@ -92,18 +96,65 @@ comments_of() { jq -c --arg i "$1" '[.[] | select(.thread_id == $i) | .comments]
 
 current_head() { gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid; }
 
+# Reopen one thread, and confirm it. The mutation's own answer is the confirmation, so a call
+# that reports success while leaving isResolved true is caught. Retried, because this is the
+# only path that undoes a resolution and there is no later opportunity.
+unresolve() {
+  local id=$1 attempt state
+  for attempt in 1 2 3; do
+    # shellcheck disable=SC2016  # $threadId is a GraphQL variable.
+    state=$(gh api graphql -f threadId="$id" -f query='
+      mutation($threadId: ID!) {
+        unresolveReviewThread(input: {threadId: $threadId}) { thread { isResolved } }
+      }' --jq '.data.unresolveReviewThread.thread.isResolved' 2>/dev/null) || state=unknown
+    if [ "$state" = false ]; then return 0; fi
+    [ "$attempt" = 3 ] || sleep "$attempt"
+  done
+  return 1
+}
+
+# The marker that outlives this run. A failed reopen used to be a warning, which was no control
+# at all: the job goes red, but pr-medic is deliberately not a required check, so the next wake
+# would read the thread as satisfied and merge. The skip label is the state that stops that --
+# pick.jq drops a labelled pull request and gate.jq refuses one -- and it takes a person to
+# clear, which is the right cost for a thread nobody can prove was answered.
+block_later_runs() {
+  [ -n "${SKIP_LABEL:-}" ] || {
+    echo "::error::PR #$PR: no SKIP_LABEL to set; a later run may merge on a stale resolution"
+    return 0
+  }
+  gh pr edit "$PR" --repo "$REPO" --add-label "$SKIP_LABEL" >/dev/null || {
+    echo "::error::PR #$PR: could not add $SKIP_LABEL; a later run may merge on a stale resolution"
+    return 0
+  }
+  echo "::error::PR #$PR labelled $SKIP_LABEL: a resolution could not be undone and must be checked by hand"
+}
+
 # Put back what this run resolved. Leaving a thread resolved against a head the gate never
 # judged is the failure that matters: the reply stays either way, but a resolved thread is
 # what the next run reads as satisfied, and it would merge on that.
 undo_resolutions() {
-  local id
+  local id failed=0
   for id in ${resolved_ids[@]+"${resolved_ids[@]}"}; do
-    # shellcheck disable=SC2016  # $threadId is a GraphQL variable.
-    gh api graphql -f threadId="$id" -f query='
-      mutation($threadId: ID!) {
-        unresolveReviewThread(input: {threadId: $threadId}) { thread { isResolved } }
-      }' >/dev/null || echo "::warning::thread $id could not be unresolved"
+    unresolve "$id" || {
+      echo "::error::thread $id is still resolved and could not be reopened"
+      failed=1
+    }
   done
+  if [ "$failed" = 0 ]; then
+    resolved_ids=() # nothing outstanding, so nothing for after.sh to undo a second time
+    record_resolved
+  else
+    block_later_runs
+  fi
+}
+
+# Rewritten in full after each resolve, so a crash between the mutation and the next step still
+# leaves after.sh the list it needs.
+record_resolved() {
+  mkdir -p "$(dirname "$RESOLVED_FILE")"
+  printf '%s\n' ${resolved_ids[@]+"${resolved_ids[@]}"} \
+    | jq -R -s -c 'split("\n") | map(select(. != ""))' >"$RESOLVED_FILE"
 }
 
 apply() {
@@ -121,6 +172,7 @@ apply() {
   # of threads that are open now, which is also the list that matters.
   local threads known entry id reply body_file fresh now was head resolved=0 replied=0
   local resolved_ids=()
+  record_resolved # empty, so a file left by an earlier run is never mistaken for this one's
   threads=$(fetch_threads)
   # Open now *and* in the snapshot the model was given. Current alone would accept a thread
   # opened after dump, which the model never saw and cannot have an answer to.
@@ -194,6 +246,7 @@ apply() {
           resolveReviewThread(input: {threadId: $threadId}) { thread { isResolved } }
         }' >/dev/null
       resolved_ids+=("$id")
+      record_resolved
       resolved=$((resolved + 1))
     fi
   done < <(jq -c '.[]' "$REPLIES_FILE")
@@ -212,11 +265,27 @@ apply() {
     "$PR" "$replied" "$resolved" >>"${GITHUB_STEP_SUMMARY:-/dev/null}"
 }
 
+# Reopen whatever apply resolved. after.sh calls this when the head moved after apply returned:
+# the gate read and the merge attempt both take time, and the merge being refused on the old sha
+# is not enough on its own -- the threads would stay resolved for the next run to act on.
+undo() {
+  local id ids
+  [ -s "${RESOLVED_FILE:-}" ] || return 0
+  ids=$(jq -r '.[]' "$RESOLVED_FILE")
+  local resolved_ids=()
+  while read -r id; do
+    if [ -n "$id" ]; then resolved_ids+=("$id"); fi
+  done <<<"$ids"
+  [ "${#resolved_ids[@]}" -gt 0 ] || return 0
+  undo_resolutions
+}
+
 case "${1:-}" in
   dump) dump ;;
   apply) apply ;;
+  undo) undo ;;
   *)
-    echo "usage: threads.sh dump|apply" >&2
+    echo "usage: threads.sh dump|apply|undo" >&2
     exit 2
     ;;
 esac
