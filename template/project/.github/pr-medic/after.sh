@@ -10,7 +10,10 @@ here=$(dirname "$0")
 
 repo=$(gh api "repos/$REPO" --jq '{default_branch, allow_auto_merge}')
 default_branch=$(jq -r .default_branch <<<"$repo")
-head_before=$(git rev-parse HEAD)
+# From the checkout step, not from here: this script runs after Claude, so its own
+# `git rev-parse HEAD` would already include Claude's commits and the re-request below would
+# never fire on the one run that needed it.
+head_before=${HEAD_BEFORE:-$(git rev-parse HEAD)}
 
 # Claude may have rebased already, in which case this is a no-op. A push dismisses approvals
 # and re-triggers review bots, so it happens after the fixes, never before.
@@ -69,4 +72,14 @@ echo "- PR #$PR gate: \`$action\` ($reason)" >>"$GITHUB_STEP_SUMMARY"
 case "$action" in
   arm) gh pr merge "$PR" --repo "$REPO" "--$MERGE_METHOD" --auto --match-head-commit "$remote_head" ;;
   merge) gh pr merge "$PR" --repo "$REPO" "--$MERGE_METHOD" --match-head-commit "$remote_head" ;;
+  # The gate is only authoritative if it can take an arming back. GitHub merges an armed PR on
+  # required checks alone, and APPROVALS_REQUIRED lives here rather than in the ruleset, so a
+  # push that dismissed the approval would otherwise land anyway. `noop` is the armed PR that
+  # still passes, and is deliberately not in this list.
+  refuse | wait)
+    if [ "$(jq -r '.autoMergeRequest != null' <<<"$view")" = true ]; then
+      gh pr merge "$PR" --repo "$REPO" --disable-auto
+      echo "- PR #$PR: auto-merge disarmed" >>"$GITHUB_STEP_SUMMARY"
+    fi
+    ;;
 esac

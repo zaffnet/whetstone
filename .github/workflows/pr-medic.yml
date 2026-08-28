@@ -56,6 +56,8 @@ jobs:
       pull-requests: read
       checks: read
       statuses: read
+      # statusCheckRollup resolves each check run's workflow name.
+      actions: read
     outputs:
       prs: ${{ steps.pick.outputs.prs }}
       count: ${{ steps.pick.outputs.count }}
@@ -83,6 +85,7 @@ jobs:
       pull-requests: write
       issues: write
       checks: read
+      statuses: read
       actions: write
       id-token: write
     strategy:
@@ -111,6 +114,9 @@ jobs:
           permission-pull-requests: write
           permission-issues: write
           permission-checks: read
+          permission-statuses: read
+          # write, not read: the prompt tells Claude to `gh run rerun --failed`.
+          permission-actions: write
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -132,7 +138,7 @@ jobs:
           git config user.email "$id+$login@users.noreply.github.com"
           gh auth setup-git
           gh pr checkout "$PR"
-          printf 'login=%s\nid=%s\n' "$login" "$id" >>"$GITHUB_OUTPUT"
+          printf 'login=%s\nid=%s\nhead=%s\n' "$login" "$id" "$(git rev-parse HEAD)" >>"$GITHUB_OUTPUT"
 
       - name: Run Claude Code
         if: env.HAS_CLAUDE == 'true'
@@ -181,3 +187,4 @@ jobs:
         run: .github/pr-medic/after.sh
         env:
           GH_TOKEN: ${{ steps.token.outputs.token || github.token }}
+          HEAD_BEFORE: ${{ steps.bot.outputs.head }}

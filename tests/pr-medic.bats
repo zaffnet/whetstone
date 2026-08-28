@@ -93,6 +93,18 @@ JSON
 
 # after.sh against stub git and gh. Remote state alone cannot tell a finished run from one
 # that resolved a thread and never pushed the fix, so the gate checks the runner as well.
+
+# The state the gate reaches `merge` on: open, clean, no unresolved threads, one green check,
+# auto-merge unavailable. A run that does nothing therefore shows `pr merge` in the log, which
+# is what makes its absence in the cases below meaningful.
+default_view() {
+  printf '%s' '{"state":"OPEN","isDraft":false,"isCrossRepository":false,'
+  printf '%s' '"mergeStateStatus":"CLEAN","latestReviews":[],"autoMergeRequest":null,'
+  printf '%s' '"statusCheckRollup":[{"__typename":"CheckRun","name":"ci","workflowName":"lint",'
+  printf '%s' '"status":"COMPLETED","conclusion":"SUCCESS","startedAt":"2026-01-01T00:00:00Z"}]}'
+}
+
+# setup_after [view-json]
 setup_after() {
   WORK="$BATS_TEST_TMPDIR/work"
   mkdir -p "$WORK"
@@ -104,7 +116,7 @@ setup_after() {
   git -C "$WORK" commit -q -m one
   LOCAL_HEAD=$(git -C "$WORK" rev-parse HEAD)
 
-  export GH_LOG="$BATS_TEST_TMPDIR/gh.log"
+  GH_LOG="$BATS_TEST_TMPDIR/gh.log"
   : >"$GH_LOG"
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'SH'
@@ -115,26 +127,36 @@ case "$*" in
   *"api repos/o/r"*) printf '{"default_branch":"main","allow_auto_merge":false}\n' ;;
   *"--json mergeStateStatus"*) printf 'CLEAN\n' ;;
   *"--json headRefOid"*) printf '%s\n' "$STUB_REMOTE_HEAD" ;;
-  *"--json state"*)
-    printf '{"state":"OPEN","isDraft":false,"isCrossRepository":false,"mergeStateStatus":"CLEAN","latestReviews":[],"autoMergeRequest":null,"statusCheckRollup":[{"__typename":"CheckRun","name":"ci","status":"COMPLETED","conclusion":"SUCCESS"}]}\n'
-    ;;
+  *"--json state"*) printf '%s\n' "$STUB_VIEW" ;;
 esac
 exit 0
 SH
   chmod +x "$BATS_TEST_TMPDIR/bin/gh"
   PATH="$BATS_TEST_TMPDIR/bin:$PATH"
-  export PATH
 
-  # This state reaches `merge`: open, clean, no unresolved threads, one green check,
-  # auto-merge unavailable. So a run that does nothing must show `pr merge` in the log, which
-  # is what makes its absence in the cases below meaningful.
-  export PR=7 REPO=o/r APPROVALS_REQUIRED=0 ARM_AUTO_MERGE=true MERGE_METHOD=squash
-  export REREQUEST_REVIEWERS=""
-  export GITHUB_STEP_SUMMARY="$BATS_TEST_TMPDIR/summary.md"
-  export STUB_REMOTE_HEAD="$LOCAL_HEAD"
+  STUB_VIEW=${1:-$(default_view)}
+  STUB_REMOTE_HEAD=$LOCAL_HEAD
+  HEAD_BEFORE=$LOCAL_HEAD
+  PR=7
+  REPO=o/r
+  APPROVALS_REQUIRED=0
+  ARM_AUTO_MERGE=true
+  MERGE_METHOD=squash
+  REREQUEST_REVIEWERS=
+  GITHUB_STEP_SUMMARY="$BATS_TEST_TMPDIR/summary.md"
+  export GH_LOG PATH STUB_VIEW STUB_REMOTE_HEAD HEAD_BEFORE PR REPO
+  export APPROVALS_REQUIRED ARM_AUTO_MERGE MERGE_METHOD REREQUEST_REVIEWERS GITHUB_STEP_SUMMARY
 }
 
 run_after() { (cd "$WORK" && bash "$MEDIC/after.sh"); }
+
+# Commit locally and tell the stub the remote moved with us, as a real push would.
+commit_and_push() {
+  echo two >>"$WORK/file"
+  git -C "$WORK" commit -q -am two
+  STUB_REMOTE_HEAD=$(git -C "$WORK" rev-parse HEAD)
+  export STUB_REMOTE_HEAD
+}
 
 @test "the gate merges when the checkout is clean and matches the PR head" {
   setup_after
@@ -157,4 +179,38 @@ run_after() { (cd "$WORK" && bash "$MEDIC/after.sh"); }
   run run_after
   [ "$status" -ne 0 ]
   run ! grep -q 'pr merge' "$GH_LOG"
+}
+
+# The gate arms auto-merge, so it has to be able to take that back: GitHub merges an armed PR
+# on required checks alone, and APPROVALS_REQUIRED lives in this workflow, not in the ruleset.
+@test "the gate disarms an armed PR that no longer passes" {
+  setup_after "$(default_view | jq -c '.autoMergeRequest = {"enabledAt": "2026-01-01T00:00:00Z"}
+    | .statusCheckRollup[0].conclusion = "FAILURE"')"
+  run_after
+  grep -q 'disable-auto' "$GH_LOG"
+}
+
+@test "the gate leaves an armed PR that still passes alone" {
+  setup_after "$(default_view | jq -c '.autoMergeRequest = {"enabledAt": "2026-01-01T00:00:00Z"}')"
+  run_after
+  run ! grep -q 'disable-auto' "$GH_LOG"
+}
+
+# after.sh runs after Claude, so its own HEAD already carries Claude's commits. Without the
+# baseline from the checkout step, the one run that pushed never re-requests a reviewer.
+@test "reviewers are re-requested against the pre-Claude HEAD" {
+  setup_after
+  REREQUEST_REVIEWERS='copilot-pull-request-reviewer[bot]'
+  export REREQUEST_REVIEWERS
+  commit_and_push
+  run_after
+  grep -q 'requested_reviewers' "$GH_LOG"
+}
+
+@test "reviewers are not re-requested when this run pushed nothing" {
+  setup_after
+  REREQUEST_REVIEWERS='copilot-pull-request-reviewer[bot]'
+  export REREQUEST_REVIEWERS
+  run_after
+  run ! grep -q 'requested_reviewers' "$GH_LOG"
 }

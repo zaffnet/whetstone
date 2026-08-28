@@ -707,5 +707,119 @@
       "arm_auto_merge": true,
       "allow_auto_merge": true
     }
+  },
+  {
+    "name": "a rerun supersedes the attempt it replaced",
+    "expect": "arm",
+    "expect_reason": "gate passed",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "latestReviews": [],
+        "labels": [],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "lint",
+            "workflowName": "lint",
+            "status": "COMPLETED",
+            "conclusion": "FAILURE",
+            "startedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "__typename": "CheckRun",
+            "name": "lint",
+            "workflowName": "lint",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS",
+            "startedAt": "2026-01-01T01:00:00Z"
+          }
+        ],
+        "autoMergeRequest": null
+      },
+      "unresolved": 0,
+      "approvals_required": 0,
+      "arm_auto_merge": true,
+      "allow_auto_merge": true
+    }
+  },
+  {
+    "name": "a rerun that failed is not masked by the attempt before it",
+    "expect": "refuse",
+    "expect_reason": "failing checks",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "latestReviews": [],
+        "labels": [],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "lint",
+            "workflowName": "lint",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS",
+            "startedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "__typename": "CheckRun",
+            "name": "lint",
+            "workflowName": "lint",
+            "status": "COMPLETED",
+            "conclusion": "FAILURE",
+            "startedAt": "2026-01-01T01:00:00Z"
+          }
+        ],
+        "autoMergeRequest": null
+      },
+      "unresolved": 0,
+      "approvals_required": 0,
+      "arm_auto_merge": true,
+      "allow_auto_merge": true
+    }
+  },
+  {
+    "name": "one name in two workflows is two checks",
+    "expect": "refuse",
+    "expect_reason": "failing checks",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "latestReviews": [],
+        "labels": [],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "bootstrap",
+            "workflowName": "macos",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS",
+            "startedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "__typename": "CheckRun",
+            "name": "bootstrap",
+            "workflowName": "lint",
+            "status": "COMPLETED",
+            "conclusion": "FAILURE",
+            "startedAt": "2026-01-01T00:00:00Z"
+          }
+        ],
+        "autoMergeRequest": null
+      },
+      "unresolved": 0,
+      "approvals_required": 0,
+      "arm_auto_merge": true,
+      "allow_auto_merge": true
+    }
   }
 ]
