@@ -45,9 +45,11 @@ jobs:
       # repo's. MAY_MERGE is a repository variable, so it is the same in both.
       - name: pr-medic matches the template copy
         run: |
-          for f in .github/pr-medic/*; do
-            diff -u "$f" "template/project/$f"
-          done
+          # -r, not a loop over .github/pr-medic/*: that iterates only the files still present
+          # on this side, so deleting a helper here while its template copy stays would pass and
+          # generated projects would keep shipping the stale one. Recursive diff fails on an
+          # addition or a deletion on either side.
+          diff -ru .github/pr-medic template/project/.github/pr-medic
           diff -u \
             <(sed 's/^    workflows: .*/    workflows: PINNED/' .github/workflows/pr-medic.yml) \
             <(sed 's/^    workflows: .*/    workflows: PINNED/' template/project/.github/workflows/pr-medic.yml)

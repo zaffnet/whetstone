@@ -793,6 +793,43 @@ commit_and_push() {
   run ! grep -q 'pr merge' "$GH_LOG"
 }
 
+# A trusted path the PR *deletes* comes back untracked, and there `git status --porcelain`
+# prints the same `?? CLAUDE.md` line whatever the file holds while `git diff HEAD` sees nothing
+# at all. Only a content digest catches an edit -- and restore_pr_config's `git clean` would
+# otherwise delete a fix that a reply had already claimed.
+@test "the gate catches an edit to a restored path the PR had deleted" {
+  setup_after
+  echo "the default branch's copy" >"$WORK/CLAUDE.md"
+  # trust-config.sh records the state after its restore, with the file already untracked.
+  # shellcheck source=/dev/null
+  (cd "$WORK" && . "$MEDIC/lib.sh" && trusted_state) >"$TRUSTED_STATE_FILE"
+  echo "changed by the model, and about to be cleaned away" >"$WORK/CLAUDE.md"
+  run run_after
+  [ "$status" -ne 0 ]
+  run ! grep -q 'pr merge' "$GH_LOG"
+}
+
+# The other half: the digest must not fail an untracked restored path nobody touched, or every
+# PR that deletes one of these files would be stuck.
+@test "the gate ignores an untracked restored path it did not change" {
+  setup_after
+  echo "the default branch's copy" >"$WORK/CLAUDE.md"
+  # shellcheck source=/dev/null
+  (cd "$WORK" && . "$MEDIC/lib.sh" && trusted_state) >"$TRUSTED_STATE_FILE"
+  run_after
+  grep -q 'pr merge' "$GH_LOG"
+}
+
+# A loop over .github/pr-medic/* iterates only what is still present on this side, so deleting
+# a helper here while its template copy stays would pass and generated projects would keep
+# shipping the stale one.
+@test "the single-source check compares the directories, not the files that remain" {
+  local lint="$REPO/.github/workflows/lint.yml"
+  grep -qF 'diff -ru .github/pr-medic template/project/.github/pr-medic' "$lint"
+  # shellcheck disable=SC2016  # a literal grep pattern.
+  run ! grep -qF 'for f in .github/pr-medic/*' "$lint"
+}
+
 # after.sh runs after Claude, so its own HEAD already carries Claude's commits. Without the
 # baseline from the checkout step, the one run that pushed never re-requests a reviewer.
 @test "reviewers are re-requested against the pre-Claude HEAD" {

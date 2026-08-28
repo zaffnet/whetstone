@@ -62,9 +62,24 @@ approval_count() {
 # committed, and the thread asking for that edit would then be resolved against a head the fix
 # is missing from. Both the status and the diff, so an added file counts as well as a change.
 trusted_state() {
+  local p present=()
+  for p in "${TRUSTED_PATHS[@]}"; do
+    if [ -e "$p" ]; then present+=("$p"); fi
+  done
   {
     git status --porcelain -- "${TRUSTED_PATHS[@]}"
     git diff HEAD -- "${TRUSTED_PATHS[@]}"
+    # The contents too, not only git's view of them. A trusted path the pull request deletes is
+    # restored as untracked, and there `git status` prints the same `?? CLAUDE.md` line whatever
+    # the file holds while `git diff HEAD` sees nothing at all -- so an edit Claude made to it
+    # would pass this check, and restore_pr_config's `git clean` would then delete the fix a
+    # reply had already claimed. Sorted and path-prefixed, so neither traversal order nor a
+    # rename can hide in the digest.
+    if [ "${#present[@]}" -gt 0 ]; then
+      while IFS= read -r -d "" p; do
+        printf '%s %s\n' "$p" "$(shasum -a 256 <"$p" | cut -d' ' -f1)"
+      done < <(find "${present[@]}" -type f -print0 | sort -z)
+    fi
   } | shasum -a 256 | cut -d' ' -f1
 }
 

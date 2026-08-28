@@ -47,7 +47,8 @@ trusted_logins() {
 #
 # Every author of a thread, not only the one who opened it: an untrusted reply on a Copilot
 # thread is still text in the prompt. A skipped thread stays unresolved, which the merge gate
-# counts, so the pull request waits for someone with push access rather than merging.
+# counts, so the pull request waits for someone with push access rather than merging. No cost
+# to a contributor: pick.jq refuses a fork, so the PR's own author can push by construction.
 fetch_threads() {
   local raw trusted kept dropped
   # shellcheck disable=SC2016  # $owner, $name and $pr are GraphQL variables.

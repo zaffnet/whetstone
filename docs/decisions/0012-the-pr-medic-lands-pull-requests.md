@@ -192,7 +192,11 @@ directory is a configuration error, so it is reported as one.
 Nothing the model writes is treated as evidence. `threads.sh apply` re-queries the open
 threads instead of reading back the file it handed over, because `--add-dir` makes that file
 writable; and `trusted-state` lives outside that directory, because only `after.sh` reads it
-and a state file the model could rewrite would certify whatever it liked.
+and a state file the model could rewrite would certify whatever it liked. The digest covers
+the contents of the trusted paths, not only git's view of them: a path the pull request
+deletes is restored untracked, where `git status` prints the same `??` line whatever the file
+holds and `git diff HEAD` sees nothing -- so an edit there passed the check, and
+`restore_pr_config`'s `git clean` then deleted a fix a reply had already claimed.
 
 The threads `apply` will act on are the intersection of what is open now and what the
 snapshot holds. Open-now alone would accept a thread created after `dump`, which the model was
@@ -208,7 +212,9 @@ became prompt text that `after.sh` then pushed. Every author, not only the one w
 thread, because an untrusted reply on a Copilot thread is still text in the prompt. A withheld
 thread stays unresolved, which the merge gate counts, so the pull request waits for someone
 with push access instead of merging -- fail-closed, and no change to what a stranger could
-already do by leaving a comment.
+already do by leaving a comment. It costs a contributor nothing: `pick.jq` refuses a
+cross-repository pull request, so every branch the medic works on is one in this repository
+and its author can push by construction.
 
 `apply` also refuses to resolve a thread whose comments have changed since `dump` took its
 snapshot. A reviewer can add a comment while the model is working, and a `resolve: true`
