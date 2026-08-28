@@ -12,22 +12,28 @@ set -euo pipefail
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/whetstone"
 managed_finder_keys_file="$state_dir/macos-finder-managed-keys.txt"
 managed_dock_keys_file="$state_dir/macos-dock-managed-keys.txt"
-managed_finder_keys=(
-  "ShowPathbar"
-  "AppleShowAllFiles"
-  "FXDefaultSearchScope"
-  "NewWindowTarget"
-  "FXRemoveOldTrashItems"
+managed_finder_settings=(
+  "ShowPathbar|-bool|true"
+  "AppleShowAllFiles|-bool|true"
+  # Search the current folder rather than the whole Mac; open a new window on Recents
+  # (PfAF -- the home folder would be PfHm); let the Trash empty items after 30 days.
+  # Captured from this machine, not chosen.
+  "FXDefaultSearchScope|-string|SCcf"
+  "NewWindowTarget|-string|PfAF"
+  "FXRemoveOldTrashItems|-bool|true"
 )
-managed_dock_keys=(
-  "autohide"
-  "show-recents"
-  "expose-group-apps"
-  "tilesize"
-  "wvous-bl-corner"
-  "wvous-bl-modifier"
-  "wvous-br-corner"
-  "wvous-br-modifier"
+managed_dock_settings=(
+  "autohide|-bool|true"
+  "show-recents|-bool|false"
+  "expose-group-apps|-bool|true"
+  # Tile size, and both bottom hot corners: bottom left starts the screen saver (5),
+  # bottom right is disabled (1 -- Show Desktop would be 4). Modifiers are written too, an
+  # unset modifier is not the same as zero and the corner behaves differently without one.
+  "tilesize|-int|67"
+  "wvous-bl-corner|-int|5"
+  "wvous-bl-modifier|-int|0"
+  "wvous-br-corner|-int|1"
+  "wvous-br-modifier|-int|0"
 )
 
 prune_retired_defaults_keys() {
@@ -75,44 +81,52 @@ prune_retired_defaults_keys() {
 ' "${current_keys[@]}" ${carry[@]+"${carry[@]}"} >"$keys_file"
 }
 
+# One declaration per setting -- key, type, value -- and both the writes and the
+# managed-key list are read from it. With two lists, retiring a setting silently did not
+# work: deleting the `defaults write` left the key in the array, so pruning still called it
+# current and the value stayed on the machine, which is the opposite of what the comment
+# above promises.
+apply_managed_defaults() {
+  local domain="$1"
+  local keys_file="$2"
+  shift 2
+  local settings=("$@")
+
+  local keys=()
+  local setting key type value rest
+  for setting in "${settings[@]}"; do
+    key="${setting%%|*}"
+    rest="${setting#*|}"
+    type="${rest%%|*}"
+    value="${rest#*|}"
+    defaults write "$domain" "$key" "$type" "$value"
+    keys+=("$key")
+  done
+
+  # Only now: `set -e` aborts above if any write fails, and a key recorded as owned but
+  # never written could be deleted by a later retirement even though nothing here set it.
+  prune_retired_defaults_keys "$domain" "$keys_file" ${keys[@]+"${keys[@]}"}
+}
+
 # Keyboard: fast repeat, no press-and-hold accent popup (matters in editors).
 defaults write NSGlobalDomain KeyRepeat -int 2
 defaults write NSGlobalDomain InitialKeyRepeat -int 15
 defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
 
 # Finder: show extensions, path bar, and hidden files; no .DS_Store on network shares.
-prune_retired_defaults_keys com.apple.finder "$managed_finder_keys_file" "${managed_finder_keys[@]}"
 defaults write NSGlobalDomain AppleShowAllExtensions -bool true
-defaults write com.apple.finder ShowPathbar -bool true
-defaults write com.apple.finder AppleShowAllFiles -bool true
 defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true
 
-# Dock: autohide, no recent apps, group windows in Mission Control.
-prune_retired_defaults_keys com.apple.dock "$managed_dock_keys_file" "${managed_dock_keys[@]}"
-defaults write com.apple.dock autohide -bool true
-defaults write com.apple.dock show-recents -bool false
-defaults write com.apple.dock expose-group-apps -bool true
+# Finder and Dock, from the declarations above.
+apply_managed_defaults com.apple.finder "$managed_finder_keys_file" \
+  "${managed_finder_settings[@]}"
+apply_managed_defaults com.apple.dock "$managed_dock_keys_file" \
+  "${managed_dock_settings[@]}"
 
 # Screenshots: PNG into ~/Screenshots, no window shadow.
 mkdir -p "$HOME/Screenshots"
 defaults write com.apple.screencapture location -string "$HOME/Screenshots"
 defaults write com.apple.screencapture type -string "png"
 defaults write com.apple.screencapture disable-shadow -bool true
-
-# Finder: search the current folder rather than the whole Mac, open a new window on the
-# Recents (PfAF -- not the home folder, which would be PfHm), and let the Trash empty
-# items after 30 days. Captured from this machine, not chosen.
-defaults write com.apple.finder FXDefaultSearchScope -string "SCcf"
-defaults write com.apple.finder NewWindowTarget -string "PfAF"
-defaults write com.apple.finder FXRemoveOldTrashItems -bool true
-
-# Dock: tile size, and the two hot corners in use -- bottom left starts the screen saver,
-# bottom right is disabled (1 -- Show Desktop would be 4). Modifiers are written too: an
-# unset modifier is not the same as zero, and a corner without one behaves differently.
-defaults write com.apple.dock tilesize -int 67
-defaults write com.apple.dock wvous-bl-corner -int 5
-defaults write com.apple.dock wvous-bl-modifier -int 0
-defaults write com.apple.dock wvous-br-corner -int 1
-defaults write com.apple.dock wvous-br-modifier -int 0
 
 killall Finder Dock 2>/dev/null || true

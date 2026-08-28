@@ -157,25 +157,9 @@ chezmoi_managed() {
   bash -n "$script"
   bash -n "$iterm_script"
 
-  # iTerm2 keeps these in its own domain, not in the profile, so a Dynamic Profile does not
-  # carry them. Focus-follows-mouse is the one you notice within a minute.
-  for line in \
-    "  defaults write com.googlecode.iterm2 FocusFollowsMouse -bool true" \
-    "  defaults write com.googlecode.iterm2 AggressiveFocusFollowsMouse -bool true" \
-    "  defaults write com.googlecode.iterm2 FocusNewSplitPaneWithFocusFollowsMouse -bool true" \
-    "  defaults write com.googlecode.iterm2 DimInactiveSplitPanes -bool true" \
-    "  defaults write com.googlecode.iterm2 SplitPaneDimmingAmount -float 0.2518520555218447" \
-    "  defaults write com.googlecode.iterm2 DimBackgroundWindows -bool false" \
-    "  defaults write com.googlecode.iterm2 \"Selection Respects Soft Boundaries\" -bool true" \
-    "  defaults write com.googlecode.iterm2 CopySelection -bool false" \
-    "  defaults write com.googlecode.iterm2 CopyLastNewline -bool true" \
-    "  defaults write com.googlecode.iterm2 ClickToSelectCommand -bool false" \
-    "  defaults write com.googlecode.iterm2 EnableAPIServer -bool true" \
-    "  defaults write com.googlecode.iterm2 HideActivityIndicator -bool false" \
-    "  defaults write com.googlecode.iterm2 ShowFullScreenTabBar -bool false" \
-    "  defaults write com.googlecode.iterm2 \"Default Bookmark Guid\" -string \"whetstone-default\""; do
-    grep -qFx "$line" "$iterm_script"
-  done
+  # Asserted against what the script writes, not what it reads like. The settings are
+  # declared once now and the writes are generated, so a static match would pin the
+  # declaration and miss a helper that mangled the value on its way to `defaults`.
   # AllowClipboardAccess stays out, on either role. It differs between the two Macs, but it
   # is a permission rather than a look -- OSC 52 access to the macOS pasteboard from
   # terminal output, including a remote session's -- and iTerm2 ships it off. A settings
@@ -225,14 +209,57 @@ STUB
   [ "$status" -eq 0 ]
   [ ! -s "$log" ]
 
+  # osascript failing must skip, not write. Anything but an explicit "false" -- an error,
+  # no Automation permission, a headless session -- used to fall through to the writes and
+  # land underneath a running iTerm2, the one case the guard is for.
+  cat >"$stub/osascript" <<'STUB'
+#!/usr/bin/env bash
+exit 1
+STUB
+  chmod +x "$stub/osascript"
+  log="$BATS_TEST_TMPDIR/writes-broken-query.log"
+  : >"$log"
+  run env PATH="$stub:$PATH" DEFAULTS_LOG="$log" bash "$iterm_script"
+  [ "$status" -eq 0 ]
+  [ ! -s "$log" ]
+
+  cat >"$stub/osascript" <<'STUB'
+#!/usr/bin/env bash
+case "$*" in
+  *iTerm*) echo "$FAKE_ITERM_RUNNING" ;;
+  *) echo false ;;
+esac
+STUB
+  chmod +x "$stub/osascript"
+
   # iTerm2 down: every setting written, and the profile pointer with them.
   log="$BATS_TEST_TMPDIR/writes-quit.log"
   : >"$log"
   run env PATH="$stub:$PATH" FAKE_ITERM_RUNNING=false DEFAULTS_LOG="$log" bash "$iterm_script"
   [ "$status" -eq 0 ]
   [ "$(grep -c '^write com.googlecode.iterm2' "$log")" -eq 14 ]
-  grep -qF 'write com.googlecode.iterm2 FocusFollowsMouse -bool true' "$log"
-  grep -qF 'write com.googlecode.iterm2 Default Bookmark Guid -string whetstone-default' "$log"
+  while IFS= read -r written; do
+    [ -n "$written" ] || continue
+    grep -qFx -- "$written" "$log" || {
+      echo "not written: $written"
+      return 1
+    }
+  done <<'WRITES'
+write com.googlecode.iterm2 FocusFollowsMouse -bool true
+write com.googlecode.iterm2 AggressiveFocusFollowsMouse -bool true
+write com.googlecode.iterm2 FocusNewSplitPaneWithFocusFollowsMouse -bool true
+write com.googlecode.iterm2 DimInactiveSplitPanes -bool true
+write com.googlecode.iterm2 SplitPaneDimmingAmount -float 0.2518520555218447
+write com.googlecode.iterm2 DimBackgroundWindows -bool false
+write com.googlecode.iterm2 Selection Respects Soft Boundaries -bool true
+write com.googlecode.iterm2 CopySelection -bool false
+write com.googlecode.iterm2 CopyLastNewline -bool true
+write com.googlecode.iterm2 ClickToSelectCommand -bool false
+write com.googlecode.iterm2 EnableAPIServer -bool true
+write com.googlecode.iterm2 HideActivityIndicator -bool false
+write com.googlecode.iterm2 ShowFullScreenTabBar -bool false
+write com.googlecode.iterm2 Default Bookmark Guid -string whetstone-default
+WRITES
   run ! grep -q 'AllowClipboardAccess' "$log"
   code="$BATS_TEST_TMPDIR/iterm-code.sh"
   grep -vE '^[[:space:]]*#' "$iterm_script" >"$code"
@@ -267,8 +294,12 @@ STUB
   [ "$status" -eq 0 ]
   run ! grep -q '^delete' "$log"
 
+  # Retire by deleting the one declaration, which is what the script's comment promises.
+  # Cutting every line that mentions the key would hide a second copy, and a second copy is
+  # exactly what stopped retirement working: the write went and the key stayed managed.
   retired="$BATS_TEST_TMPDIR/iterm-retired.sh"
-  grep -v 'ShowFullScreenTabBar' "$iterm_script" >"$retired"
+  grep -v '"ShowFullScreenTabBar|-bool|false"' "$iterm_script" >"$retired"
+  [ "$(grep -c 'ShowFullScreenTabBar' "$retired")" -eq 0 ]
   log="$BATS_TEST_TMPDIR/prune-second.log"
   : >"$log"
   run env PATH="$stub:$PATH" HOME="$state" FAKE_ITERM_RUNNING=false DEFAULTS_LOG="$log" \
@@ -307,16 +338,30 @@ STUB
   grep -qFx 'delete com.googlecode.iterm2 ShowFullScreenTabBar' "$log"
   run ! grep -qFx 'ShowFullScreenTabBar' "$keys"
 
-  # Finder's search scope and new-window target, plus the two hot corners with modifiers:
-  # an unset modifier is not the same as zero.
-  grep -qFx 'defaults write com.apple.finder FXDefaultSearchScope -string "SCcf"' "$script"
-  grep -qFx 'defaults write com.apple.finder NewWindowTarget -string "PfAF"' "$script"
-  grep -qFx "defaults write com.apple.finder FXRemoveOldTrashItems -bool true" "$script"
-  grep -qFx "defaults write com.apple.dock tilesize -int 67" "$script"
-  grep -qFx "defaults write com.apple.dock wvous-bl-corner -int 5" "$script"
-  grep -qFx "defaults write com.apple.dock wvous-bl-modifier -int 0" "$script"
-  grep -qFx "defaults write com.apple.dock wvous-br-corner -int 1" "$script"
-  grep -qFx "defaults write com.apple.dock wvous-br-modifier -int 0" "$script"
+  # Finder and Dock come from the same kind of declaration, so assert the writes rather
+  # than the source. The stub records the domain, so one log covers both.
+  log="$BATS_TEST_TMPDIR/writes-finder-dock.log"
+  : >"$log"
+  fdstate="$BATS_TEST_TMPDIR/state-finder-dock"
+  mkdir -p "$fdstate"
+  run env PATH="$stub:$PATH" HOME="$fdstate" DEFAULTS_LOG="$log" bash "$script"
+  [ "$status" -eq 0 ]
+  while IFS= read -r written; do
+    [ -n "$written" ] || continue
+    grep -qFx -- "$written" "$log" || {
+      echo "not written: $written"
+      return 1
+    }
+  done <<'WRITES'
+write com.apple.finder FXDefaultSearchScope -string SCcf
+write com.apple.finder NewWindowTarget -string PfAF
+write com.apple.finder FXRemoveOldTrashItems -bool true
+write com.apple.dock tilesize -int 67
+write com.apple.dock wvous-bl-corner -int 5
+write com.apple.dock wvous-bl-modifier -int 0
+write com.apple.dock wvous-br-corner -int 1
+write com.apple.dock wvous-br-modifier -int 0
+WRITES
 }
 
 @test "Claude settings carry no env block" {

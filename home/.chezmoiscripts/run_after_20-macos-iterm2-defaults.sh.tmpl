@@ -11,21 +11,29 @@ set -euo pipefail
 
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/whetstone"
 managed_keys_file="$state_dir/macos-iterm2-managed-keys.txt"
-managed_iterm2_keys=(
-  "FocusFollowsMouse"
-  "AggressiveFocusFollowsMouse"
-  "FocusNewSplitPaneWithFocusFollowsMouse"
-  "DimInactiveSplitPanes"
-  "SplitPaneDimmingAmount"
-  "DimBackgroundWindows"
-  "Selection Respects Soft Boundaries"
-  "CopySelection"
-  "CopyLastNewline"
-  "ClickToSelectCommand"
-  "EnableAPIServer"
-  "HideActivityIndicator"
-  "ShowFullScreenTabBar"
-  "Default Bookmark Guid"
+managed_iterm2_settings=(
+  "FocusFollowsMouse|-bool|true"
+  "AggressiveFocusFollowsMouse|-bool|true"
+  "FocusNewSplitPaneWithFocusFollowsMouse|-bool|true"
+  "DimInactiveSplitPanes|-bool|true"
+  "SplitPaneDimmingAmount|-float|0.2518520555218447"
+  "DimBackgroundWindows|-bool|false"
+  "Selection Respects Soft Boundaries|-bool|true"
+  "CopySelection|-bool|false"
+  "CopyLastNewline|-bool|true"
+  "ClickToSelectCommand|-bool|false"
+  # Not AllowClipboardAccess. It differs between the two Macs -- true here, unset there --
+  # but it is a permission, not a look: it lets terminal output drive the macOS pasteboard
+  # through OSC 52, including output from a remote or untrusted session, and iTerm2 ships
+  # it off. Managing it would make this repo the thing that turns a default-deny control
+  # on for every machine it touches. Left to each machine, so both keep what they have.
+  "EnableAPIServer|-bool|true"
+  "HideActivityIndicator|-bool|false"
+  "ShowFullScreenTabBar|-bool|false"
+  # The managed profile (Library/Application Support/iTerm2/DynamicProfiles) is the
+  # default. Only the pointer lives here: 44 of the plist's 99 keys are window frames and
+  # NoSync* state rewritten on every quit, so managing the file would churn every diff.
+  "Default Bookmark Guid|-string|whetstone-default"
 )
 
 prune_retired_defaults_keys() {
@@ -73,6 +81,33 @@ prune_retired_defaults_keys() {
 ' "${current_keys[@]}" ${carry[@]+"${carry[@]}"} >"$keys_file"
 }
 
+# One declaration per setting -- key, type, value -- and both the writes and the
+# managed-key list are read from it. With two lists, retiring a setting silently did not
+# work: deleting the `defaults write` left the key in the array, so pruning still called it
+# current and the value stayed on the machine, which is the opposite of what the comment
+# above promises.
+apply_managed_defaults() {
+  local domain="$1"
+  local keys_file="$2"
+  shift 2
+  local settings=("$@")
+
+  local keys=()
+  local setting key type value rest
+  for setting in "${settings[@]}"; do
+    key="${setting%%|*}"
+    rest="${setting#*|}"
+    type="${rest%%|*}"
+    value="${rest#*|}"
+    defaults write "$domain" "$key" "$type" "$value"
+    keys+=("$key")
+  done
+
+  # Only now: `set -e` aborts above if any write fails, and a key recorded as owned but
+  # never written could be deleted by a later retirement even though nothing here set it.
+  prune_retired_defaults_keys "$domain" "$keys_file" ${keys[@]+"${keys[@]}"}
+}
+
 # iTerm2 settings that live in the app's own domain rather than in a profile. This is the
 # same trap as the key bindings: a Dynamic Profile carries what is inside `New Bookmarks`
 # and nothing else, so focus-follows-mouse, split-pane dimming and the copy behaviour all
@@ -85,35 +120,16 @@ prune_retired_defaults_keys() {
 # `ps -Ao comm= | grep -q` reads correctly at a prompt and inverts inside a script, because
 # grep -q exits on the first match, ps takes SIGPIPE, and pipefail makes the pipeline
 # non-zero -- the guard silently flips and writes underneath a running iTerm2.
-if [ "$(osascript -e 'application "iTerm" is running')" = true ]; then
-  printf 'iTerm2 is running; leaving its settings alone. Quit it and re-apply to set them.\n' >&2
-else
-  prune_retired_defaults_keys com.googlecode.iterm2 "$managed_keys_file" "${managed_iterm2_keys[@]}"
-
-  defaults write com.googlecode.iterm2 FocusFollowsMouse -bool true
-  defaults write com.googlecode.iterm2 AggressiveFocusFollowsMouse -bool true
-  defaults write com.googlecode.iterm2 FocusNewSplitPaneWithFocusFollowsMouse -bool true
-  defaults write com.googlecode.iterm2 DimInactiveSplitPanes -bool true
-  defaults write com.googlecode.iterm2 SplitPaneDimmingAmount -float 0.2518520555218447
-  defaults write com.googlecode.iterm2 DimBackgroundWindows -bool false
-  defaults write com.googlecode.iterm2 "Selection Respects Soft Boundaries" -bool true
-  defaults write com.googlecode.iterm2 CopySelection -bool false
-  defaults write com.googlecode.iterm2 CopyLastNewline -bool true
-  defaults write com.googlecode.iterm2 ClickToSelectCommand -bool false
-  # Not AllowClipboardAccess. It differs between the two Macs -- true here, unset there --
-  # but it is a permission, not a look: it lets terminal output drive the macOS pasteboard
-  # through OSC 52, including output from a remote or untrusted session, and iTerm2 ships
-  # it off. Managing it would make this repo the thing that turns a default-deny control on
-  # for every machine it touches, which is not a decision a settings sweep gets to make.
-  # Left to each machine, so both keep exactly what they have.
-  defaults write com.googlecode.iterm2 EnableAPIServer -bool true
-  defaults write com.googlecode.iterm2 HideActivityIndicator -bool false
-  defaults write com.googlecode.iterm2 ShowFullScreenTabBar -bool false
-
-  # iTerm2: make the managed profile the default. The profile itself is a Dynamic Profile
-  # (Library/Application Support/iTerm2/DynamicProfiles/whetstone.json), which iTerm2 reads
-  # and never writes back -- the reason it is not the preferences plist: 44 of that file's 99
-  # keys are window frames, timestamps and NoSync* state rewritten on every quit, so managing
-  # it would put churn in every diff. Only the pointer to the profile lives here.
-  defaults write com.googlecode.iterm2 "Default Bookmark Guid" -string "whetstone-default"
+# Fails closed. `osascript` erroring -- no Automation permission, a headless session --
+# used to produce a value that was simply not "true", which took the write branch and wrote
+# underneath a running iTerm2, the one case the guard exists to stop. Only an explicit
+# "false" is treated as "not running".
+iterm2_running="$(osascript -e 'application "iTerm" is running' 2>/dev/null || echo unknown)"
+if [ "$iterm2_running" != false ]; then
+  printf 'iTerm2 settings skipped (running or undetermined: %s). Quit it and re-apply.\n' \
+    "$iterm2_running" >&2
+  exit 0
 fi
+
+apply_managed_defaults com.googlecode.iterm2 "$managed_keys_file" \
+  "${managed_iterm2_settings[@]}"
