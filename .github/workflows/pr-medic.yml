@@ -276,6 +276,9 @@ jobs:
     outputs:
       prs: ${{ steps.main.outputs.prs }}
       count: ${{ steps.main.outputs.count }}
+      # The head each PR was judged on. medic re-reads it after the per-PR mutex, so a
+      # selection that a run ahead has already superseded is not worked a second time.
+      heads: ${{ steps.main.outputs.heads }}
     env:
       GH_TOKEN: ${{ github.token }}
       GH_PROMPT_DISABLED: "1"
@@ -494,6 +497,7 @@ jobs:
           fi
 
           prs_json='[]'
+          heads_json='{}'
           for n in $candidates; do
             case "$n" in
               '' | *[!0-9]*) continue ;;
@@ -526,6 +530,9 @@ jobs:
               '' | *[!0-9]*) threads=1 ;;
             esac
             sha=$(printf '%s' "$view" | jq -r '.headRefOid')
+            if [ -n "$sha" ] && [ "$sha" != null ]; then
+              heads_json=$(printf '%s' "$heads_json" | jq -c --arg n "$n" --arg sha "$sha" '. + {($n): $sha}')
+            fi
             attempts=0
             newer=false
             if [ -n "$sha" ]; then
@@ -621,6 +628,7 @@ jobs:
           printf 'Picked %s PR(s): %s\n' "$count" "$selected" >>"$GITHUB_STEP_SUMMARY"
           out prs "$selected"
           out count "$count"
+          out heads "$heads_json"
           exit 0
 
   medic:
@@ -667,6 +675,58 @@ jobs:
       APP_ID: ${{ vars.APP_ID }}
       DISPATCH_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && (inputs.dry_run && 'true' || 'false') || '' }}
     steps:
+      # The mutex above queues rather than cancels, so a burst of review events leaves runs
+      # waiting here on selections pick computed minutes ago. By the time this job acquires
+      # the mutex the PR may be closed, or the run ahead may already have pushed the fix --
+      # and working that again answers a review that is already answered and spends a slot of
+      # MAX_ATTEMPTS_PER_HEAD_SHA against the new head, which is how the last CI wake gets
+      # dropped instead of armed. Re-read the two facts the selection rests on, and stand down
+      # when either moved: the run that pushed arms it, and the hourly cron re-picks the rest.
+      - name: Refuse a selection the mutex made stale
+        id: fresh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PICKED_HEADS: ${{ needs.pick.outputs.heads }}
+        run: |
+          # BEGIN pr-medic-fresh.sh
+          set +e
+          : "${GITHUB_OUTPUT:=/dev/null}"
+          : "${GITHUB_STEP_SUMMARY:=/dev/null}"
+          : "${PR:=}"
+          : "${REPO:=}"
+          : "${PICKED_HEADS:=}"
+          [ -n "$PICKED_HEADS" ] || PICKED_HEADS='{}'
+
+          out() { printf '%s=%s\n' "$1" "$2" >>"$GITHUB_OUTPUT"; }
+          # Every exit says false or true, never nothing: the steps below key on ok == 'true',
+          # so an unreadable answer here stands the job down rather than waving it through.
+          stand_down() {
+            printf '::notice::PR #%s: %s\n' "$PR" "$1"
+            printf -- '- PR #%s: %s\n' "$PR" "$1" >>"$GITHUB_STEP_SUMMARY"
+            out ok false
+            exit 0
+          }
+
+          picked=$(printf '%s' "$PICKED_HEADS" | jq -r --arg pr "$PR" '.[$pr] // ""' 2>/dev/null)
+          [ -n "$picked" ] || stand_down "pick recorded no head for this PR; standing down"
+
+          now=$(gh pr view "$PR" --repo "$REPO" --json state,headRefOid 2>/dev/null)
+          state=$(printf '%s' "$now" | jq -r '.state // ""' 2>/dev/null)
+          head=$(printf '%s' "$now" | jq -r '.headRefOid // ""' 2>/dev/null)
+          if [ -z "$state" ] || [ -z "$head" ]; then
+            stand_down "could not re-read the PR after the mutex; standing down"
+          fi
+          case "$state" in
+            OPEN | open) ;;
+            *) stand_down "no longer open ($state); standing down" ;;
+          esac
+          if [ "$head" != "$picked" ]; then
+            stand_down "head moved from ${picked:0:7} to ${head:0:7} while this job waited; standing down"
+          fi
+          out ok true
+          exit 0
+          # END pr-medic-fresh.sh
+
       - name: Mint GitHub App token (client-id)
         id: app-token
         if: env.HAS_APP_KEY == 'true' && env.APP_CLIENT_ID != ''
@@ -751,7 +811,9 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        if: env.HAS_CLAUDE == 'true' && env.DISPATCH_DRY_RUN != 'true' && env.DRY_RUN != 'true' && steps.checkout-pr.outputs.ok == 'true'
+        if: >-
+          env.HAS_CLAUDE == 'true' && env.DISPATCH_DRY_RUN != 'true' && env.DRY_RUN != 'true'
+          && steps.checkout-pr.outputs.ok == 'true' && steps.fresh.outputs.ok == 'true'
         continue-on-error: true
         uses: anthropics/claude-code-action@9dcab633034361127cf74336d2d891d02e887881 # v1
         with:
@@ -806,7 +868,9 @@ jobs:
             A later workflow step re-requests reviewers and arms auto-merge. You do not arm or merge.
 
       - name: Rebase, gate, arm
-        if: always()
+        # always() so a failed step above still reaches the gate, but not when the selection
+        # went stale: this step writes the attempts status, and a stale run must not spend it.
+        if: always() && steps.fresh.outputs.ok == 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token || steps.app-token-legacy.outputs.token || github.token }}
           BOT_EMAIL: ${{ steps.bot.outputs.email }}

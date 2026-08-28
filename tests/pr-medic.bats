@@ -186,3 +186,72 @@ run_after() {
   run ! grep -q 'pr merge' "$GH_LOG"
   grep -q 'never pushed' "$GITHUB_STEP_SUMMARY"
 }
+
+# The staleness re-check, run as a script against a stub gh. The per-PR mutex queues rather
+# than cancels, so this step is the only thing between a selection pick made minutes ago and
+# a second Claude run that spends the attempt budget on a head someone else already fixed.
+setup_fresh() {
+  FRESH="$BATS_TEST_TMPDIR/fresh.sh"
+  python3 "$EXTRACT" pr-medic-fresh.sh >"$FRESH"
+
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  cat >"$BATS_TEST_TMPDIR/bin/gh" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$STUB_NOW"
+exit 0
+SH
+  chmod +x "$BATS_TEST_TMPDIR/bin/gh"
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+  export PATH
+
+  export PR=7 REPO=o/r
+  export GITHUB_OUTPUT="$BATS_TEST_TMPDIR/fresh.out"
+  export GITHUB_STEP_SUMMARY="$BATS_TEST_TMPDIR/fresh.md"
+  : >"$GITHUB_OUTPUT"
+  : >"$GITHUB_STEP_SUMMARY"
+  export PICKED_HEADS='{"7":"aaaaaaaa"}'
+  export STUB_NOW='{"state":"OPEN","headRefOid":"aaaaaaaa"}'
+}
+
+fresh_ok() {
+  bash "$FRESH"
+  grep -q '^ok=true$' "$GITHUB_OUTPUT"
+}
+
+fresh_stands_down() {
+  bash "$FRESH"
+  grep -q '^ok=false$' "$GITHUB_OUTPUT"
+}
+
+@test "fresh proceeds when the PR is open at the head pick judged" {
+  setup_fresh
+  fresh_ok
+}
+
+@test "fresh stands down when the head moved while the job waited" {
+  setup_fresh
+  STUB_NOW='{"state":"OPEN","headRefOid":"bbbbbbbb"}'
+  fresh_stands_down
+  grep -q 'head moved' "$GITHUB_STEP_SUMMARY"
+}
+
+@test "fresh stands down when the PR closed while the job waited" {
+  setup_fresh
+  STUB_NOW='{"state":"MERGED","headRefOid":"aaaaaaaa"}'
+  fresh_stands_down
+  grep -q 'no longer open' "$GITHUB_STEP_SUMMARY"
+}
+
+@test "fresh stands down when the PR is unreadable" {
+  setup_fresh
+  STUB_NOW=''
+  fresh_stands_down
+  grep -q 'could not re-read' "$GITHUB_STEP_SUMMARY"
+}
+
+@test "fresh stands down when pick recorded no head for this PR" {
+  setup_fresh
+  PICKED_HEADS='{"9":"aaaaaaaa"}'
+  fresh_stands_down
+  grep -q 'recorded no head' "$GITHUB_STEP_SUMMARY"
+}

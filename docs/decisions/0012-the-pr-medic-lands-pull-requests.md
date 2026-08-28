@@ -83,6 +83,14 @@ commit status it writes must not be added to a ruleset.
   `cancel-in-progress: true`. Without it every completing workflow wakes a run, and each
   reads the attempts status before any writes it. A cancel during `git push` or
   `gh pr merge` is possible; both are idempotent on the next wake.
+- Every other event keys on `run_id`, so a burst of review comments produces a run each and
+  they queue on the per-PR `pr-medic-<n>` mutex rather than cancelling. `pick` publishes the
+  head it judged each PR on, and `medic` re-reads state and closes the PR out after acquiring
+  the mutex: a selection whose head has moved, or whose PR has closed, is stood down before
+  Claude runs. Otherwise the queued runs each spend a slot of `MAX_ATTEMPTS_PER_HEAD_SHA`
+  against the head the run ahead just pushed, and the CI wake that could have armed the PR
+  finds the budget gone. Standing down loses nothing: the run that pushed arms it, and the
+  hourly cron re-picks whatever neither did.
 - A green PR can land before Copilot has posted. `APPROVALS_REQUIRED` is `0`, and the
   ruleset holds a PR only for threads that already exist. This is a consequence of the solo
   maintainer, not an oversight.

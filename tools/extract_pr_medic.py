@@ -34,6 +34,7 @@ EXPECTED_COPIES = {
     "pr-medic-pick.jq": 1,
     "pr-medic-preflight.sh": 1,
     "pr-medic-after.sh": 1,
+    "pr-medic-fresh.sh": 1,
 }
 # Definitions only, with no top-level program: nested inside the two filters that use them.
 # jq will not compile a bare run of defs, so the check appends a trailing `.`.
