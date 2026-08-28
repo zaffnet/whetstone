@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# After Claude: update a stale branch, re-request reviewers, then let gate.jq decide whether
-# to arm auto-merge. This step runs outside the model's reach, which is the control that
+# After Claude: update a stale branch, re-request reviewers, then let gate.jq decide whether to
+# merge the head it judged. It merges directly, pinned with --match-head-commit; there is no
+# arming, see gate.jq. This step runs outside the model's reach, which is the control that
 # holds -- an injected instruction cannot reach it.
 set -euo pipefail
 

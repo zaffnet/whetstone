@@ -224,9 +224,11 @@ JSON
   # Claude step holds no credential that can write and there is nothing there to misuse.
   run ! grep -q 'push.sh' <<<"$tools"
   grep -q 'push.sh' "$MEDIC/after.sh"
-  # And the Claude step is handed the token minted without contents: write.
+  # And the Claude step is handed the token minted without contents: write, with no fallback:
+  # `|| github.token` would hand it the job token, which is a different question from what the
+  # job's permissions are and used to be answered wrongly here.
   # shellcheck disable=SC2016  # a literal grep pattern.
-  grep -qF 'github_token: ${{ steps.token-ro.outputs.token || github.token }}' \
+  grep -qF 'github_token: ${{ steps.token-ro.outputs.token }}' \
     "$REPO/.github/workflows/pr-medic.yml"
   grep -qF 'permission-contents: read' "$REPO/.github/workflows/pr-medic.yml"
   grep -qF 'Bash(git rebase --continue)' <<<"$tools"
@@ -483,6 +485,34 @@ SH
 # command takes arguments -- `commit.sh "$GH_TOKEN"` would publish it in a commit message that
 # after.sh then pushes. So the model gets no re-run command and no actions: write: it writes the
 # run ids it wants and the gate performs them.
+# Whatever this workflow passes as github_token, the action puts `github.token` in the model's
+# environment as DEFAULT_WORKFLOW_TOKEN (action.yml) and copies the whole environment into the
+# Claude SDK (base-action/src/parse-sdk-options.ts). So the read-only App token is not a
+# boundary while the job token can write: `commit.sh "$DEFAULT_WORKFLOW_TOKEN"` publishes it.
+@test "the medic job token cannot write" {
+  local wf="$REPO/.github/workflows/pr-medic.yml"
+  # The medic job's block, not pick's: from `medic:` to the end of its permissions.
+  local perms
+  perms=$(awk '/^  medic:/{f=1} f&&/^    permissions:/{p=1;next} p&&/^    [a-z]/{exit} p' "$wf")
+  printf '%s\n' "$perms" | grep -q 'contents: read'
+  printf '%s\n' "$perms" | grep -q 'pull-requests: read'
+  printf '%s\n' "$perms" | grep -q 'issues: read'
+  printf '%s\n' "$perms" | grep -q 'actions: read'
+  # id-token is the action's workload-identity path; nothing else may be write. Not `run ! ...
+  # | grep`, which pipes run's captured output and so tests nothing.
+  local writes
+  writes=$(printf '%s\n' "$perms" | grep -E ': write' | grep -v 'id-token' || true)
+  [ -z "$writes" ]
+  # Every write therefore comes from the App, with no fallback to put one back.
+  run ! grep -qF 'steps.token.outputs.token || github.token' "$wf"
+  run ! grep -qF 'steps.token-ro.outputs.token || github.token' "$wf"
+}
+
+@test "the medic job does not run without the App it needs to write" {
+  # shellcheck disable=SC2016  # grepping for the literal.
+  grep -qF "&& vars.APP_CLIENT_ID != ''" "$REPO/.github/workflows/pr-medic.yml"
+}
+
 @test "the model cannot re-run anything itself" {
   local wf="$REPO/.github/workflows/pr-medic.yml"
   run ! grep -qF 'Bash(gh run rerun' "$wf"

@@ -300,6 +300,18 @@ has never used the label does not have it, `--add-label` cannot create one, and 
 reporting a block it had not applied -- which is worse than no block, because it is the only
 thing between a stale resolution and the next wake merging on it.
 
+The App is required, not preferred, and the medic job's own permissions are all read. The
+read-only App token passed as `github_token` is not a boundary by itself: `action.yml` sets
+`DEFAULT_WORKFLOW_TOKEN: ${{ github.token }}` on the step that runs the action, and
+`base-action/src/parse-sdk-options.ts` copies the whole process environment into the SDK, so
+the job token reaches the model whatever this workflow passes. A write-capable job token is
+therefore a write-capable token in the model's hands, and `commit.sh "$DEFAULT_WORKFLOW_TOKEN"`
+publishes it. Every write uses the App token instead, with no `|| github.token` fallback to put
+one back, and the job does not run at all without `APP_CLIENT_ID` -- the `pick` job warns when
+it had work and no App, because a silently skipped job reads as nothing to do. The action's
+`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` is also set, but as the second line: its own documentation
+calls it best-effort, and a control that has to hold cannot be best-effort.
+
 On `schedule`, `workflow_dispatch` and `workflow_run` the workflow file itself is trusted, so
 the copy in `RUNNER_TEMP` is what the gate runs and the chain holds. On an entity event the
 workflow file is the pull request's as well, so nothing written in the file can help: that is a

@@ -67,21 +67,36 @@ jobs:
           REPO: ${{ github.repository }}
           PR_INPUT: ${{ inputs.pr }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      # A warning rather than a silently skipped job: the medic job needs the App and refuses
+      # to run without it, and that is easy to mistake for the medic having nothing to do.
+      - if: vars.APP_CLIENT_ID == '' && steps.pick.outputs.count != '0'
+        run: |
+          echo "::warning::pr-medic has work but no GitHub App: set the APP_CLIENT_ID variable"
+          echo "::warning::and the APP_PRIVATE_KEY secret. Without one, this job's token would"
+          echo "::warning::have to be write-capable, and the action copies it into the model's"
+          echo "::warning::environment as DEFAULT_WORKFLOW_TOKEN."
 
   medic:
     needs: pick
     # Positive on both terms: fromJSON('') below is a matrix error no job setting can absorb.
-    if: needs.pick.outputs.count != '' && needs.pick.outputs.count != '0'
+    # The App is required, not preferred. The action puts `github.token` in the model's
+    # environment as DEFAULT_WORKFLOW_TOKEN (action.yml) and copies the whole environment into
+    # the Claude SDK (base-action/src/parse-sdk-options.ts), so a write-capable job token is a
+    # write-capable token in the model's reach whatever this workflow passes as github_token.
+    # This job's permissions are therefore all read, and every write uses the App token.
+    if: >-
+      needs.pick.outputs.count != '' && needs.pick.outputs.count != '0'
+      && vars.APP_CLIENT_ID != ''
     runs-on: ubuntu-latest
     timeout-minutes: 55
     permissions:
-      contents: write
-      pull-requests: write
-      issues: write
+      contents: read
+      pull-requests: read
+      issues: read
       checks: read
       statuses: read
-      actions: write
-      id-token: write
+      actions: read
+      id-token: write # the action's workload-identity path
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -98,7 +113,6 @@ jobs:
       # Without an App, pushes use GITHUB_TOKEN and do not re-trigger CI. Downscoped because an
       # App token carries the installation's scope and ignores this job's permissions.
       - id: token
-        if: vars.APP_CLIENT_ID != ''
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ vars.APP_CLIENT_ID }}
@@ -113,7 +127,6 @@ jobs:
       # For the Claude step alone, with no contents: write -- the action puts the token it is
       # given into the origin URL, so this keeps a pushing credential out of the model.
       - id: token-ro
-        if: vars.APP_CLIENT_ID != ''
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ vars.APP_CLIENT_ID }}
@@ -130,11 +143,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          token: ${{ steps.token.outputs.token || github.token }}
+          token: ${{ steps.token.outputs.token }}
 
       - id: bot # commits need the bot's noreply address, or attribution rules block the PR
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token || github.token }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
           APP_SLUG: ${{ steps.token.outputs.app-slug }}
           TRIGGER_BOTS: ${{ env.TRIGGER_BOTS }}
         run: |
@@ -195,11 +208,14 @@ jobs:
         env:
           GITHUB_ENV: ${{ runner.temp }}/discard/env
           GITHUB_PATH: ${{ runner.temp }}/discard/path
+          # Best-effort, per the action's own docs, so it is the second line and not the first:
+          # the job token being read-only is what makes DEFAULT_WORKFLOW_TOKEN worthless.
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ steps.token-ro.outputs.token || github.token }}
+          github_token: ${{ steps.token-ro.outputs.token }}
           allowed_bots: ${{ steps.bot.outputs.bots }}
           use_commit_signing: false
           bot_id: ${{ steps.bot.outputs.id }}
@@ -224,6 +240,6 @@ jobs:
       - name: Gate and merge
         run: '"$RUNNER_TEMP/medic/after.sh"'
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token || github.token }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
           HEAD_BEFORE: ${{ steps.bot.outputs.head }}
           TRUSTED_BOTS: ${{ steps.bot.outputs.bots }} # threads.sh apply must match dump
