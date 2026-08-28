@@ -35,6 +35,26 @@ JSON
   }
 }
 
+# A run cancelled while still queued is COMPLETED with conclusion CANCELLED and no startedAt,
+# so it buckets `fail` rather than `pending` and sorted as "" -- first, letting `last` pick the
+# older success it replaced, and the gate merge on it.
+@test "check_counts orders on the latest timestamp either field carries" {
+  local got
+  got=$(
+    jq -c -L "$MEDIC" 'include "lib"; check_counts' <<'JSON'
+{"statusCheckRollup": [
+  {"__typename": "CheckRun", "name": "ci", "workflowName": "lint",
+   "startedAt": "2026-01-01T00:00:00Z", "completedAt": "2026-01-01T00:05:00Z",
+   "status": "COMPLETED", "conclusion": "SUCCESS"},
+  {"__typename": "CheckRun", "name": "ci", "workflowName": "lint",
+   "startedAt": null, "completedAt": "2026-01-01T01:00:00Z",
+   "status": "COMPLETED", "conclusion": "CANCELLED"}
+]}
+JSON
+  )
+  [ "$got" = '{"total":1,"failing":1,"pending":0}' ]
+}
+
 @test "an empty rollup counts zero, so the gate can refuse it" {
   local got
   got=$(printf '%s' '{"statusCheckRollup": []}' | jq -c -L "$MEDIC" 'include "lib"; check_counts')
@@ -590,6 +610,48 @@ SH
   # Every write therefore comes from the App, with no fallback to put one back.
   run ! grep -qF 'steps.token.outputs.token || github.token' "$wf"
   run ! grep -qF 'steps.token-ro.outputs.token || github.token' "$wf"
+}
+
+# A .git/config the model can write is arbitrary code execution: `core.fsmonitor = <command>` is
+# run by the allowed `git status`, and from there the read-only bits on $RUNNER_TEMP/medic come
+# off again, because the model owns those files. Every `Bash(... :*)` rule is a prefix match, so
+# it admits a redirection as well as the command, and Write(.git/**) does not cover a redirect.
+@test "the model cannot write .git/config or a hook" {
+  local wf="$REPO/.github/workflows/pr-medic.yml"
+  at() { grep -nF -- "$1" "$wf" | head -1 | cut -d: -f1; }
+  grep -qF 'chmod a-w .git/config' "$wf"
+  grep -qF 'chmod -R a-w .git/hooks' "$wf"
+  # After everything that needs to write config, and before the model can reach it.
+  [ "$(at 'gh pr checkout')" -lt "$(at 'chmod a-w .git/config')" ]
+  [ "$(at 'chmod a-w .git/config')" -lt "$(at 'Run Claude Code')" ]
+  # The gate takes the bit back, since it is the only thing left that writes config.
+  grep -qF 'chmod u+w .git/config' "$MEDIC/after.sh"
+  ate() { grep -nF -- "$1" "$MEDIC/after.sh" | head -1 | cut -d: -f1; }
+  [ "$(ate 'chmod u+w .git/config')" -lt "$(ate 'git remote set-url origin')" ]
+}
+
+# fsmonitor is a real command hook, and read-only really does refuse the owner. Both halves are
+# assumptions this control rests on, so they are checked rather than asserted in a comment.
+@test "a read-only .git/config refuses the write that would run a command" {
+  local repo="$BATS_TEST_TMPDIR/fsmonitor"
+  git init -q "$repo"
+  git -C "$repo" config user.email a@b.c
+  git -C "$repo" config user.name a
+  echo x >"$repo/f"
+  git -C "$repo" add f
+  git -C "$repo" commit -q -m x
+  # Unlocked: git status runs whatever core.fsmonitor names.
+  printf '[core]\n\tfsmonitor = "touch %s/ran; false"\n' "$BATS_TEST_TMPDIR" >"$repo/.git/config"
+  git -C "$repo" status --porcelain >/dev/null 2>&1 || true
+  [ -f "$BATS_TEST_TMPDIR/ran" ]
+  # Locked: the redirect is refused, and the commands the model needs still work.
+  chmod a-w "$repo/.git/config"
+  run bash -c "echo '[core]' > '$repo/.git/config'"
+  [ "$status" -ne 0 ]
+  echo y >"$repo/f2"
+  git -C "$repo" add f2
+  git -C "$repo" commit -q -m y
+  git -C "$repo" status --porcelain >/dev/null
 }
 
 # actions/checkout persists its token as an http.<server>/.extraheader entry in .git/config, and

@@ -9,9 +9,12 @@ here=$(dirname "$0")
 # shellcheck source=.github/pr-medic/lib.sh
 . "$here/lib.sh"
 
-# The Claude step ran with this directory read-only, so a redirection could not rewrite the
-# snapshot or trusted-state. threads.sh writes resolved.json into it from here.
+# The Claude step ran with these read-only, so a redirection could not rewrite the snapshot or
+# trusted-state, nor put a command in .git/config for the allowed `git status` to run. From here
+# threads.sh writes resolved.json, and this script writes git config.
 chmod -R u+w "$(dirname "$TRUSTED_STATE_FILE")" 2>/dev/null || true
+chmod u+w .git/config 2>/dev/null || true
+chmod -R u+w .git/hooks 2>/dev/null || true
 
 # Before anything irreversible: a fix that was never committed is not on the remote, and
 # resolving a thread for it would leave the next run reading "no unresolved threads" as ready

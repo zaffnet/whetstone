@@ -35,6 +35,6 @@ which you write. A thread from anyone else is not in that file and is not yours 
    them, then `git rebase --continue`. A later step pushes the result. If you cannot resolve
    the conflicts, `git rebase --abort` and say so in a reply.
 
-Write nothing outside the repository except that replies file. A later step rebases a
-merely stale branch, re-requests reviewers, and may merge the head it has judged. You do not
-merge, and you have no command that can.
+Write nothing outside the repository except those two handoff files, `replies.json` and
+`reruns.json`. A later step rebases a merely stale branch, re-requests reviewers, and may merge
+the head it has judged. You do not merge, and you have no command that can.

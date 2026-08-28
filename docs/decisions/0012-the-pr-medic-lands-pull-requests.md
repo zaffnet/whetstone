@@ -162,9 +162,10 @@ push from the gate would fail. It repoints `origin` at the plain URL and re-runs
 `push.sh`, including the one after a rebase, so there is a single path and a single
 destination check.
 
-Without a GitHub App there is no second token to mint and the Claude step falls back to
-`GITHUB_TOKEN`, so a drop-in repository keeps the older, weaker property. That is the same
-trade as the rest of the App path: configure one and the guarantees get stronger.
+Without a GitHub App there is no second token to mint, and no arrangement of this job that
+keeps a write credential away from the model: the action puts `github.token` in its environment
+regardless. So the medic job requires `APP_CLIENT_ID` and does not run without it, and `pick`
+fails the run when it had work and the App is absent. There is no reduced mode here.
 
 That leaves the model with no command that can approve or merge, rather than an allowlist that
 could not separate the two. The ruleset — required status checks and
@@ -356,6 +357,23 @@ gate needs to write. `after.sh` clears any leftover extraheader before it instal
 credential, since an extraheader beats the credential helper and would otherwise decide the
 push.
 
+`.git/config` and `.git/hooks` are read-only while the model runs, and this is the control the
+read-only bits on `$RUNNER_TEMP/medic` depend on. A `.git/config` the model can write is
+arbitrary code execution -- `core.fsmonitor = <command>` is run by the allowed `git status`,
+reproduced -- and with code execution the read-only bits come straight off again, because the
+model owns those files. `Write(.git/**)` does not cover a redirection, and every `Bash(... :*)`
+rule is a prefix match, so it admits one. Read-only refuses the write outright, even to the
+owner, while `git add`, `git commit` and `git status` all still work; only `after.sh` writes
+config, and it takes the bit back.
+
+That is a mitigation of a named vector, not a boundary. The boundary would be running the model
+in a job of its own, so that nothing it can write is on the same filesystem as the gate. This
+design keeps them in one job because the gate's checks are about runner state -- an uncommitted
+edit, a commit that was never pushed, the trusted-path digest -- and none of that crosses a job
+boundary except through an artifact the model's job produced. Splitting it means the model's job
+emits a patch and the gate job applies it to a fresh checkout, which is a different design from
+this one rather than an adjustment to it. See the open question below.
+
 On `schedule`, `workflow_dispatch` and `workflow_run` the workflow file itself is trusted, so
 the copy in `RUNNER_TEMP` is what the gate runs and the chain holds. On an entity event the
 workflow file is the pull request's as well, so nothing written in the file can help: that is a
@@ -379,11 +397,23 @@ UI.
 `SKIP_LABEL` is checked by the gate as well as by `pick`, because a label applied after
 `pick` has run must still stop the merge.
 
-A missing Claude credential or a missing GitHub App is configuration, and the run does the
-reduced thing quietly: without Claude it still gates, and without an App it pushes with
-`GITHUB_TOKEN`. An API error is not configuration, and the scripts run under
-`set -euo pipefail`, so it fails the run. A red `pr-medic` is information. It must not become
-a required check.
+A missing Claude credential is configuration, and the run does the reduced thing quietly: it
+still gates. A missing App is configuration too, but not a reduced mode -- there is nothing the
+medic can safely do without one, so `pick` reports it as an error and the run goes red. An API
+error is not configuration, and the scripts run under `set -euo pipefail`, so it fails the run.
+A red `pr-medic` is information. It must not become a required check.
+
+## Open question
+
+The model and the gate share a job, so every control keeping the model away from the gate's
+scripts and evidence is a filesystem permission rather than a boundary. The permissions are
+real -- read-only refuses the owner, and the named execution vectors are closed -- but a vector
+nobody has named yet would defeat them, and a review round found one (`core.fsmonitor`) after
+several rounds had already looked. The alternative is a separate job for the model, handing the
+gate a patch instead of a working tree. That is a redesign of this ADR rather than a change to
+it, it cannot be exercised on this repository's own pull requests, and it trades a closable
+class of hole for a provenance question about the artifact. Owner's call, and worth taking
+before this is relied on unattended in anger.
 
 ## Consequences
 
@@ -392,8 +422,9 @@ a required check.
 - Adoption is `.github/pr-medic/` plus two workflow files, which is what the copier
   template ships anyway. It is no longer one paste-able file, and a misconfigured repository
   now goes red rather than green with a "not configured" summary.
-- `GITHUB_TOKEN` pushes do not retrigger CI. A GitHub App (`APP_CLIENT_ID` /
-  `APP_PRIVATE_KEY`) closes that loop. Commits must use the App bot noreply address, or
+- A GitHub App (`APP_CLIENT_ID` / `APP_PRIVATE_KEY`) is required, not optional. It is what
+  makes pushes retrigger CI, and it is the only way to keep a write credential out of the
+  model's environment. Commits must use the App bot noreply address, or
   `require_extra_approval_for_unattributed_changes` blocks the PR.
 - `workflow_run` names workflows literally; there is no documented wildcard. The list is
   this repo's aggregate workflows, and the template's is a generated project's. A host whose

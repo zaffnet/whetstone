@@ -70,14 +70,16 @@ jobs:
           REPO: ${{ github.repository }}
           PR_INPUT: ${{ inputs.pr }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-      # A warning rather than a silently skipped job: the medic job needs the App and refuses
-      # to run without it, and that is easy to mistake for the medic having nothing to do.
+      # Red, not a warning: the medic job refuses to run without the App, and a green run that
+      # did nothing is indistinguishable from a green run that had nothing to do. This is
+      # configuration, so it is reported as a configuration error.
       - if: vars.APP_CLIENT_ID == '' && steps.pick.outputs.count != '0'
         run: |
-          echo "::warning::pr-medic has work but no GitHub App: set the APP_CLIENT_ID variable"
-          echo "::warning::and the APP_PRIVATE_KEY secret. Without one, this job's token would"
-          echo "::warning::have to be write-capable, and the action copies it into the model's"
-          echo "::warning::environment as DEFAULT_WORKFLOW_TOKEN."
+          echo "::error::pr-medic has work but no GitHub App: set the APP_CLIENT_ID variable and"
+          echo "::error::the APP_PRIVATE_KEY secret. Without one this job's token would have to be"
+          echo "::error::write-capable, and the action copies it into the model's environment as"
+          echo "::error::DEFAULT_WORKFLOW_TOKEN."
+          exit 1
 
   medic:
     needs: pick
@@ -196,6 +198,16 @@ jobs:
           # tool at all. Read-only, directory included, so nothing can be rewritten or added.
           # after.sh takes the writes back for resolved.json.
           chmod -R a-w "$RUNNER_TEMP/pr-medic-state"
+          # A .git/config the model can write is arbitrary code execution, and from there the
+          # read-only bits above come straight off again -- it owns those files. Reproduced:
+          # `core.fsmonitor = <command>` in .git/config is run by the allowed `git status`, and
+          # .git/hooks is the same by another route. Every `Bash(... :*)` rule is a prefix match,
+          # so it admits a redirection as well as the command, and Write(.git/**) does not cover
+          # a redirect. Read-only refuses the write outright, even to the owner, and `git add`,
+          # `git commit` and `git status` all still work -- only after.sh writes config, and it
+          # takes the bit back. Everything above that needs config has already run.
+          chmod a-w .git/config
+          chmod -R a-w .git/hooks
           printf '[]\n' >"$RUNNER_TEMP/pr-medic/reruns.json" # the model asks; after.sh performs
           mkdir -p "$RUNNER_TEMP/discard" # decoy runner command files; see the Claude step
           {

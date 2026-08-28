@@ -36,7 +36,12 @@ def check_counts:
       # pick the completed row it replaces -- merging while the rerun is still to come.
       (map(bucket) | index("pending")) as $queued
       | if $queued != null then "pending"
-        else (sort_by(.startedAt // "") | last | bucket)
+        # The latest timestamp either field carries, not startedAt alone: a run cancelled while
+        # still queued is COMPLETED with conclusion CANCELLED and no startedAt, so it buckets
+        # `fail` rather than `pending` and sorted as "" -- putting it first and letting `last`
+        # pick the older success it replaced.
+        else (sort_by([.completedAt, .startedAt] | map(select(. != null)) | max // "")
+              | last | bucket)
         end
     )
   | {
