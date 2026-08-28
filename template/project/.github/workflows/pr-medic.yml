@@ -121,7 +121,11 @@ jobs:
           permission-contents: read
           permission-pull-requests: write
           permission-checks: read
-          permission-actions: write
+          # read, not write: the action copies this token into the model's subprocess, and every
+          # allowed command takes arguments -- `commit.sh "$GH_TOKEN"` would have published it in
+          # a commit message that after.sh then pushes. So the model cannot re-run anything; it
+          # writes the run ids it wants into reruns.json and the gate step performs them.
+          permission-actions: read
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -166,6 +170,7 @@ jobs:
           # tool at all. Read-only, directory included, so nothing can be rewritten or added.
           # after.sh takes the writes back for resolved.json.
           chmod -R a-w "$RUNNER_TEMP/pr-medic-state"
+          printf '[]\n' >"$RUNNER_TEMP/pr-medic/reruns.json" # the model asks; after.sh performs
           mkdir -p "$RUNNER_TEMP/discard" # decoy runner command files; see the Claude step
           {
             echo "prompt<<PROMPT"
@@ -190,7 +195,7 @@ jobs:
         env:
           GITHUB_ENV: ${{ runner.temp }}/discard/env
           GITHUB_PATH: ${{ runner.temp }}/discard/path
-        uses: anthropics/claude-code-action@9dcab633034361127cf74336d2d891d02e887881 # v1
+        uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -210,7 +215,7 @@ jobs:
             --max-turns ${{ env.MAX_TURNS }}
             --permission-mode acceptEdits
             --add-dir ${{ runner.temp }}/pr-medic
-            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff),Bash(git diff --stat),Bash(git diff --cached),Bash(git diff HEAD),Bash(git log --oneline -20),Bash(git rev-parse HEAD),Bash(git add:*),Bash(git checkout --ours:*),Bash(git checkout --theirs:*),Bash(git rebase --continue),Bash(git rebase --abort),Bash(${{ runner.temp }}/medic/rebase.sh),Bash(${{ runner.temp }}/medic/commit.sh:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh run list:*),Bash(${{ runner.temp }}/medic/rerun.sh:*)"
+            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff),Bash(git diff --stat),Bash(git diff --cached),Bash(git diff HEAD),Bash(git log --oneline -20),Bash(git rev-parse HEAD),Bash(git add:*),Bash(git checkout --ours:*),Bash(git checkout --theirs:*),Bash(git rebase --continue),Bash(git rebase --abort),Bash(${{ runner.temp }}/medic/rebase.sh),Bash(${{ runner.temp }}/medic/commit.sh:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh run list:*)"
           prompt: ${{ steps.bot.outputs.prompt }}
 
       - if: failure()

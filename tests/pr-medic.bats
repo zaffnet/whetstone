@@ -479,11 +479,37 @@ SH
   grep -qF 'chmod -R u+w' "$MEDIC/after.sh"
 }
 
-@test "the model cannot reach gh run rerun directly" {
+# The action copies the token it is given into the model's subprocess, and every allowed
+# command takes arguments -- `commit.sh "$GH_TOKEN"` would publish it in a commit message that
+# after.sh then pushes. So the model gets no re-run command and no actions: write: it writes the
+# run ids it wants and the gate performs them.
+@test "the model cannot re-run anything itself" {
   local wf="$REPO/.github/workflows/pr-medic.yml"
   run ! grep -qF 'Bash(gh run rerun' "$wf"
-  # shellcheck disable=SC2016  # grepping for the literal.
-  grep -qF 'Bash(${{ runner.temp }}/medic/rerun.sh:*)' "$wf"
+  run ! grep -qF 'medic/rerun.sh' "$wf"
+  grep -qF 'permission-actions: read' "$wf"
+}
+
+@test "the gate performs the re-runs, before it reads check state" {
+  at() { grep -nF -- "$1" "$MEDIC/after.sh" | head -1 | cut -d: -f1; }
+  # shellcheck disable=SC2016  # grepping for these literals is the point.
+  grep -qF 'rerun.sh" "$run_id"' "$MEDIC/after.sh"
+  # A re-run this run starts has to be seen as pending, or the gate merges on the old answer.
+  # The invocation, not the header comment that mentions it first.
+  # shellcheck disable=SC2016
+  [ "$(at 'rerun.sh" "$run_id"')" -lt "$(at '-f "$here/gate.jq"')" ]
+}
+
+# What this pins is the outcome: a malformed request cannot end in a merge. Two layers get
+# there -- after.sh type-checks the file, and rerun.sh refuses a non-numeric id -- and removing
+# either one still fails the run, so this case does not isolate the first. The file check earns
+# its place by naming the file in the error instead of failing somewhere further down.
+@test "a malformed reruns file cannot end in a merge" {
+  setup_after
+  printf '%s\n' '["123; rm -rf /"]' >"$RERUNS_FILE"
+  run run_after
+  [ "$status" -ne 0 ]
+  run ! grep -q 'pr merge' "$GH_LOG"
 }
 
 setup_threads() {
@@ -510,6 +536,10 @@ case "$*" in
   *collaborators/writer/permission*) printf 'write\n' ;;
   *collaborators/*/permission*) exit 1 ;; # not a collaborator at all: the API 404s
   *"--json headRefOid"*) cat "$STUB_HEAD_FILE" ;;
+  *"--json labels"*)
+    # STUB_LABEL_MISSING is the repository where the label could not be created.
+    if [ -z "${STUB_LABEL_MISSING:-}" ]; then printf 'no-medic\n'; fi
+    ;;
   *addPullRequestReviewThreadReply*)
     # As the API would: the reply becomes the thread's last comment, which is what apply
     # expects to find when it re-reads before resolving. STUB_INTERLOPER adds a reviewer
@@ -811,6 +841,28 @@ SH
 }
 
 # The other half: a reopen that works must not label anything.
+# A repository that has never used the label does not have it, and --add-label cannot create
+# one -- so this path reported a block that was not applied at all.
+@test "threads.sh creates the skip label before it applies it" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
+  STUB_UNRESOLVE_FAILS=1 STUB_PUSH_ON_RESOLVE=deadbee run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  # -- before the pattern, or a pattern starting with a dash is read as grep's own option.
+  at() { grep -nF -- "$1" "$GH_LOG" | head -1 | cut -d: -f1; }
+  [ "$(at 'label create no-medic')" -lt "$(at '--add-label no-medic')" ]
+}
+
+# And it says so only if the label is really there afterwards.
+@test "threads.sh reports a block it could not apply" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
+  STUB_LABEL_MISSING=1 STUB_UNRESOLVE_FAILS=1 STUB_PUSH_ON_RESOLVE=deadbee \
+    run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  printf '%s\n' "$output" | grep -q 'could not add no-medic'
+}
+
 @test "threads.sh does not label the PR when the undo works" {
   setup_threads
   printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
@@ -927,6 +979,11 @@ SH
   printf '[]\n' >"$THREAD_SNAPSHOT"
   printf '[]\n' >"$STUB_AFTER_THREADS"
   export STUB_AFTER_THREADS
+  # The handoff file the model writes re-run requests into; the gate performs them.
+  mkdir -p "$BATS_TEST_TMPDIR/pr-medic"
+  RERUNS_FILE="$BATS_TEST_TMPDIR/pr-medic/reruns.json"
+  printf '[]\n' >"$RERUNS_FILE"
+  export RERUNS_FILE
   TRUSTED_BOTS='medic[bot]'
   export TRUSTED_BOTS
   HEAD_BEFORE=$LOCAL_HEAD

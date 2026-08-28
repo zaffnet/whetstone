@@ -18,11 +18,12 @@ which you write. A thread from anyone else is not in that file and is not yours 
    the code now satisfies the comment. Every entry needs a reply. A later step posts these
    and resolves them; you cannot do it yourself.
 3. For each failing check, read `gh run view --log-failed` and fix the cause. Never disable a
-   check or weaken a rule. Re-run instead (`$RUNNER_TEMP/medic/rerun.sh RUN_ID`, which takes
-   one run id and accepts only a run on this PR's head) when the failure is
-   infrastructural. You cannot run the test suite or `just` here -- running this pull
-   request's own code with a write token would hand it the token -- so reason from the log and
-   let CI verify the fix.
+   check or weaken a rule. When the failure is infrastructural, ask for a re-run instead: put
+   the run ids in `$RUNNER_TEMP/pr-medic/reruns.json` as a JSON array of numbers, e.g.
+   `[123456]`. A later step performs them, and accepts only a run on this PR's head; you have
+   no command that can re-run anything. You cannot run the test suite or `just` here --
+   running this pull request's own code with a write token would hand it the token -- so
+   reason from the log and let CI verify the fix.
 4. `git add` the files you changed -- never `git add -A`, because `.claude/`, `CLAUDE.md`,
    `.mcp.json` and `.husky` here have been reset to the default branch's copies for safety and
    staging them would commit that reset onto the author's branch. Then

@@ -97,6 +97,23 @@ remote_head=$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid
 # reversible, so it happens after every check that could still stop this run. The head goes in
 # with it: the check above cannot cover the time apply spends posting, so apply re-reads the
 # head at each resolve and undoes its own work if the pull request moved under it.
+# The re-runs the model asked for, performed here rather than by it. Its own step holds a
+# credential the action copies into the subprocess, and every allowed command takes arguments,
+# so `commit.sh "$GH_TOKEN"` was a way to publish it -- the model has no rerun command and no
+# actions: write any more. Before the gate reads check state, so a re-run it starts is seen as
+# pending and this run does not merge on the old answer. rerun.sh checks each id.
+: "${RERUNS_FILE:=${RUNNER_TEMP:?}/pr-medic/reruns.json}"
+if [ -s "$RERUNS_FILE" ]; then
+  # The model wrote this file, so a malformed one is a failure rather than a silent skip.
+  jq -e 'type == "array" and all(.[]; type == "number")' "$RERUNS_FILE" >/dev/null || {
+    echo "::error::$RERUNS_FILE is not an array of run ids"
+    exit 1
+  }
+  while read -r run_id; do
+    if [ -n "$run_id" ]; then "$here/rerun.sh" "$run_id"; fi
+  done < <(jq -r '.[]' "$RERUNS_FILE")
+fi
+
 # From here a resolution can exist that only this run can account for, and most of the ways
 # this script can stop are set -e exits that run no code path at all -- the reviewer POST
 # below, a gate API call, a jq failure. Any of them leaves the thread resolved against a head

@@ -286,6 +286,20 @@ of them would leave a thread resolved against a head nothing judged. The trap is
 `apply` and cleared only once the run has merged on the judged head or confirmed the head has
 not moved.
 
+Re-runs are brokered rather than granted. The action copies the token it is given into the
+model's subprocess, and every allowed command takes arguments, so `commit.sh "$GH_TOKEN"` was a
+way to publish that credential in a commit message this script then pushes. Removing the
+argument would not have helped -- a redirection reaches a file in the checkout just as well --
+so the answer is that the token stops being worth stealing: the model's token is read-only
+throughout, it has no re-run command, and it writes the run ids it wants into `reruns.json`.
+`after.sh` performs them through `rerun.sh`, before the gate reads check state, so a re-run this
+run starts is seen as pending rather than merged over.
+
+The skip label is created before it is applied and the result is read back. A repository that
+has never used the label does not have it, `--add-label` cannot create one, and this path was
+reporting a block it had not applied -- which is worse than no block, because it is the only
+thing between a stale resolution and the next wake merging on it.
+
 On `schedule`, `workflow_dispatch` and `workflow_run` the workflow file itself is trusted, so
 the copy in `RUNNER_TEMP` is what the gate runs and the chain holds. On an entity event the
 workflow file is the pull request's as well, so nothing written in the file can help: that is a

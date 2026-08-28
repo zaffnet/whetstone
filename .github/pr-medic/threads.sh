@@ -123,11 +123,18 @@ block_later_runs() {
     echo "::error::PR #$PR: no SKIP_LABEL to set; a later run may merge on a stale resolution"
     return 0
   }
-  gh pr edit "$PR" --repo "$REPO" --add-label "$SKIP_LABEL" >/dev/null || {
+  # A repository that has never used the label does not have it, and --add-label cannot create
+  # one. Without this the block reported itself applied and was not there at all.
+  gh label create "$SKIP_LABEL" --repo "$REPO" --color B60205 \
+    --description "pr-medic: leave this pull request alone" >/dev/null 2>&1 || true
+  gh pr edit "$PR" --repo "$REPO" --add-label "$SKIP_LABEL" >/dev/null 2>&1 || true
+  # Verified, because a block that is not there is worse than no block: this path is the only
+  # thing standing between a stale resolution and the next wake merging on it.
+  if gh pr view "$PR" --repo "$REPO" --json labels --jq '.labels[].name' | grep -qxF "$SKIP_LABEL"; then
+    echo "::error::PR #$PR labelled $SKIP_LABEL: a resolution could not be undone and must be checked by hand"
+  else
     echo "::error::PR #$PR: could not add $SKIP_LABEL; a later run may merge on a stale resolution"
-    return 0
-  }
-  echo "::error::PR #$PR labelled $SKIP_LABEL: a resolution could not be undone and must be checked by hand"
+  fi
 }
 
 # Put back what this run resolved. Leaving a thread resolved against a head the gate never

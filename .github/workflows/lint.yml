@@ -54,5 +54,19 @@ jobs:
             <(sed 's/^    workflows: .*/    workflows: PINNED/' .github/workflows/pr-medic.yml) \
             <(sed 's/^    workflows: .*/    workflows: PINNED/' template/project/.github/workflows/pr-medic.yml)
           diff -u .github/workflows/claude.yml template/project/.github/workflows/claude.yml
+      # A pinned SHA that does not exist fails the step that uses it and nothing else, so it
+      # can sit in a workflow that never runs on this repository's own pull requests.
+      - name: Pinned action SHAs exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          grep -hoE 'uses: [A-Za-z0-9._/-]+@[0-9a-f]{40}' .github/workflows/*.yml \
+            template/project/.github/workflows/*.yml | awk '{print $2}' | sort -u |
+            while read -r ref; do
+              gh api "repos/${ref%@*}/commits/${ref#*@}" --jq .sha >/dev/null ||
+                { echo "::error::$ref does not exist"; exit 1; }
+            done
+
       - name: Reviewer subagents match between Claude markdown and Codex TOML
         run: python3 tools/check-agents-sync.py
