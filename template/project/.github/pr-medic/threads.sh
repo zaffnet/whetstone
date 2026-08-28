@@ -157,7 +157,14 @@ acquire_block() {
 release_block() {
   [ -n "${BLOCK_LABEL:-}" ] || return 0
   [ -f "$BLOCK_OWNED_FILE" ] || return 0
-  gh pr edit "$PR" --repo "$REPO" --remove-label "$BLOCK_LABEL" >/dev/null 2>&1 || true
+  # Not `|| true`. pick.jq skips a pull request carrying this label, so a block left on turns
+  # the medic off for that pull request until a person notices -- and swallowing the failure
+  # would report that as a green run. The ownership record stays put as well, so the next
+  # attempt still knows the label is this run's to remove.
+  gh pr edit "$PR" --repo "$REPO" --remove-label "$BLOCK_LABEL" >/dev/null || {
+    echo "::error::PR #$PR still carries $BLOCK_LABEL; the medic skips it until that is removed"
+    return 1
+  }
   rm -f "$BLOCK_OWNED_FILE"
 }
 

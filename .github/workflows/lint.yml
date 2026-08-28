@@ -61,8 +61,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          grep -hoE 'uses: [A-Za-z0-9._/-]+@[0-9a-f]{40}' .github/workflows/*.yml \
-            template/project/.github/workflows/*.yml | awk '{print $2}' | sort -u |
+          # -r over the directories, not a *.yml glob: the template ships ci.yaml.jinja, whose
+          # pins appear in no .yml file at all, so a nonexistent SHA there would only surface
+          # once somebody generated a project from it.
+          grep -rhoE 'uses: [A-Za-z0-9._/-]+@[0-9a-f]{40}' \
+            .github/workflows template/project/.github/workflows | awk '{print $2}' | sort -u |
             while read -r ref; do
               gh api "repos/${ref%@*}/commits/${ref#*@}" --jq .sha >/dev/null ||
                 { echo "::error::$ref does not exist"; exit 1; }

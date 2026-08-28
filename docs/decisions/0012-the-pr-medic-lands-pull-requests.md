@@ -347,6 +347,10 @@ lock, so a run can already be queued behind one that fails to reopen a resolutio
 block; without ownership the queued run would refuse at the gate and then clear the marker on its
 way out. `apply` records the block in the state directory when it applies it, refuses to resolve
 anything while a block it does not own is present, and `release` is a no-op without that record.
+A release that fails is loud, not swallowed: `pick.jq` skips a labelled pull request, so a block
+left on turns the medic off for that pull request until a person removes it, and reporting that
+as a green run is how it would go unnoticed. The ownership record survives the failure, so a
+later attempt still knows the label is this run's to remove.
 
 The checkout uses the read-only token, because that credential is the one the model's step
 inherits. `actions/checkout` persists its token as an `http.<server>/.extraheader` entry in

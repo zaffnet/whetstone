@@ -742,6 +742,7 @@ case "$*" in
     if [ -z "${STUB_LABEL_MISSING:-}" ]; then printf '%s\n' "$label" >>"$STUB_LABELS"; fi
     ;;
   *"--remove-label"*)
+    if [ -n "${STUB_REMOVE_LABEL_FAILS:-}" ]; then exit 1; fi
     args="$*"
     label=${args#*--remove-label }
     label=${label%% *}
@@ -1088,6 +1089,19 @@ SH
   run ! grep -qxF medic-blocked "$STUB_LABELS"
   # And it leaves nothing for after.sh to undo a second time.
   [ "$(jq length "$RUNNER_TEMP/pr-medic-state/resolved.json")" = 0 ]
+}
+
+# pick.jq skips a pull request carrying the block, so a block left on turns the medic off for
+# that pull request until a person notices. Swallowing the failure reported that as green.
+@test "threads.sh release fails when the block will not come off" {
+  setup_threads
+  printf 'medic-blocked\n' >"$STUB_LABELS"
+  : >"$RUNNER_TEMP/pr-medic-state/block-owned"
+  STUB_REMOVE_LABEL_FAILS=1 run "$MEDIC/threads.sh" release
+  [ "$status" -ne 0 ]
+  printf '%s\n' "$output" | grep -q 'still carries medic-blocked'
+  # And the ownership record stays, so a later attempt still knows the label is this run's.
+  [ -f "$RUNNER_TEMP/pr-medic-state/block-owned" ]
 }
 
 @test "threads.sh release lifts a block this run took" {
