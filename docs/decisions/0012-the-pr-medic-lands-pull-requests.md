@@ -66,6 +66,13 @@ and `gh pr review` are off the list, and `git push` is allowed only bare or with
 injected instruction from landing a change is the ruleset — required status checks and
 `required_review_thread_resolution` — not the tool list.
 
+The honest fix is a narrow helper: `.github/pr-medic/` scripts that list, reply to and
+resolve review threads, with `gh api graphql` off the allowlist entirely. Review twice
+asked for it, and twice the answer was that a second file breaks the one-file drop-in.
+That reason is gone. It is now a small follow-up, and it is deliberately not in the change
+that withdrew the rule: it moves the trust surface, and a refactor is the wrong place to do
+that.
+
 The `@claude` mention path is `.github/workflows/claude.yml`, with `contents: read`. It
 answers; it does not push, and it has nothing to do with landing pull requests. `allowed_bots`
 does not list `github-actions[bot]`, because the medic posts under that login and would
