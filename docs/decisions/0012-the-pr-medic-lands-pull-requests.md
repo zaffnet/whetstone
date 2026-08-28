@@ -57,6 +57,21 @@ the fix is missing from, which remote state alone cannot tell apart from a finis
 Claude step is therefore *not* `continue-on-error`: a failure fails the job and `after.sh`
 never runs. That replaces the outcome bookkeeping an earlier draft carried in bash.
 
+The Claude CLI reads `.claude/`, `.mcp.json`, `CLAUDE.md` and `.husky` from the working
+directory at startup -- SessionStart hooks, MCP servers, `NODE_OPTIONS` -- before any
+tool-permission gating, and `gh pr checkout` puts the pull request's copies there.
+`claude-code-action` restores them from the base branch itself, but only for entity pull
+request events: `src/entrypoints/run.ts` guards `restoreConfigFromBase` on
+`isEntityContext(context) && context.isPR`. The medic also wakes on `schedule`,
+`workflow_dispatch` and `workflow_run`, so `.github/pr-medic/trust-config.sh` does the restore
+for every event, between the checkout and the Claude step. Its path list mirrors upstream's
+`SENSITIVE_PATHS` and a test pins it, because a path added upstream would silently go
+unrestored here.
+
+For the same reason the Claude deny-list is inline in the workflow rather than a file in the
+checkout: a settings path is read after the restore and is not one of the restored paths, so a
+pull request could edit it.
+
 `allowed_bots` carries the medic's own login, built at runtime in the `bot` step. On a
 `workflow_run` wake after a medic push, `github.actor` is whoever pushed -- this bot -- and
 the action's agent mode calls `checkHumanActor`, which throws on any non-`User` actor that is

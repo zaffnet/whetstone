@@ -103,6 +103,34 @@ JSON
   grep -qF '"$login,$TRIGGER_BOTS" >>"$GITHUB_OUTPUT"' "$wf"
 }
 
+# The Claude CLI reads .claude/, .mcp.json, CLAUDE.md and .husky from cwd at startup --
+# hooks, MCP servers, NODE_OPTIONS -- before any tool-permission gating. claude-code-action
+# restores those from base only for entity PR events (run.ts guards restoreConfigFromBase on
+# `isEntityContext(context) && context.isPR`), and the medic also wakes on schedule and
+# workflow_run. So the checkout step restores them itself, and the deny list is inline rather
+# than a path into the PR checkout.
+@test "trusted config is restored before Claude runs" {
+  local wf="$REPO/.github/workflows/pr-medic.yml"
+  # The order matters: after the checkout, before the Claude step.
+  at() { grep -n "$1" "$wf" | head -1 | cut -d: -f1; }
+  [ "$(at 'gh pr checkout')" -lt "$(at 'trust-config.sh')" ]
+  [ "$(at 'trust-config.sh')" -lt "$(at 'Run Claude Code')" ]
+  # And no settings file is read out of the checkout.
+  run ! grep -q 'settings: \.github' "$wf"
+  run ! grep -q 'settings: \.github' "$REPO/.github/workflows/claude.yml"
+}
+
+@test "trust-config covers every path the action treats as sensitive" {
+  # Mirrors SENSITIVE_PATHS in claude-code-action's restore-config.ts. If upstream adds one,
+  # this restores fewer than it should; re-check when bumping the pinned SHA.
+  local got
+  got=$(sed -n 's/^paths=(\(.*\))$/\1/p' "$MEDIC/trust-config.sh")
+  [ "$got" = ".claude .mcp.json .claude.json .gitmodules .ripgreprc CLAUDE.md CLAUDE.local.md .husky" ] || {
+    echo "trust-config paths drifted: $got" >&2
+    return 1
+  }
+}
+
 # after.sh against stub git and gh. Remote state alone cannot tell a finished run from one
 # that resolved a thread and never pushed the fix, so the gate checks the runner as well.
 
