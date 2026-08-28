@@ -50,6 +50,12 @@ Claude implements review threads and failing checks. `after.sh` then rebases, re
 reviewers, evaluates `gate.jq`, and merges the head the gate just judged with
 `--match-head-commit`. The medic never approves.
 
+The rebase target is the pull request's own `baseRefName`, not the repository default branch.
+`mergeStateStatus == BEHIND` is relative to the base, so a pull request aimed at a release
+branch would otherwise be force-pushed with unrelated default-branch history and then merged
+into the wrong place. The medic's own scripts and `trust-config.sh` still come from the
+default branch, deliberately: that is the trust anchor, and it is the most-reviewed ref.
+
 It does not arm GitHub's auto-merge, and an earlier draft on this branch was wrong to.
 Arming hands the decision to GitHub, whose only condition is *required* checks, so every
 condition in `decide` that the platform does not enforce (the approval count, the skip
@@ -114,7 +120,10 @@ arguments: `rebase.sh` (no arguments; `git rebase --exec` runs shell commands), 
 and `push.sh` (resolves the head ref from the API and names it in the refspec; bare
 `git push` follows the upstream, and `git checkout` can change what that is). `just` and
 `uv run` are gone for the same reason. `git diff` keeps only its argument-free forms, because
-`--no-index` prints any file on disk.
+`--no-index` prints any file on disk, and `git log` and `git show` lose their wildcards
+because `--output=FILE` writes wherever it is pointed -- including over the helper copies the
+gate then runs. That directory is also made read-only once populated, so the two controls do
+not depend on each other.
 `gh api` buys nothing while something on the list can launch it: `uv run gh api ...` matches
 `Bash(uv run:*)`, and `just` reads a justfile out of the pull request's own checkout. More
 generally, any command that runs the pull request's code — its tests, its justfile, its hooks

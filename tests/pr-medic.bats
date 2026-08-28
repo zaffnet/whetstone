@@ -183,7 +183,12 @@ JSON
   # No primitive that takes a command or names a destination. `git diff --no-index` reads any
   # file, `git commit -F` reads one into the message, bare `git push` follows the upstream and
   # `git checkout` can change what that is. Each goes through a helper instead.
-  run ! grep -qE 'Bash\(git (diff|commit|push|checkout):' <<<"$tools"
+  run ! grep -qE 'Bash\(git (diff|commit|push|checkout|show|log):' <<<"$tools"
+  # `git show --output=FILE` and `git log --output=FILE` write wherever they are pointed --
+  # including over the immutable helpers the gate then runs -- so those are exact forms only,
+  # and the copy under RUNNER_TEMP is made read-only as well.
+  # shellcheck disable=SC2016  # a literal grep pattern.
+  grep -qF 'chmod -R a-w "$RUNNER_TEMP/medic"' "$REPO/.github/workflows/pr-medic.yml"
   # `gh pr comment --body-file` reads any file, and thread replies go through replies.json,
   # so the model has no use for it.
   run ! grep -q 'gh pr comment' <<<"$tools"
@@ -288,6 +293,18 @@ SH
 @test "rebase.sh accepts no destination from its caller" {
   # shellcheck disable=SC2016  # a grep pattern for positional parameters, not an expansion.
   run ! grep -qE '\$1|\$\{1|\$@|\$\*' "$MEDIC/rebase.sh"
+}
+
+# mergeStateStatus BEHIND is relative to the PR's base, so rebasing onto the repository default
+# branch would force unrelated history onto a release-targeting pull request and merge it.
+@test "the rebase targets the PR's own base branch" {
+  for f in rebase.sh after.sh; do
+    grep -qF baseRefName "$MEDIC/$f" || {
+      echo "$f does not resolve the PR's base" >&2
+      return 1
+    }
+    run ! grep -q default_branch "$MEDIC/$f"
+  done
 }
 
 # Resolving a thread is not reversible. If it happened before the runner checks, a run that

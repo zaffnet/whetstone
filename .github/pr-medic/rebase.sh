@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rebase the checked-out pull request onto the default branch. Takes no arguments: the
+# Rebase the checked-out pull request onto its own base branch. Takes no arguments: the
 # destination comes from the API, not from the caller.
 #
 # This exists so `git rebase` need not be on the model's tool allowlist. `git rebase --exec
@@ -11,7 +11,10 @@ set -euo pipefail
 
 # shellcheck source=.github/pr-medic/lib.sh
 . "$(dirname "$0")/lib.sh"
+: "${PR:?}" "${REPO:?}"
 
-default_branch=$(gh api "repos/$REPO" --jq .default_branch)
-git fetch --no-recurse-submodules origin "$default_branch"
-git rebase "origin/$default_branch"
+# The pull request's own base, not the repository default branch. A PR targeting a release
+# branch must not be rebased onto main.
+base_ref=$(gh pr view "$PR" --repo "$REPO" --json baseRefName --jq .baseRefName)
+git fetch --no-recurse-submodules origin "$base_ref"
+git rebase "origin/$base_ref"

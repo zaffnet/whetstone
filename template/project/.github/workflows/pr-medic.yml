@@ -36,7 +36,7 @@ env:
   MERGE_METHOD: squash # squash | rebase | merge
   SKIP_LABEL: no-medic
   REREQUEST_REVIEWERS: copilot-pull-request-reviewer[bot]
-  # The medic's own login is added to this at runtime; see the `bot` step.
+  # The medic's own login is added at runtime; see the `bot` step.
   TRIGGER_BOTS: copilot-pull-request-reviewer[bot],dependabot[bot]
   MAX_TURNS: "60"
 
@@ -95,8 +95,8 @@ jobs:
       PR: ${{ matrix.pr }}
       REPO: ${{ github.repository }}
     steps:
-      # Without an App, pushes use GITHUB_TOKEN and do not re-trigger CI. Downscoped: an App
-      # token carries the installation's scope and ignores this job's permissions.
+      # Without an App, pushes use GITHUB_TOKEN and do not re-trigger CI. Downscoped because an
+      # App token carries the installation's scope and ignores this job's permissions.
       - id: token
         if: vars.APP_CLIENT_ID != ''
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -110,7 +110,7 @@ jobs:
           permission-statuses: read
           permission-actions: write # write: the prompt uses `gh run rerun --failed`
 
-      # For the Claude step alone, with no contents: write. The action puts the token it is
+      # For the Claude step alone, with no contents: write -- the action puts the token it is
       # given into the origin URL, so this keeps a pushing credential out of the model.
       - id: token-ro
         if: vars.APP_CLIENT_ID != ''
@@ -143,8 +143,7 @@ jobs:
           gh auth setup-git
           gh pr checkout "$PR"
           # The gate must not run a script the model can rewrite, and it has Edit/Write on the
-          # checkout -- so take .github/pr-medic from the default branch into RUNNER_TEMP. Not
-          # into the checkout: a PR that edits these scripts would then look dirty to after.sh.
+          # checkout -- so take .github/pr-medic from the default branch into RUNNER_TEMP.
           base=$(gh api "repos/$REPO" --jq .default_branch)
           git fetch --depth=1 --no-recurse-submodules origin "$base"
           mkdir -p "$RUNNER_TEMP/medic"
@@ -154,6 +153,7 @@ jobs:
             cp .github/pr-medic/* "$RUNNER_TEMP/medic/"
           }
           chmod +x "$RUNNER_TEMP/medic"/*.sh
+          chmod -R a-w "$RUNNER_TEMP/medic" # --output=FILE writes wherever it is pointed
           "$RUNNER_TEMP/medic/trust-config.sh"
           "$RUNNER_TEMP/medic/threads.sh" dump # threads in as a file, replies out as a file
           {
@@ -178,16 +178,16 @@ jobs:
           bot_name: ${{ steps.bot.outputs.login }}
           # Inline, not a path: a checkout file is PR-controlled and not in SENSITIVE_PATHS.
           settings: |
-            {"permissions":{"deny":["Bash(gh api:*)","Bash(gh pr comment:*)","Bash(gh pr merge:*)","Bash(gh pr review:*)","Bash(git push --force)","Bash(git push --force *)","Bash(just:*)","Bash(uv run:*)","Bash(git rebase --exec:*)","Bash(git rebase -x:*)","Bash(git fetch:*)","Bash(git push:*)","Bash(git push)","Bash(git commit:*)","Bash(git diff --no-index:*)","Bash(git diff --ext-diff:*)","Bash(git log --ext-diff:*)","Bash(git show --ext-diff:*)","Write(.git/**)","Edit(.git/**)","Read(.git/**)","Grep(.git/**)","Glob(.git/**)","Read(**/.git/**)"]}}
+            {"permissions":{"deny":["Bash(gh api:*)","Bash(gh pr comment:*)","Bash(gh pr merge:*)","Bash(gh pr review:*)","Bash(git push --force)","Bash(git push --force *)","Bash(just:*)","Bash(uv run:*)","Bash(git rebase --exec:*)","Bash(git rebase -x:*)","Bash(git fetch:*)","Bash(git push:*)","Bash(git push)","Bash(git commit:*)","Bash(git show:*)","Bash(git diff --no-index:*)","Bash(git diff --ext-diff:*)","Bash(git log --ext-diff:*)","Bash(git show --ext-diff:*)","Write(.git/**)","Edit(.git/**)","Read(.git/**)","Grep(.git/**)","Glob(.git/**)","Read(**/.git/**)"]}}
           # An allowlist, not only the deny block: agent mode sets neither --permission-mode
           # nor --allowedTools, so the model would otherwise have Read, Grep and Glob only.
-          # Nothing on it launches a command or reads a file it names -- rebase, fetch, diff,
-          # commit and `gh pr comment` all could, so each goes via a helper. ADR 0012.
+          # Nothing on it launches a command, or reads or writes a file it names. rebase,
+          # fetch, diff, commit, show, log and `gh pr comment` all could. ADR 0012.
           claude_args: >-
             --max-turns ${{ env.MAX_TURNS }}
             --permission-mode acceptEdits
             --add-dir ${{ runner.temp }}/pr-medic
-            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff),Bash(git diff --stat),Bash(git diff --cached),Bash(git diff HEAD),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git checkout --ours:*),Bash(git checkout --theirs:*),Bash(git rebase --continue),Bash(git rebase --abort),Bash(${{ runner.temp }}/medic/rebase.sh),Bash(${{ runner.temp }}/medic/commit.sh:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh run rerun:*)"
+            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff),Bash(git diff --stat),Bash(git diff --cached),Bash(git diff HEAD),Bash(git log --oneline -20),Bash(git rev-parse HEAD),Bash(git add:*),Bash(git checkout --ours:*),Bash(git checkout --theirs:*),Bash(git rebase --continue),Bash(git rebase --abort),Bash(${{ runner.temp }}/medic/rebase.sh),Bash(${{ runner.temp }}/medic/commit.sh:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh run rerun:*)"
           prompt: ${{ steps.bot.outputs.prompt }}
 
       - if: failure()

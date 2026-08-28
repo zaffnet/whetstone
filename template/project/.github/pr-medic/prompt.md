@@ -26,9 +26,9 @@ unresolved review threads, and `replies.json`, which you write.
    staging them would commit that reset onto the author's branch. Then
    `$RUNNER_TEMP/medic/commit.sh "your message"`, which is the only way to commit here. Do not
    push: you hold no credential that can, and a later step pushes what you commit.
-5. Last, because a push dismisses approvals: if the branch conflicts with the default branch,
-   run `$RUNNER_TEMP/medic/rebase.sh` (it takes no arguments and finds the default branch
-   itself), resolve the conflicts (`git checkout --ours`/`--theirs` are available), `git add`
+5. Last, because a push dismisses approvals: if the branch conflicts with its base branch,
+   run `$RUNNER_TEMP/medic/rebase.sh` (it takes no arguments and finds the PR's base
+   branch itself), resolve the conflicts (`git checkout --ours`/`--theirs` are available), `git add`
    them, then `git rebase --continue`. A later step pushes the result. If you cannot resolve
    the conflicts, `git rebase --abort` and say so in a reply.
 

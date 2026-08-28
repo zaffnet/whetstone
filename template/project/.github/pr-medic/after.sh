@@ -26,7 +26,10 @@ for p in "${TRUSTED_PATHS[@]}"; do excluded+=(":(exclude)$p"); done
   exit 1
 }
 
-default_branch=$(gh api "repos/$REPO" --jq .default_branch)
+# The pull request's own base, not the repository default: mergeStateStatus BEHIND is relative
+# to the base, so rebasing a release-targeting PR onto the default branch would force-push
+# unrelated history onto it and then merge that.
+base_ref=$(gh pr view "$PR" --repo "$REPO" --json baseRefName --jq .baseRefName)
 
 # Claude commits; this pushes. The model's step holds no credential that can write, so there
 # is nothing there for an injected instruction to misuse -- which is the boundary the tool
@@ -43,10 +46,10 @@ head_before=${HEAD_BEFORE:-$(git rev-parse HEAD)}
 # and re-triggers review bots, so it happens after the fixes, never before.
 case "$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq .mergeStateStatus)" in
   BEHIND | DIRTY)
-    git fetch origin "$default_branch"
-    git rebase "origin/$default_branch" || {
+    git fetch origin "$base_ref"
+    git rebase "origin/$base_ref" || {
       git rebase --abort
-      echo "::error::PR #$PR: cannot rebase onto $default_branch"
+      echo "::error::PR #$PR: cannot rebase onto $base_ref"
       exit 1
     }
     git push --force-with-lease
