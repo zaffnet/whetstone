@@ -5,7 +5,7 @@
       "prs": [],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": []
   },
@@ -39,7 +39,7 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": [
       1
@@ -75,7 +75,7 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": [
       2
@@ -111,7 +111,7 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": [
       3
@@ -147,7 +147,7 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": [
       4
@@ -183,7 +183,7 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": [
       5
@@ -210,7 +210,7 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": [
       6
@@ -248,7 +248,7 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": []
   },
@@ -282,7 +282,7 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": []
   },
@@ -316,7 +316,7 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": []
   },
@@ -350,7 +350,7 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": []
   },
@@ -388,7 +388,7 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": []
   },
@@ -426,7 +426,7 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": [
       12
@@ -485,7 +485,7 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 1,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": [
       14
@@ -567,7 +567,7 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": [
       20,
@@ -575,7 +575,7 @@
     ]
   },
   {
-    "name": "an armed PR that still passes is left alone",
+    "name": "a hand-armed PR is left to GitHub",
     "input": {
       "prs": [
         {
@@ -606,117 +606,12 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": []
   },
   {
-    "name": "an armed PR is picked when the kill switch is off",
-    "input": {
-      "prs": [
-        {
-          "view": {
-            "state": "OPEN",
-            "isDraft": false,
-            "isCrossRepository": false,
-            "mergeStateStatus": "CLEAN",
-            "labels": [],
-            "statusCheckRollup": [
-              {
-                "__typename": "CheckRun",
-                "name": "ci0",
-                "workflowName": "lint",
-                "startedAt": "2026-01-01T00:00:00Z",
-                "status": "COMPLETED",
-                "conclusion": "SUCCESS"
-              }
-            ],
-            "autoMergeRequest": {
-              "enabledAt": "2026-01-01T00:00:00Z"
-            },
-            "number": 32
-          },
-          "unresolved": 0,
-          "approvals": 0
-        }
-      ],
-      "skip_label": "no-medic",
-      "approvals_required": 0,
-      "arm_auto_merge": false
-    },
-    "expect": [
-      32
-    ]
-  },
-  {
-    "name": "an armed PR is picked when its approval fell short",
-    "input": {
-      "prs": [
-        {
-          "view": {
-            "state": "OPEN",
-            "isDraft": false,
-            "isCrossRepository": false,
-            "mergeStateStatus": "CLEAN",
-            "labels": [],
-            "statusCheckRollup": [
-              {
-                "__typename": "CheckRun",
-                "name": "ci0",
-                "workflowName": "lint",
-                "startedAt": "2026-01-01T00:00:00Z",
-                "status": "COMPLETED",
-                "conclusion": "SUCCESS"
-              }
-            ],
-            "autoMergeRequest": {
-              "enabledAt": "2026-01-01T00:00:00Z"
-            },
-            "number": 33
-          },
-          "unresolved": 0,
-          "approvals": 0
-        }
-      ],
-      "skip_label": "no-medic",
-      "approvals_required": 1,
-      "arm_auto_merge": true
-    },
-    "expect": [
-      33
-    ]
-  },
-  {
-    "name": "an armed PR is picked when its head lost its checks",
-    "input": {
-      "prs": [
-        {
-          "view": {
-            "state": "OPEN",
-            "isDraft": false,
-            "isCrossRepository": false,
-            "mergeStateStatus": "CLEAN",
-            "labels": [],
-            "statusCheckRollup": [],
-            "autoMergeRequest": {
-              "enabledAt": "2026-01-01T00:00:00Z"
-            },
-            "number": 34
-          },
-          "unresolved": 0,
-          "approvals": 0
-        }
-      ],
-      "skip_label": "no-medic",
-      "approvals_required": 0,
-      "arm_auto_merge": true
-    },
-    "expect": [
-      34
-    ]
-  },
-  {
-    "name": "an unarmed PR is not picked when the kill switch is off",
+    "name": "nothing is picked for merging when MAY_MERGE is false",
     "input": {
       "prs": [
         {
@@ -745,51 +640,9 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": false
+      "may_merge": false
     },
     "expect": []
-  },
-  {
-    "name": "a labelled armed PR is picked so the gate can disarm it",
-    "input": {
-      "prs": [
-        {
-          "view": {
-            "state": "OPEN",
-            "isDraft": false,
-            "isCrossRepository": false,
-            "mergeStateStatus": "CLEAN",
-            "labels": [
-              {
-                "name": "no-medic"
-              }
-            ],
-            "statusCheckRollup": [
-              {
-                "__typename": "CheckRun",
-                "name": "ci0",
-                "workflowName": "lint",
-                "startedAt": "2026-01-01T00:00:00Z",
-                "status": "COMPLETED",
-                "conclusion": "SUCCESS"
-              }
-            ],
-            "autoMergeRequest": {
-              "enabledAt": "2026-01-01T00:00:00Z"
-            },
-            "number": 40
-          },
-          "unresolved": 0,
-          "approvals": 0
-        }
-      ],
-      "skip_label": "no-medic",
-      "approvals_required": 0,
-      "arm_auto_merge": true
-    },
-    "expect": [
-      40
-    ]
   },
   {
     "name": "a labelled unarmed PR is left alone",
@@ -825,7 +678,7 @@
       ],
       "skip_label": "no-medic",
       "approvals_required": 0,
-      "arm_auto_merge": true
+      "may_merge": true
     },
     "expect": []
   }

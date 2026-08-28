@@ -42,7 +42,7 @@ jobs:
           done
       # The pr-medic scripts are copied verbatim. The two workflows differ on one line:
       # workflow_run names workflows literally, and a generated project's are not this
-      # repo's. ARM_AUTO_MERGE is a repository variable, so it is the same in both.
+      # repo's. MAY_MERGE is a repository variable, so it is the same in both.
       - name: pr-medic matches the template copy
         run: |
           for f in .github/pr-medic/*; do

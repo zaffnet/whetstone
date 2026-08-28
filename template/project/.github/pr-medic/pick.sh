@@ -47,8 +47,8 @@ done <<<"$candidates"
 selected=$(jq -s -c \
   --arg skip "${SKIP_LABEL:-}" \
   --argjson required "${APPROVALS_REQUIRED:-0}" \
-  --argjson arm "${ARM_AUTO_MERGE:-false}" \
-  '{prs: ., skip_label: $skip, approvals_required: $required, arm_auto_merge: $arm}' "$state" \
+  --argjson may "${MAY_MERGE:-false}" \
+  '{prs: ., skip_label: $skip, approvals_required: $required, may_merge: $may}' "$state" \
   | jq -c -L "$here" -f "$here/pick.jq")
 
 echo "prs=$selected" >>"$GITHUB_OUTPUT"

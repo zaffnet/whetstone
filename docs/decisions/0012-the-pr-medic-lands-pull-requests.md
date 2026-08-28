@@ -37,7 +37,7 @@ one-file rule is withdrawn; the workflow is 183 lines and the scripts total 245.
 `template/project/.github/pr-medic/*` are byte-identical copies, and `single-source` diffs
 them. The two workflows differ on exactly one line, because `workflow_run` names workflows
 literally and a generated project's are not this repo's; `on:` takes no expressions, so that
-one cannot be a variable. `ARM_AUTO_MERGE` reads the `PR_MEDIC_ARM_AUTO_MERGE` repository
+one cannot be a variable. `MAY_MERGE` reads the `PR_MEDIC_MAY_MERGE` repository
 variable and defaults to `false`, so a generated repository -- which has no ruleset on its
 first day -- does not get an unattended merger just because its owner added a Claude
 credential for `@claude` replies.
@@ -47,8 +47,19 @@ The approval gate lives in the workflow, not in a ruleset. `APPROVALS_REQUIRED` 
 count stays 0.
 
 Claude implements review threads and failing checks. `after.sh` then rebases, re-requests
-reviewers, evaluates `gate.jq`, and runs `gh pr merge --auto` (or a direct merge when the
-host repo has auto-merge off). The medic never approves.
+reviewers, evaluates `gate.jq`, and merges the head the gate just judged with
+`--match-head-commit`. The medic never approves.
+
+It does not arm GitHub's auto-merge, and an earlier draft on this branch was wrong to.
+Arming hands the decision to GitHub, whose only condition is *required* checks, so every
+condition in `decide` that the platform does not enforce (the approval count, the skip
+label, unresolved threads) stops being enforced the moment the arming lands, and a push or
+a label arriving before the next wake merges anyway. The triggers cover neither head pushes
+nor label changes, so that race is real and adding events does not close it. `pending
+checks` is therefore a reason to come back rather than to delegate: the `workflow_run` wake
+that fires when CI finishes is what brings the medic back to merge. A pull request somebody
+armed by hand is left alone, `noop`, because that is GitHub's merge and not the medic's to
+take away.
 
 The gate arms or merges only when this run finished cleanly: the worktree is clean and the
 checkout is at the PR head the API reports. A Claude failure between resolving a thread and
@@ -96,14 +107,18 @@ a failure rather than as nothing to do. Both files live under `RUNNER_TEMP`
 and the model reaches them through `--add-dir`, because a file written inside the worktree
 would trip the clean-worktree check in `after.sh`.
 
-`just` and `uv run` came off the allowlist at the same time, and onto the deny list. Denying
+`just`, `uv run`, `git rebase` and `git fetch` are off the allowlist and on the deny list.
 `gh api` buys nothing while something on the list can launch it: `uv run gh api ...` matches
 `Bash(uv run:*)`, and `just` reads a justfile out of the pull request's own checkout. More
 generally, any command that runs the pull request's code — its tests, its justfile, its hooks
 — with a write token in the environment is equivalent to handing that pull request the token,
 and there is no narrow form of it. Verification is CI's job; the medic reads the result.
 `git push --force-with-lease` takes no argument either, because a refspec can name the default
-branch.
+branch. `git rebase --exec` and `git fetch --upload-pack` both take a command, so the model
+gets `.github/pr-medic/rebase.sh`, which accepts no arguments and reads the destination from
+the API, plus `git rebase --continue` and `--abort` by exact match, neither of which takes
+one. `Write(.git/**)` is denied as well, so the model cannot install a git config that turns
+a read-only command into a launcher.
 
 That leaves the model with no command that can approve or merge, rather than an allowlist that
 could not separate the two. The ruleset — required status checks and
@@ -128,15 +143,13 @@ There is no attempt budget and no `DRY_RUN`. The budget was a `pr-medic` commit 
 `attempts=N` counter, a per-commit status loop and a `newer_review_than_medic` waiver --
 about 70 lines to stop the hourly cron re-attempting an unchanged head. The escape hatch is
 now the `no-medic` label. `DRY_RUN` threaded a third state through every write, and the
-disarm it provided is `ARM_AUTO_MERGE` instead.
+disarm it provided is `MAY_MERGE` instead.
 
 Local agents still never merge. Merging belongs to this workflow and to zaffnet in the web
 UI.
 
-`SKIP_LABEL` is checked by the gate as well as by `pick`, and `pick` deliberately still
-selects a labelled pull request when it is armed. A label is only an escape hatch if it works
-after the medic has already armed something, and only the gate can take an arming back — so
-the label produces `refuse`, and `refuse` disarms.
+`SKIP_LABEL` is checked by the gate as well as by `pick`, because a label applied after
+`pick` has run must still stop the merge.
 
 A missing Claude credential or a missing GitHub App is configuration, and the run does the
 reduced thing quietly: without Claude it still gates, and without an App it pushes with
@@ -162,11 +175,9 @@ a required check.
   run checks out that head clean, so neither runner check catches it. Queueing costs duplicate
   wakes; each re-reads state and reaches `noop`. Only `workflow_run` collapses onto the head
   SHA; every other event keys on `github.run_id`.
-- Arming is reversible, so `pick` has to select the PRs the gate would disarm: an armed PR
-  whose approval fell short, whose head lost its checks, or which the kill switch now
-  forbids. An armed PR that still passes is deliberately not selected, because the gate would
-  only say `noop`. `ARM_AUTO_MERGE` sits above `already armed` in `decide` for the same
-  reason -- below it, a kill switch could not reach a PR that was already armed.
+- `pick` selects a pull request the gate might merge, and leaves alone one somebody armed by
+  hand, because the gate would only say `noop` there. `MAY_MERGE` sits above that `noop` in
+  `decide`, so the switch still reports something actionable on a hand-armed pull request.
 - A pull request with a failing check Claude cannot fix re-runs Claude on every cron tick,
   unchanged. Label it `no-medic`.
 - Every other event keys on `run_id`, so a burst of review comments produces a run each and

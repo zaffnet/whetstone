@@ -26,3 +26,7 @@ done
 # `git checkout <ref> -- <path>` stages what it restored. Unstage, or Claude's next commit
 # carries the revert back onto the PR author's branch.
 git reset -q -- "${paths[@]}" 2>/dev/null || true
+
+# after.sh compares against this, so an edit Claude makes to a restored path is still caught.
+mkdir -p "$(dirname "$TRUSTED_STATE_FILE")"
+trusted_state >"$TRUSTED_STATE_FILE"

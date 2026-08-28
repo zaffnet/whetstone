@@ -25,9 +25,8 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
@@ -56,9 +55,8 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
@@ -87,9 +85,8 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
@@ -118,15 +115,14 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
     "name": "CONFLICTING is not a mergeStateStatus",
     "expect": "merge",
-    "expect_reason": "gate passed, auto-merge off",
+    "expect_reason": "gate passed",
     "input": {
       "pr": {
         "state": "OPEN",
@@ -149,9 +145,8 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
@@ -180,9 +175,8 @@
       "unresolved": 1,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
@@ -202,9 +196,8 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
@@ -241,9 +234,8 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
@@ -272,14 +264,13 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
     "name": "this workflow's own pending job is not a pending check",
-    "expect": "arm",
+    "expect": "merge",
     "expect_reason": "gate passed",
     "input": {
       "pr": {
@@ -310,9 +301,8 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": true,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
@@ -340,14 +330,13 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
     "name": "a rerun supersedes the attempt it replaced",
-    "expect": "arm",
+    "expect": "merge",
     "expect_reason": "gate passed",
     "input": {
       "pr": {
@@ -379,9 +368,8 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": true,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
@@ -418,9 +406,8 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
@@ -457,9 +444,8 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
@@ -488,14 +474,13 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 1,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
     "name": "an approval that meets the bar arms",
-    "expect": "arm",
+    "expect": "merge",
     "expect_reason": "gate passed",
     "input": {
       "pr": {
@@ -519,14 +504,13 @@
       "unresolved": 0,
       "approvals": 1,
       "approvals_required": 1,
-      "arm_auto_merge": true,
-      "allow_auto_merge": true,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
     "name": "more approvals than required is fine",
-    "expect": "arm",
+    "expect": "merge",
     "expect_reason": "gate passed",
     "input": {
       "pr": {
@@ -550,15 +534,14 @@
       "unresolved": 0,
       "approvals": 2,
       "approvals_required": 1,
-      "arm_auto_merge": true,
-      "allow_auto_merge": true,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
     "name": "an armed PR is left alone",
     "expect": "noop",
-    "expect_reason": "already armed",
+    "expect_reason": "auto-merge enabled by hand",
     "input": {
       "pr": {
         "state": "OPEN",
@@ -583,15 +566,14 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
-    "name": "ARM_AUTO_MERGE false waits",
+    "name": "MAY_MERGE false waits",
     "expect": "wait",
-    "expect_reason": "ARM_AUTO_MERGE false",
+    "expect_reason": "MAY_MERGE false",
     "input": {
       "pr": {
         "state": "OPEN",
@@ -614,177 +596,8 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": false,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
-    }
-  },
-  {
-    "name": "the kill switch reaches an armed PR",
-    "expect": "wait",
-    "expect_reason": "ARM_AUTO_MERGE false",
-    "input": {
-      "pr": {
-        "state": "OPEN",
-        "isDraft": false,
-        "isCrossRepository": false,
-        "mergeStateStatus": "CLEAN",
-        "labels": [],
-        "statusCheckRollup": [
-          {
-            "__typename": "CheckRun",
-            "name": "ci0",
-            "workflowName": "lint",
-            "startedAt": "2026-01-01T00:00:00Z",
-            "status": "COMPLETED",
-            "conclusion": "SUCCESS"
-          }
-        ],
-        "autoMergeRequest": {
-          "enabledAt": "2026-01-01T00:00:00Z"
-        }
-      },
-      "unresolved": 0,
-      "approvals": 0,
-      "approvals_required": 0,
-      "arm_auto_merge": false,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
-    }
-  },
-  {
-    "name": "an armed PR whose approval fell short waits",
-    "expect": "wait",
-    "expect_reason": "approvals",
-    "input": {
-      "pr": {
-        "state": "OPEN",
-        "isDraft": false,
-        "isCrossRepository": false,
-        "mergeStateStatus": "CLEAN",
-        "labels": [],
-        "statusCheckRollup": [
-          {
-            "__typename": "CheckRun",
-            "name": "ci0",
-            "workflowName": "lint",
-            "startedAt": "2026-01-01T00:00:00Z",
-            "status": "COMPLETED",
-            "conclusion": "SUCCESS"
-          }
-        ],
-        "autoMergeRequest": {
-          "enabledAt": "2026-01-01T00:00:00Z"
-        }
-      },
-      "unresolved": 0,
-      "approvals": 0,
-      "approvals_required": 1,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
-    }
-  },
-  {
-    "name": "an armed PR whose head lost its checks refuses",
-    "expect": "refuse",
-    "expect_reason": "no checks on this head",
-    "input": {
-      "pr": {
-        "state": "OPEN",
-        "isDraft": false,
-        "isCrossRepository": false,
-        "mergeStateStatus": "CLEAN",
-        "labels": [],
-        "statusCheckRollup": [],
-        "autoMergeRequest": {
-          "enabledAt": "2026-01-01T00:00:00Z"
-        }
-      },
-      "unresolved": 0,
-      "approvals": 0,
-      "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
-    }
-  },
-  {
-    "name": "an armed PR with a pending check stays armed",
-    "expect": "noop",
-    "expect_reason": "already armed",
-    "input": {
-      "pr": {
-        "state": "OPEN",
-        "isDraft": false,
-        "isCrossRepository": false,
-        "mergeStateStatus": "CLEAN",
-        "labels": [],
-        "statusCheckRollup": [
-          {
-            "__typename": "CheckRun",
-            "name": "ci0",
-            "workflowName": "lint",
-            "startedAt": "2026-01-01T00:00:00Z",
-            "status": "COMPLETED",
-            "conclusion": "SUCCESS"
-          },
-          {
-            "__typename": "CheckRun",
-            "name": "ci1",
-            "workflowName": "lint",
-            "startedAt": "2026-01-01T00:00:00Z",
-            "status": "IN_PROGRESS"
-          }
-        ],
-        "autoMergeRequest": {
-          "enabledAt": "2026-01-01T00:00:00Z"
-        }
-      },
-      "unresolved": 0,
-      "approvals": 0,
-      "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
-    }
-  },
-  {
-    "name": "a pending check blocks arming",
-    "expect": "wait",
-    "expect_reason": "pending checks",
-    "input": {
-      "pr": {
-        "state": "OPEN",
-        "isDraft": false,
-        "isCrossRepository": false,
-        "mergeStateStatus": "CLEAN",
-        "labels": [],
-        "statusCheckRollup": [
-          {
-            "__typename": "CheckRun",
-            "name": "ci0",
-            "workflowName": "lint",
-            "startedAt": "2026-01-01T00:00:00Z",
-            "status": "COMPLETED",
-            "conclusion": "SUCCESS"
-          },
-          {
-            "__typename": "CheckRun",
-            "name": "ci1",
-            "workflowName": "lint",
-            "startedAt": "2026-01-01T00:00:00Z",
-            "status": "IN_PROGRESS"
-          }
-        ],
-        "autoMergeRequest": null
-      },
-      "unresolved": 0,
-      "approvals": 0,
-      "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": true,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": false
     }
   },
   {
@@ -820,71 +633,8 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
-    }
-  },
-  {
-    "name": "auto-merge on arms",
-    "expect": "arm",
-    "expect_reason": "gate passed",
-    "input": {
-      "pr": {
-        "state": "OPEN",
-        "isDraft": false,
-        "isCrossRepository": false,
-        "mergeStateStatus": "CLEAN",
-        "labels": [],
-        "statusCheckRollup": [
-          {
-            "__typename": "CheckRun",
-            "name": "ci0",
-            "workflowName": "lint",
-            "startedAt": "2026-01-01T00:00:00Z",
-            "status": "COMPLETED",
-            "conclusion": "SUCCESS"
-          }
-        ],
-        "autoMergeRequest": null
-      },
-      "unresolved": 0,
-      "approvals": 0,
-      "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": true,
-      "skip_label": "no-medic"
-    }
-  },
-  {
-    "name": "auto-merge off merges directly",
-    "expect": "merge",
-    "expect_reason": "gate passed, auto-merge off",
-    "input": {
-      "pr": {
-        "state": "OPEN",
-        "isDraft": false,
-        "isCrossRepository": false,
-        "mergeStateStatus": "CLEAN",
-        "labels": [],
-        "statusCheckRollup": [
-          {
-            "__typename": "CheckRun",
-            "name": "ci0",
-            "workflowName": "lint",
-            "startedAt": "2026-01-01T00:00:00Z",
-            "status": "COMPLETED",
-            "conclusion": "SUCCESS"
-          }
-        ],
-        "autoMergeRequest": null
-      },
-      "unresolved": 0,
-      "approvals": 0,
-      "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": false,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
@@ -917,9 +667,8 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": true,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
@@ -954,14 +703,13 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": true,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   },
   {
     "name": "another label is not the skip label",
-    "expect": "arm",
+    "expect": "merge",
     "expect_reason": "gate passed",
     "input": {
       "pr": {
@@ -989,9 +737,169 @@
       "unresolved": 0,
       "approvals": 0,
       "approvals_required": 0,
-      "arm_auto_merge": true,
-      "allow_auto_merge": true,
-      "skip_label": "no-medic"
+      "skip_label": "no-medic",
+      "may_merge": true
+    }
+  },
+  {
+    "name": "the gate passes and merges",
+    "expect": "merge",
+    "expect_reason": "gate passed",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "labels": [],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "ci0",
+            "workflowName": "lint",
+            "startedAt": "2026-01-01T00:00:00Z",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS"
+          }
+        ],
+        "autoMergeRequest": null
+      },
+      "unresolved": 0,
+      "approvals": 0,
+      "approvals_required": 0,
+      "skip_label": "no-medic",
+      "may_merge": true
+    }
+  },
+  {
+    "name": "MAY_MERGE false waits",
+    "expect": "wait",
+    "expect_reason": "MAY_MERGE false",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "labels": [],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "ci0",
+            "workflowName": "lint",
+            "startedAt": "2026-01-01T00:00:00Z",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS"
+          }
+        ],
+        "autoMergeRequest": null
+      },
+      "unresolved": 0,
+      "approvals": 0,
+      "approvals_required": 0,
+      "skip_label": "no-medic",
+      "may_merge": false
+    }
+  },
+  {
+    "name": "a hand-armed PR is left to GitHub",
+    "expect": "noop",
+    "expect_reason": "auto-merge enabled by hand",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "labels": [],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "ci0",
+            "workflowName": "lint",
+            "startedAt": "2026-01-01T00:00:00Z",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS"
+          }
+        ],
+        "autoMergeRequest": {
+          "enabledAt": "2026-01-01T00:00:00Z"
+        }
+      },
+      "unresolved": 0,
+      "approvals": 0,
+      "approvals_required": 0,
+      "skip_label": "no-medic",
+      "may_merge": true
+    }
+  },
+  {
+    "name": "MAY_MERGE false outranks a hand-armed PR",
+    "expect": "wait",
+    "expect_reason": "MAY_MERGE false",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "labels": [],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "ci0",
+            "workflowName": "lint",
+            "startedAt": "2026-01-01T00:00:00Z",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS"
+          }
+        ],
+        "autoMergeRequest": {
+          "enabledAt": "2026-01-01T00:00:00Z"
+        }
+      },
+      "unresolved": 0,
+      "approvals": 0,
+      "approvals_required": 0,
+      "skip_label": "no-medic",
+      "may_merge": false
+    }
+  },
+  {
+    "name": "a pending check waits rather than merging",
+    "expect": "wait",
+    "expect_reason": "pending checks",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "labels": [],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "a",
+            "workflowName": "x",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS",
+            "startedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "__typename": "CheckRun",
+            "name": "b",
+            "workflowName": "x",
+            "status": "IN_PROGRESS",
+            "startedAt": "2026-01-01T00:00:00Z"
+          }
+        ],
+        "autoMergeRequest": null
+      },
+      "unresolved": 0,
+      "approvals": 0,
+      "approvals_required": 0,
+      "skip_label": "no-medic",
+      "may_merge": true
     }
   }
 ]

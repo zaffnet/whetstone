@@ -174,12 +174,33 @@ JSON
 @test "no launcher can run PR-controlled code" {
   local tools
   tools=$(grep -o 'allowedTools "[^"]*"' "$REPO/.github/workflows/pr-medic.yml")
-  run ! grep -qE 'uv run|Bash\(just' <<<"$tools"
-  grep -qF 'Bash(just:*)' "$REPO/.github/workflows/pr-medic.yml"
-  grep -qF 'Bash(uv run:*)' "$REPO/.github/workflows/pr-medic.yml"
+  # `uv run <anything>`; `just` reads a justfile out of the PR checkout; `git rebase --exec`
+  # and `git fetch --upload-pack` both take a command. None may be reachable with arguments.
+  run ! grep -qE 'uv run|Bash\(just|Bash\(git rebase:|Bash\(git fetch' <<<"$tools"
+  # Only the two rebase subcommands that take no command, plus the no-argument helper.
+  grep -qF 'Bash(git rebase --continue)' <<<"$tools"
+  grep -qF 'Bash(git rebase --abort)' <<<"$tools"
+  grep -qF 'Bash(.github/pr-medic/rebase.sh)' <<<"$tools"
   # And the force push takes no refspec, or it could name the default branch.
   run ! grep -q 'force-with-lease:\*' <<<"$tools"
   grep -qF 'Bash(git push --force-with-lease)' <<<"$tools"
+  # Denied outright as well, since deny beats allow.
+  local deny
+  deny=$(grep -o '"deny":\[[^]]*\]' "$REPO/.github/workflows/pr-medic.yml")
+  for entry in 'Bash(just:*)' 'Bash(uv run:*)' 'Bash(git fetch:*)' \
+    'Bash(git rebase --exec:*)' 'Bash(git rebase -x:*)' 'Write(.git/**)'; do
+    grep -qF "$entry" <<<"$deny" || {
+      echo "missing deny entry: $entry" >&2
+      return 1
+    }
+  done
+}
+
+# rebase.sh takes no arguments at all: the destination comes from the API, not the caller, so
+# there is nothing for an injected instruction to redirect.
+@test "rebase.sh accepts no destination from its caller" {
+  # shellcheck disable=SC2016  # a grep pattern for positional parameters, not an expansion.
+  run ! grep -qE '\$1|\$\{1|\$@|\$\*' "$MEDIC/rebase.sh"
 }
 
 # Resolving a thread is not reversible. If it happened before the runner checks, a run that
@@ -334,7 +355,7 @@ SH
 # auto-merge unavailable. A run that does nothing therefore shows `pr merge` in the log, which
 # is what makes its absence in the cases below meaningful.
 default_view() {
-  printf '%s' '{"state":"OPEN","isDraft":false,"isCrossRepository":false,'
+  printf '%s' '{"state":"OPEN","isDraft":false,"isCrossRepository":false,"labels":[],'
   printf '%s' '"mergeStateStatus":"CLEAN","latestReviews":[],"autoMergeRequest":null,'
   printf '%s' '"statusCheckRollup":[{"__typename":"CheckRun","name":"ci","workflowName":"lint",'
   printf '%s' '"status":"COMPLETED","conclusion":"SUCCESS","startedAt":"2026-01-01T00:00:00Z"}]}'
@@ -360,7 +381,7 @@ setup_after() {
 printf '%s\n' "$*" >>"$GH_LOG"
 case "$*" in
   *"api graphql"*) printf '0\n' ;;
-  *"api repos/o/r"*) printf '{"default_branch":"main","allow_auto_merge":false}\n' ;;
+  *"api repos/o/r"*) printf 'main\n' ;;
   *"--json mergeStateStatus"*) printf 'CLEAN\n' ;;
   *"--json headRefOid"*) printf '%s\n' "$STUB_REMOTE_HEAD" ;;
   *"--json state"*) printf '%s\n' "$STUB_VIEW" ;;
@@ -382,13 +403,22 @@ SH
   PR=7
   REPO=o/r
   APPROVALS_REQUIRED=0
-  ARM_AUTO_MERGE=true
+  MAY_MERGE=true
   MERGE_METHOD=squash
+  SKIP_LABEL=no-medic
   REREQUEST_REVIEWERS=
   GITHUB_STEP_SUMMARY="$BATS_TEST_TMPDIR/summary.md"
   export GH_LOG PATH STUB_VIEW STUB_REMOTE_HEAD HEAD_BEFORE PR REPO
   export RUNNER_TEMP THREADS_FILE REPLIES_FILE
-  export APPROVALS_REQUIRED ARM_AUTO_MERGE MERGE_METHOD REREQUEST_REVIEWERS GITHUB_STEP_SUMMARY
+  export APPROVALS_REQUIRED MAY_MERGE MERGE_METHOD REREQUEST_REVIEWERS GITHUB_STEP_SUMMARY
+  export SKIP_LABEL
+  # trust-config.sh records this after restoring TRUSTED_PATHS; after.sh compares against it,
+  # so an edit Claude makes to a restored path is caught even though those paths are excluded
+  # from the plain clean-worktree check.
+  TRUSTED_STATE_FILE="$BATS_TEST_TMPDIR/trusted-state"
+  export TRUSTED_STATE_FILE
+  # shellcheck source=/dev/null
+  (cd "$WORK" && . "$MEDIC/lib.sh" && trusted_state) >"$TRUSTED_STATE_FILE"
 }
 
 run_after() { (cd "$WORK" && bash "$MEDIC/after.sh"); }
@@ -408,13 +438,16 @@ commit_and_push() {
 }
 
 # trust-config.sh reverts CLAUDE.md and friends to the default branch's copies, so a PR that
-# legitimately edits one leaves the worktree differing from its head. Reading that as an
-# uncommitted fix would reject exactly those pull requests.
-@test "the gate ignores the config trust-config.sh reverted" {
+# legitimately edits one leaves the worktree differing from its head. Rejecting that would
+# reject exactly those pull requests -- so the difference the restore itself made is recorded
+# and allowed. The order matters: revert, then record.
+@test "the gate ignores the difference the restore itself made" {
   setup_after
-  echo "edited by the PR" >"$WORK/CLAUDE.md"
+  echo "reverted to the default branch's copy" >"$WORK/CLAUDE.md"
   mkdir -p "$WORK/.claude"
   echo '{}' >"$WORK/.claude/settings.json"
+  # shellcheck source=/dev/null
+  (cd "$WORK" && . "$MEDIC/lib.sh" && trusted_state) >"$TRUSTED_STATE_FILE"
   run_after
   grep -q 'pr merge' "$GH_LOG"
 }
@@ -436,19 +469,30 @@ commit_and_push() {
   run ! grep -q 'pr merge' "$GH_LOG"
 }
 
-# The gate arms auto-merge, so it has to be able to take that back: GitHub merges an armed PR
-# on required checks alone, and APPROVALS_REQUIRED lives in this workflow, not in the ruleset.
-@test "the gate disarms an armed PR that no longer passes" {
-  setup_after "$(default_view | jq -c '.autoMergeRequest = {"enabledAt": "2026-01-01T00:00:00Z"}
-    | .statusCheckRollup[0].conclusion = "FAILURE"')"
+# The medic never arms, so it never disarms either: it merges the head the gate just judged, or
+# it does nothing. A pull request somebody armed by hand belongs to GitHub.
+@test "the gate never delegates to auto-merge" {
+  setup_after
   run_after
-  grep -q 'disable-auto' "$GH_LOG"
+  run ! grep -qE -- '--auto|disable-auto' "$GH_LOG"
+  grep -q -- '--match-head-commit' "$GH_LOG"
 }
 
-@test "the gate leaves an armed PR that still passes alone" {
+@test "a hand-armed PR is left to GitHub" {
   setup_after "$(default_view | jq -c '.autoMergeRequest = {"enabledAt": "2026-01-01T00:00:00Z"}')"
   run_after
-  run ! grep -q 'disable-auto' "$GH_LOG"
+  run ! grep -q 'pr merge' "$GH_LOG"
+}
+
+# Excluding TRUSTED_PATHS from the clean check must not hide an edit Claude made to one of
+# them after trust-config.sh restored it -- the thread asking for that edit would then be
+# resolved against a head the fix is missing from.
+@test "the gate catches an uncommitted edit to a restored path" {
+  setup_after
+  echo "edited after the restore" >>"$WORK/CLAUDE.md"
+  run run_after
+  [ "$status" -ne 0 ]
+  run ! grep -q 'pr merge' "$GH_LOG"
 }
 
 # after.sh runs after Claude, so its own HEAD already carries Claude's commits. Without the

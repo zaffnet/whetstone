@@ -1,11 +1,15 @@
 # May the medic land this pull request? Input:
-#   {pr, unresolved, approvals, approvals_required, arm_auto_merge, allow_auto_merge,
-#    skip_label}
-# `approvals` is counted by approval_count in lib.sh, which asks for push access rather than
-# trusting authorAssociation.
-# where `pr` is `gh pr view --json` output. Result: {action, reason}, one of
-# refuse (do not touch it), wait (come back later), noop, arm (hand the merge to GitHub) or
-# merge (for a repo with auto-merge switched off). The branch order is the design.
+#   {pr, unresolved, approvals, approvals_required, may_merge, skip_label}
+# where `pr` is `gh pr view --json` output and `approvals` is counted by approval_count in
+# lib.sh, which asks for push access rather than trusting authorAssociation. Result:
+# {action, reason} -- refuse (do not touch it), wait (come back later), noop, or merge.
+# The branch order is the design.
+#
+# There is no "arm auto-merge" action. Arming hands the decision to GitHub, whose only
+# condition is *required* checks, so every condition here that the platform does not enforce
+# -- the approval count, the skip label, unresolved threads -- stops being enforced the moment
+# the arming lands. A push or a label arriving before the next wake would merge anyway. So the
+# medic merges the head it has just judged, with --match-head-commit, or it does nothing.
 include "lib";
 
 .pr as $p
@@ -14,8 +18,7 @@ include "lib";
 | if ($p.state | ascii_upcase) != "OPEN" then {action: "refuse", reason: "closed"}
   elif $p.isDraft then {action: "refuse", reason: "draft"}
   elif $p.isCrossRepository then {action: "refuse", reason: "fork"}
-  # Re-read here, not just in pick: the label is the escape hatch, so it has to work when it
-  # is applied to a pull request the medic has already armed. `refuse` disarms.
+  # Re-read here, not just in pick: a label applied after pick has to stop the merge.
   # $skip, not .skip_label: inside the pipe below `.` is the label array, not the root.
   elif ($skip | length) > 0 and (([$p.labels[]?.name] | index($skip)) != null) then
     {action: "refuse", reason: "skip label"}
@@ -28,14 +31,11 @@ include "lib";
   elif $c.total == 0 then {action: "refuse", reason: "no checks on this head"}
   elif $c.failing > 0 then {action: "refuse", reason: "failing checks"}
   elif .approvals < .approvals_required then {action: "wait", reason: "approvals"}
-  elif .arm_auto_merge != true then {action: "wait", reason: "ARM_AUTO_MERGE false"}
-  # After the switch, not before it: an armed PR that ignored ARM_AUTO_MERGE would keep a
-  # kill switch from doing anything, because GitHub merges on required checks alone.
-  # Pending is below, and deliberately: waiting for checks is what an arming is for.
-  elif $p.autoMergeRequest != null then {action: "noop", reason: "already armed"}
-  # Before arm, not only before merge: gh pr merge --auto waits for *required* checks, and a
-  # repo with no ruleset has none, so arming there merges at once while optional CI runs.
+  elif .may_merge != true then {action: "wait", reason: "MAY_MERGE false"}
+  # Somebody switched auto-merge on by hand. Not ours to merge, and not ours to take away.
+  elif $p.autoMergeRequest != null then {action: "noop", reason: "auto-merge enabled by hand"}
+  # A pending check is a reason to come back, not to merge. The workflow_run wake that fires
+  # when it finishes is what brings us here again.
   elif $c.pending > 0 then {action: "wait", reason: "pending checks"}
-  elif .allow_auto_merge then {action: "arm", reason: "gate passed"}
-  else {action: "merge", reason: "gate passed, auto-merge off"}
+  else {action: "merge", reason: "gate passed"}
   end

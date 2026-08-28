@@ -36,12 +36,11 @@ env:
   # maintainer. Raise it when a second human has write access. Counted by push permission.
   APPROVALS_REQUIRED: "0"
   # Set the repository variable to "true" to let the medic land pull requests unattended.
-  ARM_AUTO_MERGE: ${{ vars.PR_MEDIC_ARM_AUTO_MERGE || 'false' }}
+  MAY_MERGE: ${{ vars.PR_MEDIC_MAY_MERGE || 'false' }}
   MERGE_METHOD: squash # squash | rebase | merge
   SKIP_LABEL: no-medic
   REREQUEST_REVIEWERS: copilot-pull-request-reviewer[bot]
-  # Bots whose event may wake the medic. The medic's own login is added at runtime; see the
-  # `bot` step. This does not decide what the medic works on -- `pick` does that.
+  # Bots whose event may wake the medic; its own login is added at runtime in the `bot` step.
   TRIGGER_BOTS: copilot-pull-request-reviewer[bot],dependabot[bot]
   MAX_TURNS: "60"
 
@@ -175,17 +174,18 @@ jobs:
           # Inline, not a path: a file in the checkout is PR-controlled and is not in
           # SENSITIVE_PATHS, so trust-config.sh does not cover it.
           settings: |
-            {"permissions":{"deny":["Bash(gh api:*)","Bash(gh pr merge:*)","Bash(gh pr review:*)","Bash(git push --force)","Bash(git push --force *)","Bash(just:*)","Bash(uv run:*)"]}}
+            {"permissions":{"deny":["Bash(gh api:*)","Bash(gh pr merge:*)","Bash(gh pr review:*)","Bash(git push --force)","Bash(git push --force *)","Bash(just:*)","Bash(uv run:*)","Bash(git rebase --exec:*)","Bash(git rebase -x:*)","Bash(git fetch:*)","Write(.git/**)","Edit(.git/**)"]}}
           # An allowlist, not only the deny block: agent mode sets neither --permission-mode
           # nor --allowedTools, so the model would otherwise have Read, Grep and Glob and
-          # could not work. No `gh api`, and no launcher that would run it anyway -- `just`
-          # reads a PR-controlled justfile, `uv run` takes any argv. `--force-with-lease`
-          # takes no refspec, which could name the default branch. See ADR 0012.
+          # could not work. Nothing on it launches a command: no `gh api`, no `just` (a
+          # PR-controlled justfile), no `uv run` (any argv), no bare `git rebase`
+          # (`--exec`) and no `git fetch` (`--upload-pack`). Rebasing goes through
+          # rebase.sh, which takes no arguments. See ADR 0012.
           claude_args: >-
             --max-turns ${{ env.MAX_TURNS }}
             --permission-mode acceptEdits
             --add-dir ${{ runner.temp }}/pr-medic
-            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git fetch:*),Bash(git rebase:*),Bash(git checkout:*),Bash(git push),Bash(git push --force-with-lease),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh run rerun:*)"
+            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git rebase --continue),Bash(git rebase --abort),Bash(.github/pr-medic/rebase.sh),Bash(git checkout:*),Bash(git push),Bash(git push --force-with-lease),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh run rerun:*)"
           prompt: ${{ steps.bot.outputs.prompt }}
 
       # The action reports `is_error:true` without the message that caused it.

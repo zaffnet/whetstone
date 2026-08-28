@@ -45,3 +45,17 @@ approval_count() {
   done < <(jq -r '[.latestReviews[]? | select(.state == "APPROVED") | .author.login] | unique | .[]')
   printf '%s\n' "$count"
 }
+
+: "${TRUSTED_STATE_FILE:=${RUNNER_TEMP:-/tmp}/pr-medic/trusted-state}"
+
+# A digest of the working-tree state of TRUSTED_PATHS. trust-config.sh records it right after
+# the restore; after.sh compares. Excluding those paths from the clean-worktree check is not
+# enough on its own -- it would also hide an edit Claude made to one of them and never
+# committed, and the thread asking for that edit would then be resolved against a head the fix
+# is missing from. Both the status and the diff, so an added file counts as well as a change.
+trusted_state() {
+  {
+    git status --porcelain -- "${TRUSTED_PATHS[@]}"
+    git diff HEAD -- "${TRUSTED_PATHS[@]}"
+  } | shasum -a 256 | cut -d' ' -f1
+}

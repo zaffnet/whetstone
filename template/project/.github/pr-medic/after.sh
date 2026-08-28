@@ -11,18 +11,22 @@ here=$(dirname "$0")
 # Before anything irreversible: a fix that was never committed is not on the remote, and
 # resolving a thread for it would leave the next run reading "no unresolved threads" as ready
 # to merge. This is also why the rebase below is not attempted on a dirty tree.
-# Excluding TRUSTED_PATHS: trust-config.sh reverted those to the default branch's copies, so
-# a pull request that legitimately edits CLAUDE.md or .claude/ shows up here as a difference
-# it did not make. Reading that as an uncommitted fix would reject exactly those PRs.
-untracked=()
-for p in "${TRUSTED_PATHS[@]}"; do untracked+=(":(exclude)$p"); done
-[ -z "$(git status --porcelain -- . "${untracked[@]}")" ] || {
+# Two checks, because trust-config.sh reverted TRUSTED_PATHS to the default branch's copies:
+# a pull request that legitimately edits CLAUDE.md shows a difference it did not make, so
+# those paths are excluded here -- and then compared separately against the state the restore
+# left, so an edit Claude made to one of them after the restore is still caught.
+excluded=()
+for p in "${TRUSTED_PATHS[@]}"; do excluded+=(":(exclude)$p"); done
+[ -z "$(git status --porcelain -- . "${excluded[@]}")" ] || {
   echo "::error::PR #$PR: the worktree is not clean, so a change here was never committed"
   exit 1
 }
+[ "$(trusted_state)" = "$(cat "$TRUSTED_STATE_FILE")" ] || {
+  echo "::error::PR #$PR: $(printf '%s ' "${TRUSTED_PATHS[@]}")changed after the restore and was never committed"
+  exit 1
+}
 
-repo=$(gh api "repos/$REPO" --jq '{default_branch, allow_auto_merge}')
-default_branch=$(jq -r .default_branch <<<"$repo")
+default_branch=$(gh api "repos/$REPO" --jq .default_branch)
 # From the checkout step, not from here: this script runs after Claude, so its own
 # `git rev-parse HEAD` would already include Claude's commits and the re-request below would
 # never fire on the one run that needed it.
@@ -72,11 +76,10 @@ decision=$(jq -n \
   --argjson unresolved "$(unresolved_threads "$PR")" \
   --argjson approvals "$(approval_count <<<"$view")" \
   --argjson required "$APPROVALS_REQUIRED" \
-  --argjson arm "$ARM_AUTO_MERGE" \
-  --argjson auto "$(jq .allow_auto_merge <<<"$repo")" \
+  --argjson may "${MAY_MERGE:-false}" \
   --arg skip "${SKIP_LABEL:-}" \
   '{pr: $pr, unresolved: $unresolved, approvals: $approvals, approvals_required: $required,
-    arm_auto_merge: $arm, allow_auto_merge: $auto, skip_label: $skip}' \
+    may_merge: $may, skip_label: $skip}' \
   | jq -c -L "$here" -f "$here/gate.jq")
 action=$(jq -r .action <<<"$decision")
 reason=$(jq -r .reason <<<"$decision")
@@ -84,18 +87,7 @@ echo "::notice::PR #$PR gate: $action ($reason)"
 echo "- PR #$PR gate: \`$action\` ($reason)" >>"$GITHUB_STEP_SUMMARY"
 
 # --match-head-commit pins the merge to the head the gate just judged, so a push landing
-# between that read and this call cannot slip in unevaluated.
+# between that read and this call cannot slip in unevaluated. No --auto: see gate.jq.
 case "$action" in
-  arm) gh pr merge "$PR" --repo "$REPO" "--$MERGE_METHOD" --auto --match-head-commit "$remote_head" ;;
   merge) gh pr merge "$PR" --repo "$REPO" "--$MERGE_METHOD" --match-head-commit "$remote_head" ;;
-  # The gate is only authoritative if it can take an arming back. GitHub merges an armed PR on
-  # required checks alone, and APPROVALS_REQUIRED lives here rather than in the ruleset, so a
-  # push that dismissed the approval would otherwise land anyway. `noop` is the armed PR that
-  # still passes, and is deliberately not in this list.
-  refuse | wait)
-    if [ "$(jq -r '.autoMergeRequest != null' <<<"$view")" = true ]; then
-      gh pr merge "$PR" --repo "$REPO" --disable-auto
-      echo "- PR #$PR: auto-merge disarmed" >>"$GITHUB_STEP_SUMMARY"
-    fi
-    ;;
 esac

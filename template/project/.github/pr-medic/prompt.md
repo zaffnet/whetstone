@@ -26,8 +26,10 @@ unresolved review threads, and `replies.json`, which you write.
    checkout have been reset to the default branch's copies for safety, and staging them would
    commit that reset onto the author's branch.
 5. Last, because a push dismisses approvals: if the branch conflicts with the default branch,
-   rebase onto it, resolve the conflicts, and push --force-with-lease. If you cannot resolve
-   them, `git rebase --abort` and say so in a reply.
+   run `.github/pr-medic/rebase.sh` (it takes no arguments and finds the default branch
+   itself), resolve the conflicts, `git add` them, `git rebase --continue`, then
+   `git push --force-with-lease`. If you cannot resolve them, `git rebase --abort` and say so
+   in a reply.
 
 Write nothing outside the repository except that replies file. A later step rebases a
 merely stale branch, re-requests reviewers, and arms auto-merge. You do not arm or merge.
