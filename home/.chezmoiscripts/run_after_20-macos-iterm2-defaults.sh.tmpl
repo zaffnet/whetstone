@@ -2,6 +2,13 @@
 # iTerm2 rewrites its preferences plist on quit, so values written while it is running can
 # be discarded. This runs after every apply, so a skipped run while iTerm2 is open does not
 # mark the settings done forever like run_onchange_ scripts do.
+#
+# Removing a setting is two steps, as it is for the Cursor settings script: delete the line
+# here, then run `defaults delete` once on each machine. `defaults write` only writes, so a
+# line that goes leaves its last value behind. A tombstone list would automate the second
+# step and cost more than it saves -- it has to persist per machine, and it would delete a
+# value the owner had since set by hand, which is exactly the surprise the preserve-what-we
+# -do-not-own rule elsewhere in this tree exists to avoid.
 set -euo pipefail
 
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/whetstone"

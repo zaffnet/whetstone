@@ -192,7 +192,43 @@ chezmoi_managed() {
   # iTerm.app` matches anything launched from iTerm2, and `ps | grep -q` inverts under
   # `set -o pipefail` when grep exits first and ps takes SIGPIPE -- which silently wrote
   # the settings underneath a running iTerm2.
-  grep -qF 'osascript -e' "$iterm_script"
+  # Run it, rather than reading it. Asserting that some `osascript` call exists passes just
+  # as happily when the predicate is inverted or the wrong app is queried, and the failure
+  # that hides is the one that matters: writing beneath a running iTerm2, which discards
+  # every value on quit and looks like success.
+  stub="$BATS_TEST_TMPDIR/stub"
+  mkdir -p "$stub"
+  # The stub answers for iTerm and for nothing else, so querying the wrong application
+  # reads as "not running" and the writes happen -- which the assertions below catch.
+  cat >"$stub/osascript" <<'STUB'
+#!/usr/bin/env bash
+case "$*" in
+  *iTerm*) echo "$FAKE_ITERM_RUNNING" ;;
+  *) echo false ;;
+esac
+STUB
+  cat >"$stub/defaults" <<'STUB'
+#!/usr/bin/env bash
+echo "$*" >>"$DEFAULTS_LOG"
+STUB
+  chmod +x "$stub/osascript" "$stub/defaults"
+
+  # iTerm2 up: not one write, and it still exits zero so the apply carries on.
+  log="$BATS_TEST_TMPDIR/writes-running.log"
+  : >"$log"
+  run env PATH="$stub:$PATH" FAKE_ITERM_RUNNING=true DEFAULTS_LOG="$log" bash "$iterm_script"
+  [ "$status" -eq 0 ]
+  [ ! -s "$log" ]
+
+  # iTerm2 down: every setting written, and the profile pointer with them.
+  log="$BATS_TEST_TMPDIR/writes-quit.log"
+  : >"$log"
+  run env PATH="$stub:$PATH" FAKE_ITERM_RUNNING=false DEFAULTS_LOG="$log" bash "$iterm_script"
+  [ "$status" -eq 0 ]
+  [ "$(grep -c '^write com.googlecode.iterm2' "$log")" -eq 14 ]
+  grep -qF 'write com.googlecode.iterm2 FocusFollowsMouse -bool true' "$log"
+  grep -qF 'write com.googlecode.iterm2 Default Bookmark Guid -string whetstone-default' "$log"
+  run ! grep -q 'AllowClipboardAccess' "$log"
   code="$BATS_TEST_TMPDIR/iterm-code.sh"
   grep -vE '^[[:space:]]*#' "$iterm_script" >"$code"
   run ! grep -qE 'pgrep|ps -Ao' "$code"
