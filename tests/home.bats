@@ -249,16 +249,29 @@ STUB
   # onchange script look complete forever.
   run ! grep -q "com.googlecode.iterm2" "$script"
 
-  # Managed defaults converge when a key is retired: each script prunes keys that were
-  # previously managed in these domains but are no longer in the current managed key set.
-  grep -qF 'prune_retired_defaults_keys com.googlecode.iterm2 "$managed_keys_file" "${managed_iterm2_keys[@]}"' \
-    "$iterm_script"
-  grep -qF 'prune_retired_defaults_keys com.apple.finder "$managed_finder_keys_file" "${managed_finder_keys[@]}"' \
-    "$script"
-  grep -qF 'prune_retired_defaults_keys com.apple.dock "$managed_dock_keys_file" "${managed_dock_keys[@]}"' \
-    "$script"
-  grep -qF 'defaults delete "$domain" "$previous_key" 2>/dev/null || true' "$iterm_script"
-  grep -qF 'defaults delete "$domain" "$previous_key" 2>/dev/null || true' "$script"
+  # Retiring a key converges, and that is checked by retiring one rather than by finding
+  # the call that would: a text match passes just as well when the comparison is inverted.
+  # First run records the managed set and deletes nothing; a second run with a key removed
+  # from the script deletes exactly that key.
+  state="$BATS_TEST_TMPDIR/state-home"
+  mkdir -p "$state"
+  log="$BATS_TEST_TMPDIR/prune-first.log"
+  : >"$log"
+  run env PATH="$stub:$PATH" HOME="$state" FAKE_ITERM_RUNNING=false DEFAULTS_LOG="$log" \
+    bash "$iterm_script"
+  [ "$status" -eq 0 ]
+  run ! grep -q '^delete' "$log"
+
+  retired="$BATS_TEST_TMPDIR/iterm-retired.sh"
+  grep -v 'ShowFullScreenTabBar' "$iterm_script" >"$retired"
+  log="$BATS_TEST_TMPDIR/prune-second.log"
+  : >"$log"
+  run env PATH="$stub:$PATH" HOME="$state" FAKE_ITERM_RUNNING=false DEFAULTS_LOG="$log" \
+    bash "$retired"
+  [ "$status" -eq 0 ]
+  grep -qFx 'delete com.googlecode.iterm2 ShowFullScreenTabBar' "$log"
+  # Only the retired one: pruning must not reach a key the script still manages.
+  [ "$(grep -c '^delete' "$log")" -eq 1 ]
 
   # Finder's search scope and new-window target, plus the two hot corners with modifiers:
   # an unset modifier is not the same as zero.
