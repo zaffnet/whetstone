@@ -57,6 +57,13 @@ the fix is missing from, which remote state alone cannot tell apart from a finis
 Claude step is therefore *not* `continue-on-error`: a failure fails the job and `after.sh`
 never runs. That replaces the outcome bookkeeping an earlier draft carried in bash.
 
+`allowed_bots` carries the medic's own login, built at runtime in the `bot` step. On a
+`workflow_run` wake after a medic push, `github.actor` is whoever pushed -- this bot -- and
+the action's agent mode calls `checkHumanActor`, which throws on any non-`User` actor that is
+not allowed. Since the Claude step is not `continue-on-error`, omitting it would stop the gate
+on the push-then-CI-completes wake, which is the main way a fix reaches it. This list does not
+decide what the medic works on; `pick` does.
+
 Claude runs behind an explicit `--allowedTools` allowlist, not only the deny block:
 `claude-code-action` agent mode sets neither `--permission-mode` nor `--allowedTools`, so
 without them the model has Read, Grep and Glob and cannot do the work at all. `gh pr merge`

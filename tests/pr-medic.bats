@@ -91,6 +91,18 @@ JSON
   run ! grep -q continue-on-error "$REPO/.github/workflows/pr-medic.yml"
 }
 
+# On a workflow_run wake after a medic push, github.actor is this bot, and the Claude action's
+# agent mode calls checkHumanActor, which throws on a non-User actor absent from allowed_bots.
+# The Claude step is not continue-on-error, so that failure would stop the gate -- and the
+# push-then-CI-completes wake is the main way a fix reaches it.
+@test "the medic's own login is in allowed_bots" {
+  local wf="$REPO/.github/workflows/pr-medic.yml"
+  # shellcheck disable=SC2016  # grepping for these literals is the point.
+  grep -qF 'allowed_bots: ${{ steps.bot.outputs.bots }}' "$wf"
+  # shellcheck disable=SC2016
+  grep -qF '"$login,$TRIGGER_BOTS" >>"$GITHUB_OUTPUT"' "$wf"
+}
+
 # after.sh against stub git and gh. Remote state alone cannot tell a finished run from one
 # that resolved a thread and never pushed the fix, so the gate checks the runner as well.
 

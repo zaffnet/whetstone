@@ -40,7 +40,8 @@ env:
   MERGE_METHOD: squash # squash | rebase | merge
   SKIP_LABEL: no-medic
   REREQUEST_REVIEWERS: copilot-pull-request-reviewer[bot]
-  # Not github-actions[bot]: the medic posts under that login and would wake itself.
+  # Bots whose event may wake the medic. The medic's own login is added at runtime; see the
+  # `bot` step. This does not decide what the medic works on -- `pick` does that.
   TRIGGER_BOTS: copilot-pull-request-reviewer[bot],dependabot[bot]
   MAX_TURNS: "60"
 
@@ -129,6 +130,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.token.outputs.token || github.token }}
           APP_SLUG: ${{ steps.token.outputs.app-slug }}
+          TRIGGER_BOTS: ${{ env.TRIGGER_BOTS }}
         run: |
           set -euo pipefail
           login=${APP_SLUG:+${APP_SLUG}[bot]}
@@ -138,7 +140,12 @@ jobs:
           git config user.email "$id+$login@users.noreply.github.com"
           gh auth setup-git
           gh pr checkout "$PR"
-          printf 'login=%s\nid=%s\nhead=%s\n' "$login" "$id" "$(git rev-parse HEAD)" >>"$GITHUB_OUTPUT"
+          # $login leads the bot allowlist. On a workflow_run wake after a medic push,
+          # github.actor is whoever pushed -- this bot -- and the Claude action's agent mode
+          # throws on any non-User actor that is not allowed. Omitting it breaks the
+          # push-then-CI-completes path, which is the main way a fix reaches the gate.
+          printf 'login=%s\nid=%s\nhead=%s\nbots=%s\n' \
+            "$login" "$id" "$(git rev-parse HEAD)" "$login,$TRIGGER_BOTS" >>"$GITHUB_OUTPUT"
 
       - name: Run Claude Code
         if: env.HAS_CLAUDE == 'true'
@@ -147,7 +154,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ steps.token.outputs.token || github.token }}
-          allowed_bots: ${{ env.TRIGGER_BOTS }}
+          allowed_bots: ${{ steps.bot.outputs.bots }}
           use_commit_signing: false
           bot_id: ${{ steps.bot.outputs.id }}
           bot_name: ${{ steps.bot.outputs.login }}
