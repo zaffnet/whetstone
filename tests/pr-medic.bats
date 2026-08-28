@@ -779,6 +779,22 @@ SH
   (cd "$WORK" && . "$MEDIC/lib.sh" && trusted_state) >"$TRUSTED_STATE_FILE"
 }
 
+# setup_after deliberately leaves `@{upstream}` unresolvable, which is what keeps the merge
+# cases from pushing. This gives the branch a real remote so the push path runs for the tests
+# that are about it: after.sh repoints origin from GITHUB_SERVER_URL, so that has to resolve to
+# the same bare repository.
+setup_upstream() {
+  BARE="$BATS_TEST_TMPDIR/remotes/o/r.git"
+  mkdir -p "$(dirname "$BARE")"
+  git init -q --bare "$BARE"
+  git -C "$WORK" push -q "$BARE" HEAD:refs/heads/main
+  git -C "$WORK" remote set-url origin "$BARE"
+  git -C "$WORK" fetch -q origin
+  git -C "$WORK" branch -q --set-upstream-to=origin/main main
+  GITHUB_SERVER_URL="$BATS_TEST_TMPDIR/remotes"
+  export GITHUB_SERVER_URL BARE
+}
+
 run_after() { (cd "$WORK" && bash "$MEDIC/after.sh"); }
 
 # Commit locally and tell the stub the remote moved with us, as a real push would.
@@ -838,6 +854,42 @@ commit_and_push() {
   [ "$(at 'gh auth setup-git')" -lt "$(at 'push\.sh')" ]
   # One push path, so the rebase cannot bypass push.sh's destination check.
   run ! grep -qE '^ *git push' "$MEDIC/after.sh"
+}
+
+# The prompt tells the model to rebase a conflicting branch itself and says a later step pushes
+# the result. A rebase rewrites history, so HEAD stops descending from the remote branch and a
+# plain push is rejected -- the resolved conflict would never reach the gate.
+@test "the gate pushes history the model rewrote" {
+  setup_after
+  setup_upstream
+  git -C "$WORK" commit -q --amend -m "conflict resolved during a rebase"
+  STUB_REMOTE_HEAD=$(git -C "$WORK" rev-parse HEAD)
+  export STUB_REMOTE_HEAD
+  run_after
+  [ "$(git -C "$BARE" rev-parse main)" = "$STUB_REMOTE_HEAD" ]
+  grep -q 'pr merge' "$GH_LOG"
+}
+
+# The other shape: commits on top of the remote branch still fast-forward.
+@test "the gate pushes a plain commit" {
+  setup_after
+  setup_upstream
+  echo two >>"$WORK/file"
+  git -C "$WORK" commit -q -am two
+  STUB_REMOTE_HEAD=$(git -C "$WORK" rev-parse HEAD)
+  export STUB_REMOTE_HEAD
+  run_after
+  [ "$(git -C "$BARE" rev-parse main)" = "$STUB_REMOTE_HEAD" ]
+}
+
+# restore_pr_config puts the PR's .gitmodules back before after.sh fetches, and under the
+# default fetch.recurseSubmodules=on-demand git reads it during a fetch -- so a crafted one can
+# make the step holding the write token contact or block on a remote the author chose.
+@test "every fetch in the helpers refuses submodule recursion" {
+  local unguarded
+  unguarded=$(grep -hE '^ *git fetch ' "$MEDIC"/*.sh "$REPO/.github/workflows/pr-medic.yml" \
+    | grep -v -- '--no-recurse-submodules' || true)
+  [ -z "$unguarded" ]
 }
 
 @test "the gate never delegates to auto-merge" {

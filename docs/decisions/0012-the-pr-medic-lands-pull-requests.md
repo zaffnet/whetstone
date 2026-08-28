@@ -235,6 +235,18 @@ than left: `apply` unresolves every thread it resolved in that run and fails. A 
 resolved against a head the gate never judged is the state that matters, because the next run
 reads a resolved thread as satisfied and would merge on it.
 
+`after.sh` pushes in one of two shapes. New commits on top of the remote branch fast-forward;
+a rebase rewrites history, HEAD stops descending from the remote branch, and a plain push is
+rejected -- so a conflict the model was told to resolve would never reach the gate.
+`git merge-base --is-ancestor` picks between them, and the rewritten case uses
+`--force-with-lease`, which still refuses a remote that moved since the fetch. Both go through
+`push.sh`, so the destination is always resolved from the API.
+
+Every `git fetch` in the helpers passes `--no-recurse-submodules`. Under the default
+`fetch.recurseSubmodules=on-demand` git reads `.gitmodules` during a fetch, and `after.sh`
+fetches after `restore_pr_config` has put the pull request's copy back -- in the step that
+holds the write token. A test asserts the flag on every fetch rather than trusting review.
+
 On `schedule`, `workflow_dispatch` and `workflow_run` the workflow file itself is trusted, so
 the copy in `RUNNER_TEMP` is what the gate runs and the chain holds. On an entity event the
 workflow file is the pull request's as well, so nothing written in the file can help: that is a

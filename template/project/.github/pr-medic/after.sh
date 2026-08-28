@@ -43,8 +43,18 @@ base_ref=$(gh pr view "$PR" --repo "$REPO" --json baseRefName --jq .baseRefName)
 # Claude commits; this pushes. The model's step holds no credential that can write, so there
 # is nothing there for an injected instruction to misuse -- which is the boundary the tool
 # allowlist could only approximate.
+#
+# Two shapes, because the prompt tells the model to rebase a conflicting branch itself and that
+# a later step pushes the result: new commits on top of the remote branch fast-forward, but a
+# rebase rewrites history and HEAD no longer descends from it, where a plain push is rejected
+# and the resolved conflict would never reach the gate. --force-with-lease for that case, so a
+# remote that moved since the fetch still refuses.
 if [ -n "$(git log --oneline "@{upstream}..HEAD" 2>/dev/null)" ]; then
-  "$here/push.sh"
+  if git merge-base --is-ancestor "@{upstream}" HEAD; then
+    "$here/push.sh"
+  else
+    "$here/push.sh" --force-with-lease
+  fi
 fi
 # From the checkout step, not from here: this script runs after Claude, so its own
 # `git rev-parse HEAD` would already include Claude's commits and the re-request below would
@@ -55,7 +65,11 @@ head_before=${HEAD_BEFORE:-$(git rev-parse HEAD)}
 # and re-triggers review bots, so it happens after the fixes, never before.
 case "$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq .mergeStateStatus)" in
   BEHIND | DIRTY)
-    git fetch origin "$base_ref"
+    # --no-recurse-submodules for the same reason trust-config.sh and rebase.sh pass it, and it
+    # matters more here: restore_pr_config has put the PR's .gitmodules back, and under the
+    # default fetch.recurseSubmodules=on-demand a crafted one can make this step -- the one
+    # holding the write token -- contact or block on a remote of the author's choosing.
+    git fetch --no-recurse-submodules origin "$base_ref"
     git rebase "origin/$base_ref" || {
       git rebase --abort
       echo "::error::PR #$PR: cannot rebase onto $base_ref"
@@ -85,7 +99,10 @@ EXPECTED_HEAD=$remote_head "$here/threads.sh" apply
 # medic run by construction, which is a self-sustaining loop.
 if [ "$head_before" != "$head_now" ]; then
   IFS=, read -r -a reviewers <<<"${REREQUEST_REVIEWERS:-}"
-  for reviewer in "${reviewers[@]}"; do
+  # ${reviewers[@]+...} for the empty case this ${REREQUEST_REVIEWERS:-} anticipates: on bash
+  # 3.2 the plain expansion is an unbound variable under set -u, and it would fail the gate on
+  # exactly the runs that pushed.
+  for reviewer in ${reviewers[@]+"${reviewers[@]}"}; do
     gh api -X POST "repos/$REPO/pulls/$PR/requested_reviewers" -f "reviewers[]=$reviewer" >/dev/null
   done
 fi

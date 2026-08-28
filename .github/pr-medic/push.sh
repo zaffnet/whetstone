@@ -30,4 +30,6 @@ current=$(git rev-parse --abbrev-ref HEAD)
   echo "::error::refusing to push: HEAD is '$current' but PR #$PR is '$head_ref'"
   exit 1
 }
-git push "${force[@]}" origin "HEAD:refs/heads/$head_ref"
+# ${force[@]+...}: bash 3.2 -- macOS's /bin/bash -- reads "${force[@]}" on an empty array as
+# an unbound variable under set -u, so a plain push would die here rather than push.
+git push ${force[@]+"${force[@]}"} origin "HEAD:refs/heads/$head_ref"
