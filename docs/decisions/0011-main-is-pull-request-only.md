@@ -27,6 +27,10 @@ branch to be up to date with `main`, because with one contributor and several re
 either requirement turns two open PRs into a queue. Merging is the owner's action. Agents
 open PRs, request reviews, and address comments; they do not merge.
 
+Superseded in part by [0012](0012-the-pr-medic-lands-pull-requests.md): merging is
+`pr-medic.yml` and zaffnet in the web UI. Local agents still do not merge. The required
+approval count stays 0.
+
 ## Consequences
 
 - A fix takes one more step (branch, PR, wait for checks and review) and lands only when

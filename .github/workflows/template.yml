@@ -51,6 +51,7 @@ jobs:
           uv run pytest -qq
           actionlint
           test -f LICENSE
+          test -f .github/workflows/pr-medic.yml
           # A WorktreeCreate hook has no fallback and fails inside the Claude desktop app's
           # session sandbox; generated projects must not ship one, wired or not
           # (docs/decisions/0010).

@@ -43,6 +43,12 @@ Never end a turn with "I'll wait for X".
 commands error cleanly or print static text; under a PTY the same commands open a prompt or
 a full-screen TUI and block. Pass explicit flags instead of relying on that detection.
 
+## Git
+
+In whetstone, local agents never merge. They push a branch, open a pull request, request a
+Copilot review, and resolve threads. Merging belongs to `.github/workflows/pr-medic.yml`
+and to zaffnet in the web UI (`docs/decisions/0012-the-pr-medic-lands-pull-requests.md`).
+
 ## Generated projects and managed files
 
 - A project created with Copier records its template version in `.copier-answers.yml`. When a

@@ -17,7 +17,9 @@ just test-home # apply the chezmoi tree into a throwaway HOME and run the bats s
 - `main` takes pull requests only. A ruleset with no bypass list enforces it, so it binds the
   owner too. Copilot reviews every PR automatically. `REVIEW.md` says what a reviewer should flag
   here, at what severity, and what our own automation already covers. CI is green
-  before merge, and zaffnet merges (`docs/decisions/0011-main-is-pull-request-only.md`).
+  before merge. `pr-medic.yml` arms auto-merge (or zaffnet merges in the UI);
+  local agents do not (`docs/decisions/0011-main-is-pull-request-only.md`,
+  `docs/decisions/0012-the-pr-medic-lands-pull-requests.md`).
 - Conventional commits: `type(scope): subject`, imperative mood, first line of 72 characters or fewer.
 - One logical change per PR.
 - No private hostnames, account ids, names, absolute home paths, or secrets. Pre-commit

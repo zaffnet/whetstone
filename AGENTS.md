@@ -28,8 +28,9 @@ a turn is a stop, not a wait.
 Small PRs, one logical change each. Conventional commits, imperative mood, first line of
 72 characters or fewer.
 
-In whetstone, never push to `main` and never merge a pull request: push a branch, open the
-PR, request a Copilot review, resolve every thread, and leave the merge to zaffnet.
+In whetstone, never push to `main`. Local agents never merge a pull request: push a
+branch, open the PR, request a Copilot review, and resolve every thread. Merging belongs
+to `.github/workflows/pr-medic.yml` and to zaffnet in the web UI.
 Copilot is the only review bot to ask. Never comment `@codex review`.
 
 ## Skills

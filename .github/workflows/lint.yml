@@ -40,5 +40,7 @@ jobs:
           for f in _common.sh ruff_format.sh setup-working-tree.sh; do
             diff -u "hooks/$f" "template/project/.claude/hooks/$f"
           done
+      - name: pr-medic.yml matches the template copy
+        run: diff -u .github/workflows/pr-medic.yml template/project/.github/workflows/pr-medic.yml
       - name: Reviewer subagents match between Claude markdown and Codex TOML
         run: python3 tools/check-agents-sync.py
