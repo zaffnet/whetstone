@@ -127,14 +127,23 @@ because a hand-written git config turns a read-only command into a launcher; rea
 (`replaceCheckoutCredentials` in `src/github/operations/git-config.ts`), so `.git/config`
 holds a live write credential for the length of the run.
 
-These are guardrails inside the model's own process, not a boundary outside it. Allow-list
-patterns match on a prefix, so each round of review has found another primitive whose flags
-reach past the deny list, and the answer each time has been to replace the primitive rather
-than to enumerate its flags. What would end that pattern is moving the write credential out
-of the Claude step entirely: let Claude commit, and have `after.sh` -- which already runs
-afterwards, outside the model's reach -- do the pushing. Then no command Claude can invoke has
-anything to exfiltrate, and `push.sh` becomes unnecessary. That is the next structural change
-here, and it is deliberately not bundled into a round of review fixes.
+None of that is a boundary, though; it is a set of guardrails inside the model's own process.
+Allow-list patterns match on a prefix, and four consecutive rounds of review each found another
+primitive whose flags reached past the deny list -- `uv run` and `just`, then `git rebase
+--exec` and `git fetch --upload-pack`, then `git diff --no-index` and `git commit -F` and bare
+`git push`, then `gh pr comment --body-file`. Enumerating flags loses to the next flag nobody
+thought of.
+
+So the boundary is drawn outside the process instead: **the Claude step holds no credential
+that can write.** `token-ro` mints a second App token without `contents: write`, and that is
+what the action receives -- which matters because the action puts whatever token it is given
+into the origin URL, where `.git/config` made it readable. Claude commits through `commit.sh`
+and does not push at all; `after.sh` pushes what it finds, in a step with no model in it. An
+injected instruction now has nothing in reach to misuse, rather than nothing on a list.
+
+Without a GitHub App there is no second token to mint and the Claude step falls back to
+`GITHUB_TOKEN`, so a drop-in repository keeps the older, weaker property. That is the same
+trade as the rest of the App path: configure one and the guarantees get stronger.
 
 That leaves the model with no command that can approve or merge, rather than an allowlist that
 could not separate the two. The ruleset — required status checks and

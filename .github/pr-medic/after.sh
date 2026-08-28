@@ -27,6 +27,13 @@ for p in "${TRUSTED_PATHS[@]}"; do excluded+=(":(exclude)$p"); done
 }
 
 default_branch=$(gh api "repos/$REPO" --jq .default_branch)
+
+# Claude commits; this pushes. The model's step holds no credential that can write, so there
+# is nothing there for an injected instruction to misuse -- which is the boundary the tool
+# allowlist could only approximate.
+if [ -n "$(git log --oneline "@{upstream}..HEAD" 2>/dev/null)" ]; then
+  "$here/push.sh"
+fi
 # From the checkout step, not from here: this script runs after Claude, so its own
 # `git rev-parse HEAD` would already include Claude's commits and the re-request below would
 # never fire on the one run that needed it.

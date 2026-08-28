@@ -185,12 +185,21 @@ JSON
   # so the model has no use for it.
   run ! grep -q 'gh pr comment' <<<"$tools"
   run ! grep -qE 'Bash\(git push\)' <<<"$tools"
-  for helper in rebase.sh 'commit.sh:*' push.sh; do
+  for helper in rebase.sh 'commit.sh:*'; do
     grep -qF "Bash(.github/pr-medic/$helper)" <<<"$tools" || {
       echo "helper missing from the allowlist: $helper" >&2
       return 1
     }
   done
+  # Not even push.sh. Claude commits; after.sh pushes, in a step with no model in it, so the
+  # Claude step holds no credential that can write and there is nothing there to misuse.
+  run ! grep -q 'push.sh' <<<"$tools"
+  grep -q 'push.sh' "$MEDIC/after.sh"
+  # And the Claude step is handed the token minted without contents: write.
+  # shellcheck disable=SC2016  # a literal grep pattern.
+  grep -qF 'github_token: ${{ steps.token-ro.outputs.token || github.token }}' \
+    "$REPO/.github/workflows/pr-medic.yml"
+  grep -qF 'permission-contents: read' "$REPO/.github/workflows/pr-medic.yml"
   grep -qF 'Bash(git rebase --continue)' <<<"$tools"
   grep -qF 'Bash(git rebase --abort)' <<<"$tools"
   # Denied outright as well, since deny beats allow.

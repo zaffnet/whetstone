@@ -1,9 +1,9 @@
-# pr-medic: drive open pull requests to merged. The logic lives in .github/pr-medic/; this
-# file is orchestration only. It must not become a required check.
+# pr-medic: drive open pull requests to merged. Logic lives in .github/pr-medic/; this file is
+# orchestration only, and must not become a required check. Design: ADR 0012.
 name: pr-medic
 
-# workflow_run wants literal workflow names; there is no documented wildcard. These are this
-# repo's aggregate workflows. A host whose names differ falls back to the hourly cron.
+# workflow_run wants literal names, and there is no wildcard. A host whose names differ falls
+# back to the cron below. This one line is the only difference from the template's copy.
 on:
   workflow_run:
     workflows: ["CI"]
@@ -24,16 +24,13 @@ on:
 
 permissions: {}
 
-# Never cancel: a cancel between Claude resolving a thread and pushing the fix leaves the
-# remote looking finished on a head the fix is missing from. Duplicate wakes queue instead,
-# and each re-reads state. Only workflow_run fans out, so it collapses onto the head SHA.
+# Never cancel: a cancel mid-run can leave the remote looking finished on an unfixed head.
 concurrency:
   group: pr-medic-${{ github.event.workflow_run.head_sha || github.run_id }}
   cancel-in-progress: false
 
 env:
-  # 0, not 1: GitHub forbids self-approval and Copilot cannot approve, so 1 deadlocks a solo
-  # maintainer. Raise it when a second human has write access. Counted by push permission.
+  # 0 because self-approval is forbidden and Copilot cannot approve. Counted by push access.
   APPROVALS_REQUIRED: "0"
   # Set the repository variable to "true" to let the medic land pull requests unattended.
   MAY_MERGE: ${{ vars.PR_MEDIC_MAY_MERGE || 'false' }}
@@ -74,8 +71,7 @@ jobs:
 
   medic:
     needs: pick
-    # Positive on every term: `count != '0'` alone admits the job when pick wrote no output,
-    # and fromJSON('') below is a matrix expression error no job setting can absorb.
+    # Positive on both terms: fromJSON('') below is a matrix error no job setting can absorb.
     if: needs.pick.outputs.count != '' && needs.pick.outputs.count != '0'
     runs-on: ubuntu-latest
     timeout-minutes: 55
@@ -100,8 +96,8 @@ jobs:
       PR: ${{ matrix.pr }}
       REPO: ${{ github.repository }}
     steps:
-      # Without an App, pushes use GITHUB_TOKEN and do not re-trigger CI. An App token carries
-      # the whole installation's scope and ignores this job's permissions: block, so downscope.
+      # Without an App, pushes use GITHUB_TOKEN and do not re-trigger CI. Downscoped: an App
+      # token carries the installation's scope and ignores this job's permissions: block.
       - id: token
         if: vars.APP_CLIENT_ID != ''
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -116,13 +112,25 @@ jobs:
           # write, not read: the prompt tells Claude to `gh run rerun --failed`.
           permission-actions: write
 
+      # For the Claude step alone, with no contents: write -- the action puts the token it is
+      # given into the origin URL, so this is what keeps a pushing credential out of the model.
+      - id: token-ro
+        if: vars.APP_CLIENT_ID != ''
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: read
+          permission-pull-requests: write
+          permission-checks: read
+          permission-actions: write
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           token: ${{ steps.token.outputs.token || github.token }}
 
-      # Commits must carry the bot's noreply address, or a ruleset with
-      # require_extra_approval_for_unattributed_changes blocks the PR.
+      # Commits need the bot's noreply address, or unattributed-changes rules block the PR.
       - id: bot
         env:
           GH_TOKEN: ${{ steps.token.outputs.token || github.token }}
@@ -137,26 +145,22 @@ jobs:
           git config user.email "$id+$login@users.noreply.github.com"
           gh auth setup-git
           gh pr checkout "$PR"
-          # Everything below runs out of the checkout, which is now the PR's -- after.sh and
-          # trust-config.sh included. Take .github/pr-medic from the default branch first, so
-          # the gate guarding the merge is ours. On an entity event the workflow file is the
-          # PR's too, so this closes schedule, dispatch and workflow_run only.
+          # Everything below runs out of the checkout, which is now the PR's -- after.sh
+          # included. Take .github/pr-medic from the default branch first, so the gate is ours.
           base=$(gh api "repos/$REPO" --jq .default_branch)
           git fetch --depth=1 --no-recurse-submodules origin "$base"
           git checkout "origin/$base" -- .github/pr-medic ||
             echo "::warning::.github/pr-medic is absent from $base; using the PR's copy"
           git reset -q -- .github/pr-medic
           .github/pr-medic/trust-config.sh
-          # The model gets the threads as a file and answers with a file; after.sh does the
-          # replying, so `gh api` need not be on the allowlist at all.
+          # Threads in as a file, replies out as a file; after.sh posts them.
           .github/pr-medic/threads.sh dump
           {
             echo "prompt<<PROMPT"
             cat .github/pr-medic/prompt.md
             echo PROMPT
           } >>"$GITHUB_OUTPUT"
-          # $login leads the bot allowlist: on a workflow_run wake after a medic push
-          # github.actor is this bot, and agent mode throws on a disallowed non-User actor.
+          # $login leads the bot allowlist: after a medic push, github.actor is this bot.
           printf 'login=%s\nid=%s\nhead=%s\nbots=%s\n' \
             "$login" "$id" "$(git rev-parse HEAD)" "$login,$TRIGGER_BOTS" >>"$GITHUB_OUTPUT"
 
@@ -166,30 +170,26 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ steps.token.outputs.token || github.token }}
+          github_token: ${{ steps.token-ro.outputs.token || github.token }}
           allowed_bots: ${{ steps.bot.outputs.bots }}
           use_commit_signing: false
           bot_id: ${{ steps.bot.outputs.id }}
           bot_name: ${{ steps.bot.outputs.login }}
           # Inline, not a path: a file in the checkout is PR-controlled and not in
-          # SENSITIVE_PATHS. `.git` is denied for reads too: with signing off the action puts
-          # the write token in the origin URL, so .git/config holds a live credential.
+          # SENSITIVE_PATHS. `.git` is denied for reads too, in case a credential lands there.
           settings: |
             {"permissions":{"deny":["Bash(gh api:*)","Bash(gh pr comment:*)","Bash(gh pr merge:*)","Bash(gh pr review:*)","Bash(git push --force)","Bash(git push --force *)","Bash(just:*)","Bash(uv run:*)","Bash(git rebase --exec:*)","Bash(git rebase -x:*)","Bash(git fetch:*)","Bash(git push:*)","Bash(git push)","Bash(git commit:*)","Bash(git diff --no-index:*)","Bash(git diff --ext-diff:*)","Bash(git log --ext-diff:*)","Bash(git show --ext-diff:*)","Write(.git/**)","Edit(.git/**)","Read(.git/**)","Grep(.git/**)","Glob(.git/**)","Read(**/.git/**)"]}}
           # An allowlist, not only the deny block: agent mode sets neither --permission-mode
-          # nor --allowedTools, so the model would otherwise have Read, Grep and Glob and
-          # could not work. Nothing on it launches a command or names a destination. Every git
-          # primitive that could -- rebase (--exec), fetch (--upload-pack), diff (--no-index)
-          # and commit (-F), both of which read any file, push (follows the upstream), and
-          # `gh pr comment` (--body-file) -- goes through a helper. ADR 0012.
+          # nor --allowedTools, so the model would otherwise have Read, Grep and Glob only.
+          # Nothing on it launches a command or reads a file it names: rebase, fetch, diff,
+          # commit and `gh pr comment` all could, so each goes via a helper. ADR 0012.
           claude_args: >-
             --max-turns ${{ env.MAX_TURNS }}
             --permission-mode acceptEdits
             --add-dir ${{ runner.temp }}/pr-medic
-            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff),Bash(git diff --stat),Bash(git diff --cached),Bash(git diff HEAD),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git checkout --ours:*),Bash(git checkout --theirs:*),Bash(git rebase --continue),Bash(git rebase --abort),Bash(.github/pr-medic/rebase.sh),Bash(.github/pr-medic/commit.sh:*),Bash(.github/pr-medic/push.sh),Bash(.github/pr-medic/push.sh --force-with-lease),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh run rerun:*)"
+            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff),Bash(git diff --stat),Bash(git diff --cached),Bash(git diff HEAD),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git checkout --ours:*),Bash(git checkout --theirs:*),Bash(git rebase --continue),Bash(git rebase --abort),Bash(.github/pr-medic/rebase.sh),Bash(.github/pr-medic/commit.sh:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh run rerun:*)"
           prompt: ${{ steps.bot.outputs.prompt }}
 
-      # The action reports `is_error:true` without the message that caused it.
       - if: failure()
         run: tail -c 4000 "$RUNNER_TEMP/claude-execution-output.json"
 
