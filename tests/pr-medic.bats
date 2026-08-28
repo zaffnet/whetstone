@@ -642,6 +642,7 @@ setup_threads() {
   export SKIP_LABEL=no-medic BLOCK_LABEL=medic-blocked
   export STUB_LABELS="$BATS_TEST_TMPDIR/labels"
   : >"$STUB_LABELS"
+  mkdir -p "$BATS_TEST_TMPDIR/pr-medic-state"
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'SH'
 #!/usr/bin/env bash
@@ -1008,11 +1009,33 @@ SH
   [ "$(jq length "$RUNNER_TEMP/pr-medic-state/resolved.json")" = 0 ]
 }
 
-@test "threads.sh release lifts the block" {
+@test "threads.sh release lifts a block this run took" {
+  setup_threads
+  printf 'medic-blocked\n' >"$STUB_LABELS"
+  : >"$RUNNER_TEMP/pr-medic-state/block-owned"
+  "$MEDIC/threads.sh" release
+  run ! grep -qxF medic-blocked "$STUB_LABELS"
+}
+
+# pick runs before the per-PR concurrency lock, so a run can be queued behind one that left its
+# block. Releasing that would clear the only thing stopping a merge on a resolution nobody
+# accounted for.
+@test "threads.sh release leaves another run's block alone" {
   setup_threads
   printf 'medic-blocked\n' >"$STUB_LABELS"
   "$MEDIC/threads.sh" release
-  run ! grep -qxF medic-blocked "$STUB_LABELS"
+  grep -qxF medic-blocked "$STUB_LABELS"
+}
+
+@test "threads.sh resolves nothing while another run's block is on" {
+  setup_threads
+  printf 'medic-blocked\n' >"$STUB_LABELS"
+  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
+  run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  run ! resolved_in_log
+  # And it did not take the other run's marker away on the way out.
+  grep -qxF medic-blocked "$STUB_LABELS"
 }
 
 @test "threads.sh records what it resolved for after.sh" {

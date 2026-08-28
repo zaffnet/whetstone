@@ -24,6 +24,9 @@ here=$(dirname "$0")
 # returned -- while the gate reads state, or while the merge is refused. Same directory as the
 # snapshot, and for the same reason: the model must not be able to edit it.
 : "${RESOLVED_FILE:=${RUNNER_TEMP:?}/pr-medic-state/resolved.json}"
+# Whether the block on the pull request is this run's. Beside the other state, for the same
+# reason: only the gate step reads it, and the model must not be able to write it.
+: "${BLOCK_OWNED_FILE:=${RUNNER_TEMP:?}/pr-medic-state/block-owned}"
 
 # Of these logins, the ones whose text may be put in front of the model: push access, or one
 # of the bots the workflow names. A bot holds no collaborator permission, so it cannot be
@@ -130,18 +133,32 @@ acquire_block() {
     echo "::error::no BLOCK_LABEL is set, so a resolution that went wrong could not be blocked"
     return 1
   }
-  if has_label "$BLOCK_LABEL"; then return 0; fi
+  # Already this run's, from an earlier resolve in the same run.
+  if [ -f "$BLOCK_OWNED_FILE" ]; then return 0; fi
+  # There, but not this run's. `pick` runs before the per-PR concurrency lock, so a run can be
+  # queued behind one that left its block; taking that over would end with this run releasing
+  # somebody else's only safety marker. Refuse, and resolve nothing.
+  if has_label "$BLOCK_LABEL"; then
+    echo "::error::PR #$PR already carries $BLOCK_LABEL from another run; resolving nothing"
+    return 1
+  fi
   # A repository that has never used it does not have the label, and --add-label cannot create
   # one, so without this the block would be reported and not applied.
   gh label create "$BLOCK_LABEL" --repo "$REPO" --color B60205 \
     --description "pr-medic: a thread resolution needs checking by hand" >/dev/null 2>&1 || true
   gh pr edit "$PR" --repo "$REPO" --add-label "$BLOCK_LABEL" >/dev/null 2>&1 || true
-  has_label "$BLOCK_LABEL"
+  has_label "$BLOCK_LABEL" || return 1
+  mkdir -p "$(dirname "$BLOCK_OWNED_FILE")"
+  : >"$BLOCK_OWNED_FILE"
 }
 
+# Only a label this run put on. Anything else belongs to a run that could not account for what
+# it resolved, and it is the only thing stopping a later merge on that.
 release_block() {
   [ -n "${BLOCK_LABEL:-}" ] || return 0
+  [ -f "$BLOCK_OWNED_FILE" ] || return 0
   gh pr edit "$PR" --repo "$REPO" --remove-label "$BLOCK_LABEL" >/dev/null 2>&1 || true
+  rm -f "$BLOCK_OWNED_FILE"
 }
 
 # Put back what this run resolved. Leaving a thread resolved against a head the gate never

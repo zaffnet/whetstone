@@ -253,6 +253,42 @@
     "expect": []
   },
   {
+    "name": "an armed PR is skipped even when it has work",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "BEHIND",
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
+                "status": "COMPLETED",
+                "conclusion": "FAILURE"
+              }
+            ],
+            "autoMergeRequest": {
+              "enabledAt": "2026-01-01T00:00:00Z"
+            },
+            "number": 7
+          },
+          "unresolved": 2,
+          "approvals": 0
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0,
+      "may_merge": false
+    },
+    "expect": []
+  },
+  {
     "name": "a draft is skipped",
     "input": {
       "prs": [

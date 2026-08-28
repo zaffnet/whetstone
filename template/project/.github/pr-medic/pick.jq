@@ -14,6 +14,12 @@ def keep($skip; $required; $may_merge):
     # separate job that runs the untrusted code with no secrets.
     elif $p.isCrossRepository then false
     elif ([$p.labels[]?.name] | any(IN($skip[]))) then false
+    # Somebody armed this by hand, and this gate never disarms. Any work on it is what lets
+    # that arming fire -- resolving the last thread, or pushing a fix that turns the checks
+    # green, hands the merge to GitHub on conditions gate.jq would not accept: no approval
+    # count, no skip label, no all-checks. So an armed pull request is left alone entirely,
+    # not merely excluded from the merge branch below.
+    elif $p.autoMergeRequest != null then false
     else
       # Work Claude can do. total_checks is deliberately absent: a head whose checks have not
       # registered yet may still be mergeable by the time the gate runs, and gate.jq has the
@@ -22,9 +28,8 @@ def keep($skip; $required; $may_merge):
       or $c.failing > 0
       or $p.mergeStateStatus == "BEHIND"
       or $p.mergeStateStatus == "DIRTY"
-      # Or the gate might merge it. One somebody armed by hand is left alone: the gate would
-      # only say noop, and GitHub owns that merge.
-      or ($may_merge and $approved and $p.autoMergeRequest == null)
+      # Or the gate might merge it.
+      or ($may_merge and $approved)
     end;
 
 # A list, not one name: the human skip label and the medic's own resolution block both refuse,

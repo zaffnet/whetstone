@@ -335,6 +335,18 @@ which creates no tracking comment -- `src/modes/agent/index.ts` leaves `claudeCo
 undefined and the update at the end of `run.ts` is guarded on it -- and the medic's replies are
 posted by `threads.sh` in the gate step.
 
+A pull request somebody armed by hand is left alone entirely, not merely excluded from the merge
+branch. This gate never disarms, so any work on an armed pull request is what lets the arming
+fire: resolving its last thread, or pushing a fix that turns the checks green, hands the merge to
+GitHub on conditions `gate.jq` would not accept -- no approval count, no skip label, no
+all-checks.
+
+The block is released only by the run that took it. `pick` runs before the per-PR concurrency
+lock, so a run can already be queued behind one that fails to reopen a resolution and leaves its
+block; without ownership the queued run would refuse at the gate and then clear the marker on its
+way out. `apply` records the block in the state directory when it applies it, refuses to resolve
+anything while a block it does not own is present, and `release` is a no-op without that record.
+
 On `schedule`, `workflow_dispatch` and `workflow_run` the workflow file itself is trusted, so
 the copy in `RUNNER_TEMP` is what the gate runs and the chain holds. On an entity event the
 workflow file is the pull request's as well, so nothing written in the file can help: that is a
