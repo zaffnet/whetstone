@@ -150,6 +150,13 @@ into the origin URL, where `.git/config` made it readable. Claude commits throug
 and does not push at all; `after.sh` pushes what it finds, in a step with no model in it. An
 injected instruction now has nothing in reach to misuse, rather than nothing on a list.
 
+`after.sh` has to undo one side effect of that: the action embeds whatever token it is given
+in the origin URL, so after the Claude step the remote carries a read-only credential and a
+push from the gate would fail. It repoints `origin` at the plain URL and re-runs
+`gh auth setup-git`, which supplies the gate step's own token. Every push goes through
+`push.sh`, including the one after a rebase, so there is a single path and a single
+destination check.
+
 Without a GitHub App there is no second token to mint and the Claude step falls back to
 `GITHUB_TOKEN`, so a drop-in repository keeps the older, weaker property. That is the same
 trade as the rest of the App path: configure one and the guarantees get stronger.

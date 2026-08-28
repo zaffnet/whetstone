@@ -26,6 +26,12 @@ for p in "${TRUSTED_PATHS[@]}"; do excluded+=(":(exclude)$p"); done
   exit 1
 }
 
+# The Claude action rewrote origin to embed the token it was given, and since 59b895d that is
+# the read-only one -- so a push from here would 403. Point origin back at the plain URL and
+# let gh's credential helper supply this step's token, which is the one that can write.
+git remote set-url origin "${GITHUB_SERVER_URL:-https://github.com}/$REPO.git"
+gh auth setup-git
+
 # The pull request's own base, not the repository default: mergeStateStatus BEHIND is relative
 # to the base, so rebasing a release-targeting PR onto the default branch would force-push
 # unrelated history onto it and then merge that.
@@ -52,7 +58,7 @@ case "$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq .mergeState
       echo "::error::PR #$PR: cannot rebase onto $base_ref"
       exit 1
     }
-    git push --force-with-lease
+    "$here/push.sh" --force-with-lease
     ;;
 esac
 

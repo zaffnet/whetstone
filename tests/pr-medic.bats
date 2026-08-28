@@ -544,6 +544,9 @@ setup_after() {
   echo one >"$WORK/file"
   git -C "$WORK" add file
   git -C "$WORK" commit -q -m one
+  # after.sh repoints origin before pushing, so there has to be one. Deliberately not a
+  # tracking branch: `@{upstream}` must stay unresolvable so the merge cases do not push.
+  git -C "$WORK" remote add origin https://example.invalid/o/r.git
   LOCAL_HEAD=$(git -C "$WORK" rev-parse HEAD)
 
   GH_LOG="$BATS_TEST_TMPDIR/gh.log"
@@ -558,6 +561,7 @@ case "$*" in
   *"api repos/o/r"*) printf 'main\n' ;;
   *"--json mergeStateStatus"*) printf 'CLEAN\n' ;;
   *"--json headRefOid"*) printf '%s\n' "$STUB_REMOTE_HEAD" ;;
+  *"--json headRefName"*) printf 'main\n' ;;
   *"--json state"*) printf '%s\n' "$STUB_VIEW" ;;
 esac
 exit 0
@@ -645,6 +649,17 @@ commit_and_push() {
 
 # The medic never arms, so it never disarms either: it merges the head the gate just judged, or
 # it does nothing. A pull request somebody armed by hand belongs to GitHub.
+# The Claude action embeds the token it was given in the origin URL, and since the model's
+# token lost contents: write that is a read-only credential. after.sh has to point origin back
+# at the plain URL and re-authenticate with this step's token before it pushes anything.
+@test "the gate repoints origin before it pushes" {
+  at() { grep -nE "$1" "$MEDIC/after.sh" | head -1 | cut -d: -f1; }
+  [ "$(at 'git remote set-url origin')" -lt "$(at 'push\.sh')" ]
+  [ "$(at 'gh auth setup-git')" -lt "$(at 'push\.sh')" ]
+  # One push path, so the rebase cannot bypass push.sh's destination check.
+  run ! grep -qE '^ *git push' "$MEDIC/after.sh"
+}
+
 @test "the gate never delegates to auto-merge" {
   setup_after
   run_after
