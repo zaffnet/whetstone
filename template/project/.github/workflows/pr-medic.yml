@@ -24,12 +24,12 @@ on:
 
 permissions: {}
 
-# Only workflow_run fans out: one push completes several workflows and wakes a run for each.
-# Every other event gets github.run_id, which is unique, so it is never cancelled -- and the
-# checks UI reports a cancelled run as a failed one.
+# Never cancel: a cancel between Claude resolving a thread and pushing the fix leaves the
+# remote looking finished on a head the fix is missing from. Duplicate wakes queue instead,
+# and each re-reads state. Only workflow_run fans out, so it collapses onto the head SHA.
 concurrency:
   group: pr-medic-${{ github.event.workflow_run.head_sha || github.run_id }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   # 0, not 1: GitHub forbids self-approval and Copilot reviews as authorAssociation NONE, so
@@ -102,9 +102,8 @@ jobs:
       PR: ${{ matrix.pr }}
       REPO: ${{ github.repository }}
     steps:
-      # Without an App, pushes use GITHUB_TOKEN and do not re-trigger CI. An App token
-      # carries the whole installation's permissions and ignores this job's permissions:
-      # block, so it is downscoped here too.
+      # Without an App, pushes use GITHUB_TOKEN and do not re-trigger CI. An App token carries
+      # the whole installation's scope and ignores this job's permissions: block, so downscope.
       - id: token
         if: vars.APP_CLIENT_ID != ''
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -140,10 +139,8 @@ jobs:
           git config user.email "$id+$login@users.noreply.github.com"
           gh auth setup-git
           gh pr checkout "$PR"
-          # $login leads the bot allowlist. On a workflow_run wake after a medic push,
-          # github.actor is whoever pushed -- this bot -- and the Claude action's agent mode
-          # throws on any non-User actor that is not allowed. Omitting it breaks the
-          # push-then-CI-completes path, which is the main way a fix reaches the gate.
+          # $login leads the bot allowlist: on a workflow_run wake after a medic push
+          # github.actor is this bot, and agent mode throws on a disallowed non-User actor.
           printf 'login=%s\nid=%s\nhead=%s\nbots=%s\n' \
             "$login" "$id" "$(git rev-parse HEAD)" "$login,$TRIGGER_BOTS" >>"$GITHUB_OUTPUT"
 
@@ -161,9 +158,8 @@ jobs:
           settings: .github/pr-medic/settings.json
           # An allowlist, not only the deny block: agent mode sets neither --permission-mode
           # nor --allowedTools, so without these the model has Read, Grep and Glob and cannot
-          # do the work at all. It is not a security boundary -- resolving a review thread
-          # needs `gh api graphql`, which can also approve or merge. The ruleset is what stops
-          # an injected instruction from landing a change.
+          # do the work at all. Not a security boundary -- resolving a thread needs
+          # `gh api graphql`, which can also merge. The ruleset is the control. See ADR 0012.
           claude_args: >-
             --max-turns ${{ env.MAX_TURNS }}
             --permission-mode acceptEdits

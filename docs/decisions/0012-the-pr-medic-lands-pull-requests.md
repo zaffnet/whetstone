@@ -113,10 +113,16 @@ a required check.
 - `workflow_run` names workflows literally; there is no documented wildcard. The list is
   this repo's aggregate workflows, and the template's is a generated project's. A host whose
   names differ gets the hourly cron instead, which is slower but not broken.
-- One run per head SHA, from a workflow-level `concurrency` group with
-  `cancel-in-progress: true`. Without it every completing workflow wakes a run for the same
-  push. Only `workflow_run` collapses: every other event keys on `github.run_id`, because the
-  checks UI reports a cancelled run as a failed one.
+- Runs queue and are never cancelled. A cancel between Claude resolving a thread and pushing
+  the fix leaves the remote looking finished on a head the fix is missing from, and the next
+  run checks out that head clean, so neither runner check catches it. Queueing costs duplicate
+  wakes; each re-reads state and reaches `noop`. Only `workflow_run` collapses onto the head
+  SHA; every other event keys on `github.run_id`.
+- Arming is reversible, so `pick` has to select the PRs the gate would disarm: an armed PR
+  whose approval fell short, whose head lost its checks, or which the kill switch now
+  forbids. An armed PR that still passes is deliberately not selected, because the gate would
+  only say `noop`. `ARM_AUTO_MERGE` sits above `already armed` in `decide` for the same
+  reason -- below it, a kill switch could not reach a PR that was already armed.
 - A pull request with a failing check Claude cannot fix re-runs Claude on every cron tick,
   unchanged. Label it `no-medic`.
 - Every other event keys on `run_id`, so a burst of review comments produces a run each and

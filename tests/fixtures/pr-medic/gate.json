@@ -821,5 +821,127 @@
       "arm_auto_merge": true,
       "allow_auto_merge": true
     }
+  },
+  {
+    "name": "the kill switch reaches an armed PR",
+    "expect": "wait",
+    "expect_reason": "ARM_AUTO_MERGE false",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "latestReviews": [],
+        "labels": [],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "ci",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS"
+          }
+        ],
+        "autoMergeRequest": {
+          "enabledAt": "2026-01-01T00:00:00Z"
+        }
+      },
+      "unresolved": 0,
+      "approvals_required": 0,
+      "arm_auto_merge": false,
+      "allow_auto_merge": true
+    }
+  },
+  {
+    "name": "an armed PR whose approval fell short waits",
+    "expect": "wait",
+    "expect_reason": "approvals",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "latestReviews": [],
+        "labels": [],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "ci",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS"
+          }
+        ],
+        "autoMergeRequest": {
+          "enabledAt": "2026-01-01T00:00:00Z"
+        }
+      },
+      "unresolved": 0,
+      "approvals_required": 1,
+      "arm_auto_merge": true,
+      "allow_auto_merge": true
+    }
+  },
+  {
+    "name": "an armed PR whose head lost its checks refuses",
+    "expect": "refuse",
+    "expect_reason": "no checks on this head",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "latestReviews": [],
+        "labels": [],
+        "statusCheckRollup": [],
+        "autoMergeRequest": {
+          "enabledAt": "2026-01-01T00:00:00Z"
+        }
+      },
+      "unresolved": 0,
+      "approvals_required": 0,
+      "arm_auto_merge": true,
+      "allow_auto_merge": true
+    }
+  },
+  {
+    "name": "an armed PR with a pending check stays armed",
+    "expect": "noop",
+    "expect_reason": "already armed",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "latestReviews": [],
+        "labels": [],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "ci",
+            "workflowName": "lint",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS",
+            "startedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "__typename": "CheckRun",
+            "name": "slow",
+            "workflowName": "lint",
+            "status": "IN_PROGRESS",
+            "startedAt": "2026-01-01T00:00:00Z"
+          }
+        ],
+        "autoMergeRequest": {
+          "enabledAt": "2026-01-01T00:00:00Z"
+        }
+      },
+      "unresolved": 0,
+      "approvals_required": 0,
+      "arm_auto_merge": true,
+      "allow_auto_merge": true
+    }
   }
 ]

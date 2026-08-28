@@ -4,7 +4,8 @@
     "input": {
       "prs": [],
       "skip_label": "no-medic",
-      "approvals_required": 0
+      "approvals_required": 0,
+      "arm_auto_merge": true
     },
     "expect": []
   },
@@ -35,7 +36,8 @@
         }
       ],
       "skip_label": "no-medic",
-      "approvals_required": 0
+      "approvals_required": 0,
+      "arm_auto_merge": true
     },
     "expect": [
       1
@@ -68,7 +70,8 @@
         }
       ],
       "skip_label": "no-medic",
-      "approvals_required": 0
+      "approvals_required": 0,
+      "arm_auto_merge": true
     },
     "expect": [
       2
@@ -101,7 +104,8 @@
         }
       ],
       "skip_label": "no-medic",
-      "approvals_required": 0
+      "approvals_required": 0,
+      "arm_auto_merge": true
     },
     "expect": [
       3
@@ -134,7 +138,8 @@
         }
       ],
       "skip_label": "no-medic",
-      "approvals_required": 0
+      "approvals_required": 0,
+      "arm_auto_merge": true
     },
     "expect": [
       4
@@ -167,7 +172,8 @@
         }
       ],
       "skip_label": "no-medic",
-      "approvals_required": 0
+      "approvals_required": 0,
+      "arm_auto_merge": true
     },
     "expect": [
       5
@@ -193,7 +199,8 @@
         }
       ],
       "skip_label": "no-medic",
-      "approvals_required": 0
+      "approvals_required": 0,
+      "arm_auto_merge": true
     },
     "expect": [
       6
@@ -228,7 +235,8 @@
         }
       ],
       "skip_label": "no-medic",
-      "approvals_required": 0
+      "approvals_required": 0,
+      "arm_auto_merge": true
     },
     "expect": []
   },
@@ -259,7 +267,8 @@
         }
       ],
       "skip_label": "no-medic",
-      "approvals_required": 0
+      "approvals_required": 0,
+      "arm_auto_merge": true
     },
     "expect": []
   },
@@ -290,7 +299,8 @@
         }
       ],
       "skip_label": "no-medic",
-      "approvals_required": 0
+      "approvals_required": 0,
+      "arm_auto_merge": true
     },
     "expect": []
   },
@@ -321,7 +331,8 @@
         }
       ],
       "skip_label": "no-medic",
-      "approvals_required": 0
+      "approvals_required": 0,
+      "arm_auto_merge": true
     },
     "expect": []
   },
@@ -356,7 +367,8 @@
         }
       ],
       "skip_label": "no-medic",
-      "approvals_required": 0
+      "approvals_required": 0,
+      "arm_auto_merge": true
     },
     "expect": []
   },
@@ -391,7 +403,8 @@
         }
       ],
       "skip_label": "no-medic",
-      "approvals_required": 0
+      "approvals_required": 0,
+      "arm_auto_merge": true
     },
     "expect": [
       12
@@ -445,7 +458,8 @@
         }
       ],
       "skip_label": "no-medic",
-      "approvals_required": 1
+      "approvals_required": 1,
+      "arm_auto_merge": true
     },
     "expect": [
       14
@@ -520,11 +534,179 @@
         }
       ],
       "skip_label": "no-medic",
-      "approvals_required": 0
+      "approvals_required": 0,
+      "arm_auto_merge": true
     },
     "expect": [
       20,
       21
     ]
+  },
+  {
+    "name": "an armed PR that still passes is left alone",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": {
+              "enabledAt": "2026-01-01T00:00:00Z"
+            },
+            "number": 31
+          },
+          "unresolved": 0
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0,
+      "arm_auto_merge": true
+    },
+    "expect": []
+  },
+  {
+    "name": "an armed PR is picked when the kill switch is off",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": {
+              "enabledAt": "2026-01-01T00:00:00Z"
+            },
+            "number": 32
+          },
+          "unresolved": 0
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0,
+      "arm_auto_merge": false
+    },
+    "expect": [
+      32
+    ]
+  },
+  {
+    "name": "an armed PR is picked when its approval fell short",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": {
+              "enabledAt": "2026-01-01T00:00:00Z"
+            },
+            "number": 33
+          },
+          "unresolved": 0
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 1,
+      "arm_auto_merge": true
+    },
+    "expect": [
+      33
+    ]
+  },
+  {
+    "name": "an armed PR is picked when its head lost its checks",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [],
+            "autoMergeRequest": {
+              "enabledAt": "2026-01-01T00:00:00Z"
+            },
+            "number": 34
+          },
+          "unresolved": 0
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0,
+      "arm_auto_merge": true
+    },
+    "expect": [
+      34
+    ]
+  },
+  {
+    "name": "an unarmed PR is not picked when the kill switch is off",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 35
+          },
+          "unresolved": 0
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0,
+      "arm_auto_merge": false
+    },
+    "expect": []
   }
 ]

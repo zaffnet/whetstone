@@ -20,8 +20,11 @@ include "lib";
   elif $c.failing > 0 then {action: "refuse", reason: "failing checks"}
   elif ($p.latestReviews | approvals) < .approvals_required then
     {action: "wait", reason: "approvals"}
-  elif $p.autoMergeRequest != null then {action: "noop", reason: "already armed"}
   elif .arm_auto_merge != true then {action: "wait", reason: "ARM_AUTO_MERGE false"}
+  # After the switch, not before it: an armed PR that ignored ARM_AUTO_MERGE would keep a
+  # kill switch from doing anything, because GitHub merges on required checks alone.
+  # Pending is below, and deliberately: waiting for checks is what an arming is for.
+  elif $p.autoMergeRequest != null then {action: "noop", reason: "already armed"}
   # Before arm, not only before merge: gh pr merge --auto waits for *required* checks, and a
   # repo with no ruleset has none, so arming there merges at once while optional CI runs.
   elif $c.pending > 0 then {action: "wait", reason: "pending checks"}
