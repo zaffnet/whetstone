@@ -29,9 +29,12 @@ else
   defaults write com.googlecode.iterm2 CopySelection -bool false
   defaults write com.googlecode.iterm2 CopyLastNewline -bool true
   defaults write com.googlecode.iterm2 ClickToSelectCommand -bool false
-{{ if eq .role "work" -}}
-  defaults write com.googlecode.iterm2 AllowClipboardAccess -bool true
-{{- end }}
+  # Not AllowClipboardAccess. It differs between the two Macs -- true here, unset there --
+  # but it is a permission, not a look: it lets terminal output drive the macOS pasteboard
+  # through OSC 52, including output from a remote or untrusted session, and iTerm2 ships
+  # it off. Managing it would make this repo the thing that turns a default-deny control on
+  # for every machine it touches, which is not a decision a settings sweep gets to make.
+  # Left to each machine, so both keep exactly what they have.
   defaults write com.googlecode.iterm2 EnableAPIServer -bool true
   defaults write com.googlecode.iterm2 HideActivityIndicator -bool false
   defaults write com.googlecode.iterm2 ShowFullScreenTabBar -bool false

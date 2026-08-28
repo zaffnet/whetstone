@@ -176,13 +176,14 @@ chezmoi_managed() {
     "  defaults write com.googlecode.iterm2 \"Default Bookmark Guid\" -string \"whetstone-default\""; do
     grep -qFx "$line" "$iterm_script"
   done
-  if [ "$(chezmoi_role)" = work ]; then
-    grep -qFx "  defaults write com.googlecode.iterm2 AllowClipboardAccess -bool true" \
-      "$iterm_script"
-  else
-    run ! grep -qFx "  defaults write com.googlecode.iterm2 AllowClipboardAccess -bool true" \
-      "$iterm_script"
-  fi
+  # AllowClipboardAccess stays out, on either role. It differs between the two Macs, but it
+  # is a permission rather than a look -- OSC 52 access to the macOS pasteboard from
+  # terminal output, including a remote session's -- and iTerm2 ships it off. A settings
+  # sweep does not get to turn a default-deny control on for every machine it touches.
+  # Code lines only: the script's comment explains why the key is absent.
+  clip="$BATS_TEST_TMPDIR/iterm-code-clip.sh"
+  grep -vE '^[[:space:]]*#' "$iterm_script" >"$clip"
+  run ! grep -q 'AllowClipboardAccess' "$clip"
 
   # The guard skips rather than aborting: an apply is normally run from a shell inside
   # iTerm2, so exiting non-zero there would fail every apply and block the scripts after it.
