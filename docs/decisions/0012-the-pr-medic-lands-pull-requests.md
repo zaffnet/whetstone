@@ -117,8 +117,16 @@ and there is no narrow form of it. Verification is CI's job; the medic reads the
 branch. `git rebase --exec` and `git fetch --upload-pack` both take a command, so the model
 gets `.github/pr-medic/rebase.sh`, which accepts no arguments and reads the destination from
 the API, plus `git rebase --continue` and `--abort` by exact match, neither of which takes
-one. `Write(.git/**)` is denied as well, so the model cannot install a git config that turns
-a read-only command into a launcher.
+one. `.git` is denied to `Read`, `Grep` and `Glob` as well as to `Write` and `Edit`. Writes,
+because a hand-written git config turns a read-only command into a launcher; reads, because
+`claude-code-action` backs git with the token in the origin URL when commit signing is off
+(`replaceCheckoutCredentials` in `src/github/operations/git-config.ts`), so `.git/config`
+holds a live write credential for the length of the run.
+
+That last one is mitigation, not elimination: the token is in the checkout because the model
+has to push. Eliminating it would mean pushing through a helper too, so that no credential
+need be present while the model runs. That is the next thing to do here, not something to
+claim is already done.
 
 That leaves the model with no command that can approve or merge, rather than an allowlist that
 could not separate the two. The ruleset — required status checks and

@@ -171,10 +171,11 @@ jobs:
           use_commit_signing: false
           bot_id: ${{ steps.bot.outputs.id }}
           bot_name: ${{ steps.bot.outputs.login }}
-          # Inline, not a path: a file in the checkout is PR-controlled and is not in
-          # SENSITIVE_PATHS, so trust-config.sh does not cover it.
+          # Inline, not a path: a file in the checkout is PR-controlled and not in
+          # SENSITIVE_PATHS. `.git` is denied for reads too: with signing off the action puts
+          # the write token in the origin URL, so .git/config holds a live credential.
           settings: |
-            {"permissions":{"deny":["Bash(gh api:*)","Bash(gh pr merge:*)","Bash(gh pr review:*)","Bash(git push --force)","Bash(git push --force *)","Bash(just:*)","Bash(uv run:*)","Bash(git rebase --exec:*)","Bash(git rebase -x:*)","Bash(git fetch:*)","Write(.git/**)","Edit(.git/**)"]}}
+            {"permissions":{"deny":["Bash(gh api:*)","Bash(gh pr merge:*)","Bash(gh pr review:*)","Bash(git push --force)","Bash(git push --force *)","Bash(just:*)","Bash(uv run:*)","Bash(git rebase --exec:*)","Bash(git rebase -x:*)","Bash(git fetch:*)","Write(.git/**)","Edit(.git/**)","Read(.git/**)","Grep(.git/**)","Glob(.git/**)","Read(**/.git/**)"]}}
           # An allowlist, not only the deny block: agent mode sets neither --permission-mode
           # nor --allowedTools, so the model would otherwise have Read, Grep and Glob and
           # could not work. Nothing on it launches a command: no `gh api`, no `just` (a

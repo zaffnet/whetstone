@@ -187,8 +187,12 @@ JSON
   # Denied outright as well, since deny beats allow.
   local deny
   deny=$(grep -o '"deny":\[[^]]*\]' "$REPO/.github/workflows/pr-medic.yml")
+  # .git is denied for reads as well as writes: with commit signing off the action puts the
+  # write token in the origin URL, so .git/config holds a live credential the Read tool could
+  # otherwise hand to an injected instruction.
   for entry in 'Bash(just:*)' 'Bash(uv run:*)' 'Bash(git fetch:*)' \
-    'Bash(git rebase --exec:*)' 'Bash(git rebase -x:*)' 'Write(.git/**)'; do
+    'Bash(git rebase --exec:*)' 'Bash(git rebase -x:*)' \
+    'Write(.git/**)' 'Edit(.git/**)' 'Read(.git/**)' 'Grep(.git/**)' 'Glob(.git/**)'; do
     grep -qF "$entry" <<<"$deny" || {
       echo "missing deny entry: $entry" >&2
       return 1
@@ -198,6 +202,17 @@ JSON
 
 # rebase.sh takes no arguments at all: the destination comes from the API, not the caller, so
 # there is nothing for an injected instruction to redirect.
+@test "the mention workflow denies the same things" {
+  local deny
+  deny=$(grep -o '"deny":\[[^]]*\]' "$REPO/.github/workflows/claude.yml")
+  for entry in 'Bash(gh api:*)' 'Read(.git/**)' 'Write(.git/**)'; do
+    grep -qF "$entry" <<<"$deny" || {
+      echo "claude.yml missing deny entry: $entry" >&2
+      return 1
+    }
+  done
+}
+
 @test "rebase.sh accepts no destination from its caller" {
   # shellcheck disable=SC2016  # a grep pattern for positional parameters, not an expansion.
   run ! grep -qE '\$1|\$\{1|\$@|\$\*' "$MEDIC/rebase.sh"
