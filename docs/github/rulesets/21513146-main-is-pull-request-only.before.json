@@ -1,0 +1,91 @@
+{
+  "_links": {
+    "html": {
+      "href": "https://github.com/zaffnet/whetstone/rules/21513146"
+    },
+    "self": {
+      "href": "https://api.github.com/repos/zaffnet/whetstone/rulesets/21513146"
+    }
+  },
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "exclude": [],
+      "include": [
+        "~DEFAULT_BRANCH"
+      ]
+    }
+  },
+  "created_at": "2026-08-25T21:12:29.602-04:00",
+  "current_user_can_bypass": "never",
+  "enforcement": "active",
+  "id": 21513146,
+  "name": "main-is-pull-request-only",
+  "node_id": "RRS_lACqUmVwb3NpdG9yec5QQoFGzgFIQ7o",
+  "rules": [
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
+    {
+      "parameters": {
+        "allowed_merge_methods": [
+          "merge",
+          "squash",
+          "rebase"
+        ],
+        "dismiss_stale_reviews_on_push": true,
+        "require_code_owner_review": false,
+        "require_extra_approval_for_unattributed_changes": true,
+        "require_last_push_approval": false,
+        "required_approving_review_count": 0,
+        "required_review_thread_resolution": false,
+        "required_reviewers": []
+      },
+      "type": "pull_request"
+    },
+    {
+      "parameters": {
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [
+          {
+            "context": "pre-commit"
+          },
+          {
+            "context": "plugin-manifests"
+          },
+          {
+            "context": "single-source"
+          },
+          {
+            "context": "gitleaks"
+          },
+          {
+            "context": "bootstrap (personal)"
+          },
+          {
+            "context": "bootstrap (work)"
+          },
+          {
+            "context": "template-ok"
+          }
+        ],
+        "strict_required_status_checks_policy": false
+      },
+      "type": "required_status_checks"
+    },
+    {
+      "parameters": {
+        "review_draft_pull_requests": false,
+        "review_on_push": true
+      },
+      "type": "copilot_code_review"
+    }
+  ],
+  "source": "zaffnet/whetstone",
+  "source_type": "Repository",
+  "target": "branch",
+  "updated_at": "2026-08-27T01:20:36.195-04:00"
+}
