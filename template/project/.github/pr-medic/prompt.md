@@ -5,7 +5,8 @@ Do not merge. Do not approve. Do not push to the default branch. Do not force-pu
 --force-with-lease. You have no command that can merge or approve, and that is deliberate.
 
 Two files matter, both under $RUNNER_TEMP/pr-medic/: `threads.json`, which lists the
-unresolved review threads, and `replies.json`, which you write.
+unresolved review threads whose authors can push to this repository, and `replies.json`,
+which you write. A thread from anyone else is not in that file and is not yours to answer.
 
 1. Read the state: failing checks, mergeStateStatus, and every thread in `threads.json`.
 2. For each of those threads, either implement the ask or decide not to. Then write

@@ -27,21 +27,27 @@ unresolved_threads() {
 # shellcheck disable=SC2034  # read by trust-config.sh and after.sh, which source this.
 TRUSTED_PATHS=(.claude .mcp.json .claude.json .gitmodules .ripgreprc CLAUDE.md CLAUDE.local.md .husky)
 
-# How many distinct APPROVED reviews come from someone who can actually push. Input: the
-# `gh pr view --json latestReviews` object.
+# Can this login push to the repository?
 #
 # Not authorAssociation. MEMBER only means membership in the owning organization, whose base
 # role may be Read, and a collaborator can hold Read or Triage -- so associations do not
 # establish write access. It does exclude Copilot, which reviews as NONE, but only by
 # accident. Ask for the permission instead. A login the API cannot resolve, a bot included,
-# is not counted.
+# does not have it.
+has_push_access() {
+  case "$(gh api "repos/$REPO/collaborators/$1/permission" --jq '.permission // ""' 2>/dev/null)" in
+    admin | write) return 0 ;;
+  esac
+  return 1
+}
+
+# How many distinct APPROVED reviews come from someone who can actually push. Input: the
+# `gh pr view --json latestReviews` object.
 approval_count() {
   local login count=0
   while read -r login; do
     [ -n "$login" ] || continue
-    case "$(gh api "repos/$REPO/collaborators/$login/permission" --jq '.permission // ""' 2>/dev/null)" in
-      admin | write) count=$((count + 1)) ;;
-    esac
+    ! has_push_access "$login" || count=$((count + 1))
   done < <(jq -r '[.latestReviews[]? | select(.state == "APPROVED") | .author.login] | unique | .[]')
   printf '%s\n' "$count"
 }

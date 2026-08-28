@@ -155,6 +155,9 @@ jobs:
           }
           chmod +x "$RUNNER_TEMP/medic"/*.sh
           chmod -R a-w "$RUNNER_TEMP/medic" # --output=FILE writes wherever it is pointed
+          # Whose review threads may steer the model: this bot, so its own replies do not
+          # withhold every thread it has touched, plus the review bots. threads.sh reads it.
+          export TRUSTED_BOTS="$login,$TRIGGER_BOTS"
           "$RUNNER_TEMP/medic/trust-config.sh"
           "$RUNNER_TEMP/medic/threads.sh" dump # threads in as a file, replies out as a file
           {
@@ -164,7 +167,7 @@ jobs:
           } >>"$GITHUB_OUTPUT"
           # $login leads the bot allowlist: after a medic push, github.actor is this bot.
           printf 'login=%s\nid=%s\nhead=%s\nbots=%s\n' \
-            "$login" "$id" "$(git rev-parse HEAD)" "$login,$TRIGGER_BOTS" >>"$GITHUB_OUTPUT"
+            "$login" "$id" "$(git rev-parse HEAD)" "$TRUSTED_BOTS" >>"$GITHUB_OUTPUT"
 
       - name: Run Claude Code
         if: env.HAS_CLAUDE == 'true'
@@ -199,3 +202,4 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.token.outputs.token || github.token }}
           HEAD_BEFORE: ${{ steps.bot.outputs.head }}
+          TRUSTED_BOTS: ${{ steps.bot.outputs.bots }} # threads.sh apply must match dump

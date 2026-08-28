@@ -8,6 +8,10 @@
 #
 set -euo pipefail
 
+here=$(dirname "$0")
+# shellcheck source=.github/pr-medic/lib.sh
+. "$here/lib.sh"
+
 : "${PR:?}" "${REPO:?}"
 # Under RUNNER_TEMP, not the worktree: a file written inside it would trip the clean-worktree
 # check in after.sh. Claude is told the same path, and reaches it via --add-dir.
@@ -17,10 +21,37 @@ set -euo pipefail
 # given them, which is the only thing its `resolve: true` can honestly refer to.
 : "${THREAD_SNAPSHOT:=${RUNNER_TEMP:?}/pr-medic-state/threads.json}"
 
-# The unresolved threads, as they are right now.
+# Of these logins, the ones whose text may be put in front of the model: push access, or one
+# of the bots the workflow names. A bot holds no collaborator permission, so it cannot be
+# established that way -- this is the same list the action gets as `allowed_bots`, and for the
+# same reason. Input: one login per line. Output: a JSON array.
+trusted_logins() {
+  local login trusted=()
+  while read -r login; do
+    [ -n "$login" ] || continue
+    case ",${TRUSTED_BOTS:-}," in
+      *",$login,"*)
+        trusted+=("$login")
+        continue
+        ;;
+    esac
+    ! has_push_access "$login" || trusted+=("$login")
+  done
+  printf '%s\n' ${trusted[@]+"${trusted[@]}"} | jq -R -s -c 'split("\n") | map(select(. != ""))'
+}
+
+# The unresolved threads, as they are right now, less the ones the model must not be steered
+# by. Anyone who can read a public repository can open a review thread, and the hourly sweep
+# reaches a pull request whether or not an event for it was accepted -- so without this the
+# thread body of any passer-by becomes prompt text that after.sh then pushes.
+#
+# Every author of a thread, not only the one who opened it: an untrusted reply on a Copilot
+# thread is still text in the prompt. A skipped thread stays unresolved, which the merge gate
+# counts, so the pull request waits for someone with push access rather than merging.
 fetch_threads() {
+  local raw trusted kept dropped
   # shellcheck disable=SC2016  # $owner, $name and $pr are GraphQL variables.
-  gh api graphql -F owner="${REPO%/*}" -F name="${REPO#*/}" -F pr="$PR" -f query='
+  raw=$(gh api graphql -F owner="${REPO%/*}" -F name="${REPO#*/}" -F pr="$PR" -f query='
     query($owner: String!, $name: String!, $pr: Int!) {
       repository(owner: $owner, name: $name) {
         pullRequest(number: $pr) {
@@ -36,7 +67,16 @@ fetch_threads() {
               | select(.isResolved == false)
               | {thread_id: .id, path, line, outdated: .isOutdated,
                  truncated: (.comments.totalCount > 100),
-                 comments: [.comments.nodes[] | {author: .author.login, body}]}]'
+                 comments: [.comments.nodes[] | {author: .author.login, body}]}]')
+  trusted=$(jq -r '[.[].comments[].author] | unique | .[]' <<<"$raw" | trusted_logins)
+  # IN, not index or inside: those match substrings, so `ali` would pass as `alice`. A null
+  # author -- a deleted account -- matches nothing and the thread is skipped.
+  kept=$(jq -c --argjson trusted "$trusted" \
+    '[.[] | select(all(.comments[].author; IN($trusted[])))]' <<<"$raw")
+  dropped=$(($(jq length <<<"$raw") - $(jq length <<<"$kept")))
+  [ "$dropped" -eq 0 ] \
+    || echo "::warning::PR #$PR: $dropped unresolved thread(s) withheld; an author cannot push" >&2
+  printf '%s\n' "$kept"
 }
 
 dump() {

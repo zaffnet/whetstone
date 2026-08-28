@@ -198,6 +198,18 @@ The threads `apply` will act on are the intersection of what is open now and wha
 snapshot holds. Open-now alone would accept a thread created after `dump`, which the model was
 never shown and can have no answer to.
 
+A thread only reaches the model if every one of its comment authors can push to the
+repository, or is one of the bots the workflow names -- the same list the action gets as
+`allowed_bots`, judged by `repos/{repo}/collaborators/{login}/permission` rather than by
+`authorAssociation`, for the reasons under `approval_count`. This is a public repository:
+anyone who can read it can open a review thread, and the hourly sweep reaches a pull request
+whether or not an event for it was accepted. Without the filter, any passer-by's thread body
+became prompt text that `after.sh` then pushed. Every author, not only the one who opened the
+thread, because an untrusted reply on a Copilot thread is still text in the prompt. A withheld
+thread stays unresolved, which the merge gate counts, so the pull request waits for someone
+with push access instead of merging -- fail-closed, and no change to what a stranger could
+already do by leaving a comment.
+
 `apply` also refuses to resolve a thread whose comments have changed since `dump` took its
 snapshot. A reviewer can add a comment while the model is working, and a `resolve: true`
 written before that arrived would mark the new comment satisfied too -- after which the gate
