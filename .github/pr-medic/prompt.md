@@ -21,15 +21,16 @@ unresolved review threads, and `replies.json`, which you write.
    infrastructural. You cannot run the test suite or `just` here -- running this pull
    request's own code with a write token would hand it the token -- so reason from the log and
    let CI verify the fix.
-4. Commit and push. git user.name and user.email are already set. Stage the files you
-   changed, never `git add -A`: `.claude/`, `CLAUDE.md`, `.mcp.json` and `.husky` in this
-   checkout have been reset to the default branch's copies for safety, and staging them would
-   commit that reset onto the author's branch.
+4. `git add` the files you changed -- never `git add -A`, because `.claude/`, `CLAUDE.md`,
+   `.mcp.json` and `.husky` here have been reset to the default branch's copies for safety and
+   staging them would commit that reset onto the author's branch. Then
+   `.github/pr-medic/commit.sh "your message"` and `.github/pr-medic/push.sh`. Those are the
+   only ways to commit and push: plain `git commit` and `git push` are not available to you.
 5. Last, because a push dismisses approvals: if the branch conflicts with the default branch,
    run `.github/pr-medic/rebase.sh` (it takes no arguments and finds the default branch
-   itself), resolve the conflicts, `git add` them, `git rebase --continue`, then
-   `git push --force-with-lease`. If you cannot resolve them, `git rebase --abort` and say so
-   in a reply.
+   itself), resolve the conflicts (`git checkout --ours`/`--theirs` are available), `git add`
+   them, `git rebase --continue`, then `.github/pr-medic/push.sh --force-with-lease`. If you
+   cannot resolve them, `git rebase --abort` and say so in a reply.
 
 Write nothing outside the repository except that replies file. A later step rebases a
 merely stale branch, re-requests reviewers, and arms auto-merge. You do not arm or merge.

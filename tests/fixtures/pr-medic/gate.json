@@ -901,5 +901,77 @@
       "skip_label": "no-medic",
       "may_merge": true
     }
+  },
+  {
+    "name": "a queued rerun is pending, even with no startedAt",
+    "expect": "wait",
+    "expect_reason": "pending checks",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "labels": [],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "lint",
+            "workflowName": "lint",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS",
+            "startedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "__typename": "CheckRun",
+            "name": "lint",
+            "workflowName": "lint",
+            "status": "QUEUED"
+          }
+        ],
+        "autoMergeRequest": null
+      },
+      "unresolved": 0,
+      "approvals": 0,
+      "approvals_required": 0,
+      "skip_label": "no-medic",
+      "may_merge": true
+    }
+  },
+  {
+    "name": "a queued rerun of a failed check is pending, not failing",
+    "expect": "wait",
+    "expect_reason": "pending checks",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "labels": [],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "lint",
+            "workflowName": "lint",
+            "status": "COMPLETED",
+            "conclusion": "FAILURE",
+            "startedAt": "2026-01-01T00:00:00Z"
+          },
+          {
+            "__typename": "CheckRun",
+            "name": "lint",
+            "workflowName": "lint",
+            "status": "QUEUED"
+          }
+        ],
+        "autoMergeRequest": null
+      },
+      "unresolved": 0,
+      "approvals": 0,
+      "approvals_required": 0,
+      "skip_label": "no-medic",
+      "may_merge": true
+    }
   }
 ]

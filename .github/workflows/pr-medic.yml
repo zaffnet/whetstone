@@ -175,18 +175,18 @@ jobs:
           # SENSITIVE_PATHS. `.git` is denied for reads too: with signing off the action puts
           # the write token in the origin URL, so .git/config holds a live credential.
           settings: |
-            {"permissions":{"deny":["Bash(gh api:*)","Bash(gh pr merge:*)","Bash(gh pr review:*)","Bash(git push --force)","Bash(git push --force *)","Bash(just:*)","Bash(uv run:*)","Bash(git rebase --exec:*)","Bash(git rebase -x:*)","Bash(git fetch:*)","Write(.git/**)","Edit(.git/**)","Read(.git/**)","Grep(.git/**)","Glob(.git/**)","Read(**/.git/**)"]}}
+            {"permissions":{"deny":["Bash(gh api:*)","Bash(gh pr merge:*)","Bash(gh pr review:*)","Bash(git push --force)","Bash(git push --force *)","Bash(just:*)","Bash(uv run:*)","Bash(git rebase --exec:*)","Bash(git rebase -x:*)","Bash(git fetch:*)","Bash(git push:*)","Bash(git push)","Bash(git commit:*)","Bash(git diff --no-index:*)","Bash(git diff --ext-diff:*)","Bash(git log --ext-diff:*)","Bash(git show --ext-diff:*)","Write(.git/**)","Edit(.git/**)","Read(.git/**)","Grep(.git/**)","Glob(.git/**)","Read(**/.git/**)"]}}
           # An allowlist, not only the deny block: agent mode sets neither --permission-mode
           # nor --allowedTools, so the model would otherwise have Read, Grep and Glob and
-          # could not work. Nothing on it launches a command: no `gh api`, no `just` (a
-          # PR-controlled justfile), no `uv run` (any argv), no bare `git rebase`
-          # (`--exec`) and no `git fetch` (`--upload-pack`). Rebasing goes through
-          # rebase.sh, which takes no arguments. See ADR 0012.
+          # could not work. Nothing on it launches a command or names a destination. Every git
+          # primitive that could -- rebase (--exec), fetch (--upload-pack), diff (--no-index
+          # reads any file), commit (-F reads one into the message), push (follows the
+          # upstream) -- goes through a helper that validates its own arguments. ADR 0012.
           claude_args: >-
             --max-turns ${{ env.MAX_TURNS }}
             --permission-mode acceptEdits
             --add-dir ${{ runner.temp }}/pr-medic
-            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git rebase --continue),Bash(git rebase --abort),Bash(.github/pr-medic/rebase.sh),Bash(git checkout:*),Bash(git push),Bash(git push --force-with-lease),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh run rerun:*)"
+            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff),Bash(git diff --stat),Bash(git diff --cached),Bash(git diff HEAD),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git checkout --ours:*),Bash(git checkout --theirs:*),Bash(git rebase --continue),Bash(git rebase --abort),Bash(.github/pr-medic/rebase.sh),Bash(.github/pr-medic/commit.sh:*),Bash(.github/pr-medic/push.sh),Bash(.github/pr-medic/push.sh --force-with-lease),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh run rerun:*)"
           prompt: ${{ steps.bot.outputs.prompt }}
 
       # The action reports `is_error:true` without the message that caused it.

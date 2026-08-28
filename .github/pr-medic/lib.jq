@@ -30,8 +30,15 @@ def check_counts:
   # and CANCELLED at once. Keep the newest row per check, or a stale failed attempt holds
   # failing > 0 for good and the rerun the prompt asks for can never clear it.
   | group_by([(.name // .context), (.workflowName // "")])
-  | map(sort_by(.startedAt // .createdAt // "") | last)
-  | map(bucket)
+  | map(
+      # A pending member wins outright. `gh pr view` gives CheckRuns no createdAt, and
+      # startedAt is null until a run starts, so a queued rerun sorts as "" and `last` would
+      # pick the completed row it replaces -- merging while the rerun is still to come.
+      (map(bucket) | index("pending")) as $queued
+      | if $queued != null then "pending"
+        else (sort_by(.startedAt // "") | last | bucket)
+        end
+    )
   | {
       total: length,
       failing: (map(select(. == "fail")) | length),

@@ -107,26 +107,34 @@ a failure rather than as nothing to do. Both files live under `RUNNER_TEMP`
 and the model reaches them through `--add-dir`, because a file written inside the worktree
 would trip the clean-worktree check in `after.sh`.
 
-`just`, `uv run`, `git rebase` and `git fetch` are off the allowlist and on the deny list.
+Every git primitive that can launch a command or choose a destination is off the allowlist and
+on the deny list, replaced by a helper in `.github/pr-medic/` that validates its own
+arguments: `rebase.sh` (no arguments; `git rebase --exec` runs shell commands), `commit.sh`
+(one message; `git commit -F` reads a file into the message, which the next push publishes)
+and `push.sh` (resolves the head ref from the API and names it in the refspec; bare
+`git push` follows the upstream, and `git checkout` can change what that is). `just` and
+`uv run` are gone for the same reason. `git diff` keeps only its argument-free forms, because
+`--no-index` prints any file on disk.
 `gh api` buys nothing while something on the list can launch it: `uv run gh api ...` matches
 `Bash(uv run:*)`, and `just` reads a justfile out of the pull request's own checkout. More
 generally, any command that runs the pull request's code — its tests, its justfile, its hooks
 — with a write token in the environment is equivalent to handing that pull request the token,
 and there is no narrow form of it. Verification is CI's job; the medic reads the result.
 `git push --force-with-lease` takes no argument either, because a refspec can name the default
-branch. `git rebase --exec` and `git fetch --upload-pack` both take a command, so the model
-gets `.github/pr-medic/rebase.sh`, which accepts no arguments and reads the destination from
-the API, plus `git rebase --continue` and `--abort` by exact match, neither of which takes
-one. `.git` is denied to `Read`, `Grep` and `Glob` as well as to `Write` and `Edit`. Writes,
+branch. `.git` is denied to `Read`, `Grep` and `Glob` as well as to `Write` and `Edit`. Writes,
 because a hand-written git config turns a read-only command into a launcher; reads, because
 `claude-code-action` backs git with the token in the origin URL when commit signing is off
 (`replaceCheckoutCredentials` in `src/github/operations/git-config.ts`), so `.git/config`
 holds a live write credential for the length of the run.
 
-That last one is mitigation, not elimination: the token is in the checkout because the model
-has to push. Eliminating it would mean pushing through a helper too, so that no credential
-need be present while the model runs. That is the next thing to do here, not something to
-claim is already done.
+These are guardrails inside the model's own process, not a boundary outside it. Allow-list
+patterns match on a prefix, so each round of review has found another primitive whose flags
+reach past the deny list, and the answer each time has been to replace the primitive rather
+than to enumerate its flags. What would end that pattern is moving the write credential out
+of the Claude step entirely: let Claude commit, and have `after.sh` -- which already runs
+afterwards, outside the model's reach -- do the pushing. Then no command Claude can invoke has
+anything to exfiltrate, and `push.sh` becomes unnecessary. That is the next structural change
+here, and it is deliberately not bundled into a round of review fixes.
 
 That leaves the model with no command that can approve or merge, rather than an allowlist that
 could not separate the two. The ruleset — required status checks and

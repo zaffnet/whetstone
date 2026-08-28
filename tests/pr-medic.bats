@@ -177,13 +177,19 @@ JSON
   # `uv run <anything>`; `just` reads a justfile out of the PR checkout; `git rebase --exec`
   # and `git fetch --upload-pack` both take a command. None may be reachable with arguments.
   run ! grep -qE 'uv run|Bash\(just|Bash\(git rebase:|Bash\(git fetch' <<<"$tools"
-  # Only the two rebase subcommands that take no command, plus the no-argument helper.
+  # No primitive that takes a command or names a destination. `git diff --no-index` reads any
+  # file, `git commit -F` reads one into the message, bare `git push` follows the upstream and
+  # `git checkout` can change what that is. Each goes through a helper instead.
+  run ! grep -qE 'Bash\(git (diff|commit|push|checkout):' <<<"$tools"
+  run ! grep -qE 'Bash\(git push\)' <<<"$tools"
+  for helper in rebase.sh 'commit.sh:*' push.sh; do
+    grep -qF "Bash(.github/pr-medic/$helper)" <<<"$tools" || {
+      echo "helper missing from the allowlist: $helper" >&2
+      return 1
+    }
+  done
   grep -qF 'Bash(git rebase --continue)' <<<"$tools"
   grep -qF 'Bash(git rebase --abort)' <<<"$tools"
-  grep -qF 'Bash(.github/pr-medic/rebase.sh)' <<<"$tools"
-  # And the force push takes no refspec, or it could name the default branch.
-  run ! grep -q 'force-with-lease:\*' <<<"$tools"
-  grep -qF 'Bash(git push --force-with-lease)' <<<"$tools"
   # Denied outright as well, since deny beats allow.
   local deny
   deny=$(grep -o '"deny":\[[^]]*\]' "$REPO/.github/workflows/pr-medic.yml")
@@ -191,7 +197,8 @@ JSON
   # write token in the origin URL, so .git/config holds a live credential the Read tool could
   # otherwise hand to an injected instruction.
   for entry in 'Bash(just:*)' 'Bash(uv run:*)' 'Bash(git fetch:*)' \
-    'Bash(git rebase --exec:*)' 'Bash(git rebase -x:*)' \
+    'Bash(git rebase --exec:*)' 'Bash(git rebase -x:*)' 'Bash(git push:*)' 'Bash(git push)' \
+    'Bash(git commit:*)' 'Bash(git diff --no-index:*)' 'Bash(git diff --ext-diff:*)' \
     'Write(.git/**)' 'Edit(.git/**)' 'Read(.git/**)' 'Grep(.git/**)' 'Glob(.git/**)'; do
     grep -qF "$entry" <<<"$deny" || {
       echo "missing deny entry: $entry" >&2
@@ -211,6 +218,49 @@ JSON
       return 1
     }
   done
+}
+
+# push.sh resolves the destination from the API and names it in the refspec, so neither the
+# current branch nor the remote config decides where a push lands.
+@test "push.sh refuses to push a branch that is not the PR's" {
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  cat >"$BATS_TEST_TMPDIR/bin/gh" <<'SH'
+#!/usr/bin/env bash
+printf 'zaffnet/pr-medic\n'
+SH
+  cat >"$BATS_TEST_TMPDIR/bin/git" <<'SH'
+#!/usr/bin/env bash
+case "$*" in
+  "rev-parse --abbrev-ref HEAD") printf 'main\n' ;;
+  *) printf '%s\n' "PUSHED $*" >>"$PUSH_LOG" ;;
+esac
+SH
+  chmod +x "$BATS_TEST_TMPDIR/bin/gh" "$BATS_TEST_TMPDIR/bin/git"
+  local log="$BATS_TEST_TMPDIR/push.log"
+  : >"$log"
+  # Inline rather than exported: REPO is the repository root in this suite's setup().
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH" PUSH_LOG="$log" PR=7 REPO=o/r run "$MEDIC/push.sh"
+  [ "$status" -ne 0 ]
+  [ ! -s "$log" ]
+}
+
+@test "push.sh takes no flag but --force-with-lease" {
+  run "$MEDIC/push.sh" --mirror
+  [ "$status" -eq 2 ]
+  run "$MEDIC/push.sh" origin main
+  [ "$status" -eq 2 ]
+}
+
+# Allow-list patterns match a prefix, so `Bash(git commit -m:*)` would also admit
+# `git commit -m x -F .git/config`. commit.sh passes git no flag but -m.
+@test "commit.sh takes exactly one message and no flags" {
+  run "$MEDIC/commit.sh"
+  [ "$status" -eq 2 ]
+  run "$MEDIC/commit.sh" ""
+  [ "$status" -eq 2 ]
+  run "$MEDIC/commit.sh" msg extra
+  [ "$status" -eq 2 ]
+  run ! grep -qE '"\$@"|\$\*' "$MEDIC/commit.sh"
 }
 
 @test "rebase.sh accepts no destination from its caller" {
