@@ -347,6 +347,15 @@ block; without ownership the queued run would refuse at the gate and then clear 
 way out. `apply` records the block in the state directory when it applies it, refuses to resolve
 anything while a block it does not own is present, and `release` is a no-op without that record.
 
+The checkout uses the read-only token, because that credential is the one the model's step
+inherits. `actions/checkout` persists its token as an `http.<server>/.extraheader` entry in
+`.git/config`, and the Claude action's `replaceCheckoutCredentials` exists to substitute its own
+-- but agent mode catches a failure there and continues, so a write token on the checkout would
+be left in the working tree with the model whenever that replacement failed. Nothing before the
+gate needs to write. `after.sh` clears any leftover extraheader before it installs its own
+credential, since an extraheader beats the credential helper and would otherwise decide the
+push.
+
 On `schedule`, `workflow_dispatch` and `workflow_run` the workflow file itself is trusted, so
 the copy in `RUNNER_TEMP` is what the gate runs and the chain holds. On an entity event the
 workflow file is the pull request's as well, so nothing written in the file can help: that is a

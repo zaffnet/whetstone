@@ -150,7 +150,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          token: ${{ steps.token.outputs.token }}
+          # The read-only one, because this is the credential the model's step inherits.
+          # actions/checkout persists it as an http.<server>/.extraheader entry in .git/config,
+          # and the Claude action replaces that with the token it was given -- but agent mode
+          # catches a failure there and continues (src/modes/agent/index.ts), so a write token
+          # here would be left in the working tree with the model. Nothing before the gate needs
+          # to write, and the gate installs its own credential.
+          token: ${{ steps.token-ro.outputs.token }}
 
       - id: bot # commits need the bot's noreply address, or attribution rules block the PR
         env:

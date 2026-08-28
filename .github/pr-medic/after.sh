@@ -37,6 +37,10 @@ for p in "${TRUSTED_PATHS[@]}"; do excluded+=(":(exclude)$p"); done
 # The gate has read the state it needed, so the restored config is only in the way from here.
 restore_pr_config
 
+# An extraheader beats the credential helper, so a leftover one decides the push instead of
+# this step's token. The checkout's is read-only and the Claude action normally replaces it, but
+# agent mode continues when that replacement fails -- so clear it rather than depend on it.
+git config --unset-all "http.${GITHUB_SERVER_URL:-https://github.com}/.extraheader" 2>/dev/null || true
 git remote set-url origin "${GITHUB_SERVER_URL:-https://github.com}/$REPO.git"
 gh auth setup-git
 

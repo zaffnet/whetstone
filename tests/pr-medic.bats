@@ -592,6 +592,25 @@ SH
   run ! grep -qF 'steps.token-ro.outputs.token || github.token' "$wf"
 }
 
+# actions/checkout persists its token as an http.<server>/.extraheader entry in .git/config, and
+# the model's step runs in that working tree. The Claude action replaces the entry with the
+# token it was given, but agent mode catches a failure there and continues, so a write token in
+# the checkout would be left with the model whenever that replacement fails.
+@test "the checkout leaves only a read-only credential for the model" {
+  local wf="$REPO/.github/workflows/pr-medic.yml"
+  at() { grep -nF -- "$1" "$wf" | head -1 | cut -d: -f1; }
+  # shellcheck disable=SC2016  # grepping for the literals.
+  [ "$(at 'token: ${{ steps.token-ro.outputs.token }}')" -lt "$(at 'Run Claude Code')" ]
+  # shellcheck disable=SC2016
+  run ! grep -qF 'token: ${{ steps.token.outputs.token }}' "$wf"
+  # The gate installs its own credential, and clears the checkout's, which would otherwise win.
+  # shellcheck disable=SC2016  # grepping for the literal.
+  grep -qF 'http.${GITHUB_SERVER_URL:-https://github.com}/.extraheader' "$MEDIC/after.sh"
+  ate() { grep -nF -- "$1" "$MEDIC/after.sh" | head -1 | cut -d: -f1; }
+  [ "$(ate '.extraheader')" -lt "$(ate 'gh auth setup-git')" ]
+  [ "$(ate 'gh auth setup-git')" -lt "$(ate 'push.sh')" ]
+}
+
 @test "the medic job does not run without the App it needs to write" {
   # shellcheck disable=SC2016  # grepping for the literal.
   grep -qF "&& vars.APP_CLIENT_ID != ''" "$REPO/.github/workflows/pr-medic.yml"
