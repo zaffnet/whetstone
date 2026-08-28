@@ -74,6 +74,11 @@ the fix is missing from, which remote state alone cannot tell apart from a finis
 Claude step is therefore *not* `continue-on-error`: a failure fails the job and `after.sh`
 never runs. That replaces the outcome bookkeeping an earlier draft carried in bash.
 
+Once it has read the state it needs, `restore_pr_config` puts the pull request's own copies
+of `TRUSTED_PATHS` back. `git rebase` refuses to run with unstaged changes even though the
+clean-worktree check excludes those paths, so leaving the restore in place made every stale
+pull request that touches `CLAUDE.md` fail at the rebase.
+
 The Claude CLI reads `.claude/`, `.mcp.json`, `CLAUDE.md` and `.husky` from the working
 directory at startup -- SessionStart hooks, MCP servers, `NODE_OPTIONS` -- before any
 tool-permission gating, and `gh pr checkout` puts the pull request's copies there.
@@ -179,10 +184,19 @@ checkout, and `prompt.md` is read from there too. Otherwise a pull request could
 `commit.sh` and have the model invoke the allowlisted path -- arbitrary shell, past every deny
 rule -- or rewrite the instructions the model is given.
 
+If `.github/pr-medic` is missing from the default branch the job fails. It used to fall back
+to the checkout's copy, which would have run PR-controlled scripts with the write token in the
+next step -- the exact thing taking them from the default branch is for. A missing helper
+directory is a configuration error, so it is reported as one.
+
 Nothing the model writes is treated as evidence. `threads.sh apply` re-queries the open
 threads instead of reading back the file it handed over, because `--add-dir` makes that file
 writable; and `trusted-state` lives outside that directory, because only `after.sh` reads it
 and a state file the model could rewrite would certify whatever it liked.
+
+The threads `apply` will act on are the intersection of what is open now and what the
+snapshot holds. Open-now alone would accept a thread created after `dump`, which the model was
+never shown and can have no answer to.
 
 `apply` also refuses to resolve a thread whose comments have changed since `dump` took its
 snapshot. A reviewer can add a comment while the model is working, and a `resolve: true`

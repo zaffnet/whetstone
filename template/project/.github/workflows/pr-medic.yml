@@ -147,10 +147,11 @@ jobs:
           base=$(gh api "repos/$REPO" --jq .default_branch)
           git fetch --depth=1 --no-recurse-submodules origin "$base"
           mkdir -p "$RUNNER_TEMP/medic"
+          # Fail closed: the checkout's copy would be PR-controlled, run with the write token.
           git archive "origin/$base" .github/pr-medic 2>/dev/null |
             tar -x --strip-components=2 -C "$RUNNER_TEMP/medic" || {
-            echo "::warning::.github/pr-medic is absent from $base; using the PR's copy"
-            cp .github/pr-medic/* "$RUNNER_TEMP/medic/"
+            echo "::error::.github/pr-medic is absent from $base; the medic cannot run"
+            exit 1
           }
           chmod +x "$RUNNER_TEMP/medic"/*.sh
           chmod -R a-w "$RUNNER_TEMP/medic" # --output=FILE writes wherever it is pointed

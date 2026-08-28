@@ -61,7 +61,10 @@ apply() {
   # of threads that are open now, which is also the list that matters.
   local threads known entry id reply body_file resolved=0 replied=0
   threads=$(fetch_threads)
-  known=$(jq -c '[.[].thread_id]' <<<"$threads")
+  # Open now *and* in the snapshot the model was given. Current alone would accept a thread
+  # opened after dump, which the model never saw and cannot have an answer to.
+  known=$(jq -c --slurpfile snap "$THREAD_SNAPSHOT" \
+    '[$snap[0][].thread_id] as $shown | [.[].thread_id | select(IN($shown[]))]' <<<"$threads")
   body_file=$(mktemp)
   while read -r entry; do
     id=$(jq -r '.thread_id // empty' <<<"$entry")

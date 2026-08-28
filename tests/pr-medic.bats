@@ -126,6 +126,11 @@ JSON
   [ "$(at 'git archive .origin/.base. \.github/pr-medic')" -lt "$(at 'medic/trust-config\.sh')" ]
   run ! grep -qE '^ +run: \.github/pr-medic/(after|trust-config|threads)\.sh' "$wf"
   grep -qE 'RUNNER_TEMP/medic/after\.sh' "$wf"
+  # Fail closed: falling back to the checkout's copy would run PR-controlled scripts with the
+  # write token, which is exactly what taking them from the default branch is for.
+  # shellcheck disable=SC2016  # a literal grep pattern.
+  run ! grep -qF 'cp .github/pr-medic/* "$RUNNER_TEMP/medic/"' "$wf"
+  grep -qF 'the medic cannot run' "$wf"
   # And no settings file is read out of the checkout.
   run ! grep -q 'settings: \.github' "$wf"
   run ! grep -q 'settings: \.github' "$REPO/.github/workflows/claude.yml"
@@ -433,6 +438,32 @@ SH
 }
 
 # ... and the truncation flag is re-read too, not taken from the model's copy.
+# Open now is not enough: a thread opened after dump was never shown to the model, so it can
+# have no answer to it. The allowlist is the intersection of current and snapshot.
+#
+# Deliberately a reply with no `resolve`: with `resolve: true` the mid-run-change check would
+# refuse it too, and the test would pass without the intersection being there at all.
+@test "threads.sh refuses a thread opened after the model was given the list" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","path":"a.py","line":1,"comments":[]}]' >"$THREAD_SNAPSHOT"
+  printf '%s\n' '[{"thread_id":"T_known","path":"a.py","line":1,"comments":[]},{"thread_id":"T_new","path":"b.py","line":1,"comments":[]}]' >"$STUB_THREADS"
+  printf '%s\n' '[{"thread_id":"T_new","reply":"posting to a thread I was never shown"}]' >"$REPLIES_FILE"
+  run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  run ! grep -q 'addPullRequestReviewThreadReply' "$GH_LOG"
+}
+
+# The same thread, still in the snapshot, is accepted -- so the case above fails for the
+# intersection and not because apply refuses everything.
+@test "threads.sh accepts a thread that is in both the snapshot and the current list" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","path":"a.py","line":1,"comments":[]}]' >"$THREAD_SNAPSHOT"
+  printf '%s\n' '[{"thread_id":"T_known","path":"a.py","line":1,"comments":[]},{"thread_id":"T_new","path":"b.py","line":1,"comments":[]}]' >"$STUB_THREADS"
+  printf '%s\n' '[{"thread_id":"T_known","reply":"answered"}]' >"$REPLIES_FILE"
+  "$MEDIC/threads.sh" apply
+  grep -q 'addPullRequestReviewThreadReply' "$GH_LOG"
+}
+
 @test "threads.sh does not trust a cleared truncation flag" {
   setup_threads
   printf '%s\n' '[{"thread_id":"T_long","path":"a.py","line":1,"truncated":true,"comments":[]}]' >"$STUB_THREADS"
@@ -575,8 +606,11 @@ SH
   RUNNER_TEMP="$BATS_TEST_TMPDIR"
   THREADS_FILE="$BATS_TEST_TMPDIR/threads.json"
   REPLIES_FILE="$BATS_TEST_TMPDIR/replies.json"
+  # apply intersects the current threads with the snapshot dump took, so both must exist.
+  THREAD_SNAPSHOT="$BATS_TEST_TMPDIR/snapshot.json"
   printf '[]\n' >"$THREADS_FILE"
   printf '[]\n' >"$REPLIES_FILE"
+  printf '[]\n' >"$THREAD_SNAPSHOT"
   HEAD_BEFORE=$LOCAL_HEAD
   PR=7
   REPO=o/r
@@ -587,7 +621,7 @@ SH
   REREQUEST_REVIEWERS=
   GITHUB_STEP_SUMMARY="$BATS_TEST_TMPDIR/summary.md"
   export GH_LOG PATH STUB_VIEW STUB_REMOTE_HEAD HEAD_BEFORE PR REPO
-  export RUNNER_TEMP THREADS_FILE REPLIES_FILE
+  export RUNNER_TEMP THREADS_FILE REPLIES_FILE THREAD_SNAPSHOT
   export APPROVALS_REQUIRED MAY_MERGE MERGE_METHOD REREQUEST_REVIEWERS GITHUB_STEP_SUMMARY
   export SKIP_LABEL
   # trust-config.sh records this after restoring TRUSTED_PATHS; after.sh compares against it,
@@ -676,6 +710,16 @@ commit_and_push() {
 # Excluding TRUSTED_PATHS from the clean check must not hide an edit Claude made to one of
 # them after trust-config.sh restored it -- the thread asking for that edit would then be
 # resolved against a head the fix is missing from.
+# trust-config.sh leaves TRUSTED_PATHS at the default branch's content. The clean check
+# excludes them, but `git rebase` does not, so they have to go back to HEAD once the gate has
+# read the state it needed -- or any stale PR touching CLAUDE.md fails at the rebase.
+@test "the PR's own config is restored before the rebase" {
+  at() { grep -nE "$1" "$MEDIC/after.sh" | head -1 | cut -d: -f1; }
+  [ "$(at 'trusted_state')" -lt "$(at 'restore_pr_config')" ]
+  [ "$(at 'restore_pr_config')" -lt "$(at 'git rebase')" ]
+  grep -q 'git clean -qfd' "$MEDIC/lib.sh"
+}
+
 @test "the gate catches an uncommitted edit to a restored path" {
   setup_after
   echo "edited after the restore" >>"$WORK/CLAUDE.md"

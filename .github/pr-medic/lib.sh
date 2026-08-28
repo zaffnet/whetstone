@@ -61,3 +61,17 @@ trusted_state() {
     git diff HEAD -- "${TRUSTED_PATHS[@]}"
   } | shasum -a 256 | cut -d' ' -f1
 }
+
+# Put the PR's own versions of TRUSTED_PATHS back. trust-config.sh left them at the default
+# branch's content so the CLI could not read the PR's hooks; once the gate has checked that
+# state, the difference is only in the way -- `git rebase` refuses to run with unstaged
+# changes even though the clean-worktree check excludes these paths. Per path, because
+# `git checkout HEAD --` fails outright if any one of them is absent from HEAD.
+restore_pr_config() {
+  local p
+  for p in "${TRUSTED_PATHS[@]}"; do
+    git checkout HEAD -- "$p" 2>/dev/null || true
+  done
+  # Whatever the restore added that the pull request does not have.
+  git clean -qfd -- "${TRUSTED_PATHS[@]}" 2>/dev/null || true
+}

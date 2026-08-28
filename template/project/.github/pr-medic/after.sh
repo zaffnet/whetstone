@@ -29,6 +29,9 @@ for p in "${TRUSTED_PATHS[@]}"; do excluded+=(":(exclude)$p"); done
 # The Claude action rewrote origin to embed the token it was given, and since 59b895d that is
 # the read-only one -- so a push from here would 403. Point origin back at the plain URL and
 # let gh's credential helper supply this step's token, which is the one that can write.
+# The gate has read the state it needed, so the restored config is only in the way from here.
+restore_pr_config
+
 git remote set-url origin "${GITHUB_SERVER_URL:-https://github.com}/$REPO.git"
 gh auth setup-git
 
