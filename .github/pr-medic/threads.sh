@@ -14,12 +14,10 @@ set -euo pipefail
 : "${THREADS_FILE:=${RUNNER_TEMP:?}/pr-medic/threads.json}"
 : "${REPLIES_FILE:=${RUNNER_TEMP:?}/pr-medic/replies.json}"
 
-graphql() { gh api graphql "$@"; }
-
-dump() {
-  mkdir -p "$(dirname "$THREADS_FILE")"
+# The unresolved threads, as they are right now.
+fetch_threads() {
   # shellcheck disable=SC2016  # $owner, $name and $pr are GraphQL variables.
-  graphql -F owner="${REPO%/*}" -F name="${REPO#*/}" -F pr="$PR" -f query='
+  gh api graphql -F owner="${REPO%/*}" -F name="${REPO#*/}" -F pr="$PR" -f query='
     query($owner: String!, $name: String!, $pr: Int!) {
       repository(owner: $owner, name: $name) {
         pullRequest(number: $pr) {
@@ -35,7 +33,12 @@ dump() {
               | select(.isResolved == false)
               | {thread_id: .id, path, line, outdated: .isOutdated,
                  truncated: (.comments.totalCount > 100),
-                 comments: [.comments.nodes[] | {author: .author.login, body}]}]' >"$THREADS_FILE"
+                 comments: [.comments.nodes[] | {author: .author.login, body}]}]'
+}
+
+dump() {
+  mkdir -p "$(dirname "$THREADS_FILE")" "$(dirname "$REPLIES_FILE")"
+  fetch_threads >"$THREADS_FILE"
   printf '[]\n' >"$REPLIES_FILE"
   printf 'Wrote %s unresolved thread(s) to %s\n' "$(jq length "$THREADS_FILE")" "$THREADS_FILE"
 }
@@ -47,8 +50,12 @@ apply() {
     echo "::error::$REPLIES_FILE is not a JSON array"
     exit 1
   }
-  local known entry id reply body_file resolved=0 replied=0
-  known=$(jq -c '[.[].thread_id]' "$THREADS_FILE")
+  # Re-queried, not read back from THREADS_FILE: the model can write in that directory, so
+  # the file it was handed is not evidence of anything once it has finished. This is the list
+  # of threads that are open now, which is also the list that matters.
+  local threads known entry id reply body_file resolved=0 replied=0
+  threads=$(fetch_threads)
+  known=$(jq -c '[.[].thread_id]' <<<"$threads")
   body_file=$(mktemp)
   while read -r entry; do
     id=$(jq -r '.thread_id // empty' <<<"$entry")
@@ -67,7 +74,7 @@ apply() {
     }
     printf '%s' "$reply" >"$body_file"
     # shellcheck disable=SC2016  # $threadId and $body are GraphQL variables.
-    graphql -f threadId="$id" -F body=@"$body_file" -f query='
+    gh api graphql -f threadId="$id" -F body=@"$body_file" -f query='
       mutation($threadId: ID!, $body: String!) {
         addPullRequestReviewThreadReply(
           input: {pullRequestReviewThreadId: $threadId, body: $body}
@@ -79,12 +86,12 @@ apply() {
     if [ "$(jq -r '.resolve // false' <<<"$entry")" = true ]; then
       # `last: 100` shows the most recent comments, so a truncated thread is one whose
       # beginning is missing. Replying to it is fine; recording it as satisfied is not.
-      if [ "$(jq -r --arg i "$id" '[.[] | select(.thread_id == $i) | .truncated] | first' "$THREADS_FILE")" = true ]; then
+      if [ "$(jq -r --arg i "$id" '[.[] | select(.thread_id == $i) | .truncated] | first' <<<"$threads")" = true ]; then
         echo "::error::thread $id has more than 100 comments; it cannot be resolved from a partial read"
         exit 1
       fi
       # shellcheck disable=SC2016  # $threadId is a GraphQL variable.
-      graphql -f threadId="$id" -f query='
+      gh api graphql -f threadId="$id" -f query='
         mutation($threadId: ID!) {
           resolveReviewThread(input: {threadId: $threadId}) { thread { isResolved } }
         }' >/dev/null

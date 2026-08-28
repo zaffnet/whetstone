@@ -118,11 +118,14 @@ JSON
   # Anchored on the commands, not on prose: matching the first occurrence of the bare name
   # picked up the comment above the step, so moving the command itself left this green.
   at() { grep -nE "$1" "$wf" | head -1 | cut -d: -f1; }
-  [ "$(at '^ +gh pr checkout ')" -lt "$(at '^ +\.github/pr-medic/trust-config\.sh$')" ]
-  [ "$(at '^ +\.github/pr-medic/trust-config\.sh$')" -lt "$(at '^ +- name: Run Claude Code$')" ]
-  # And the medic's own scripts are taken from the default branch before any of them runs.
-  [ "$(at '^ +git checkout .origin/.base. -- \.github/pr-medic')" -lt \
-    "$(at '^ +\.github/pr-medic/trust-config\.sh$')" ]
+  [ "$(at '^ +gh pr checkout ')" -lt "$(at 'medic/trust-config\.sh')" ]
+  [ "$(at 'medic/trust-config\.sh')" -lt "$(at '^ +- name: Run Claude Code$')" ]
+  # The scripts the gate runs come from the default branch, into RUNNER_TEMP rather than into
+  # the checkout, and before any of them runs. The model has Edit/Write on the checkout, so a
+  # copy there would be rewritable between the restore and the gate.
+  [ "$(at 'git archive .origin/.base. \.github/pr-medic')" -lt "$(at 'medic/trust-config\.sh')" ]
+  run ! grep -qE '^ +run: \.github/pr-medic/(after|trust-config|threads)\.sh' "$wf"
+  grep -qE 'RUNNER_TEMP/medic/after\.sh' "$wf"
   # And no settings file is read out of the checkout.
   run ! grep -q 'settings: \.github' "$wf"
   run ! grep -q 'settings: \.github' "$REPO/.github/workflows/claude.yml"
@@ -349,12 +352,20 @@ setup_threads() {
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'SH'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$GH_LOG"
+# fetch_threads asks for comments(last: 100); unresolved_threads asks for a count.
+case "$*" in
+  *"comments(last"*) cat "$STUB_THREADS" ;;
+esac
 exit 0
 SH
   chmod +x "$BATS_TEST_TMPDIR/bin/gh"
   PATH="$BATS_TEST_TMPDIR/bin:$PATH"
   export PATH
-  printf '%s\n' '[{"thread_id":"T_known","path":"a.py","line":1,"comments":[]}]' >"$THREADS_FILE"
+  # apply re-queries rather than reading THREADS_FILE back, so the stub's answer is what
+  # decides which threads are open. THREADS_FILE is only what the model was shown.
+  export STUB_THREADS="$BATS_TEST_TMPDIR/stub-threads.json"
+  printf '%s\n' '[{"thread_id":"T_known","path":"a.py","line":1,"comments":[]}]' >"$STUB_THREADS"
+  cp "$STUB_THREADS" "$THREADS_FILE"
 }
 
 @test "threads.sh replies and resolves only what it was asked to" {
@@ -383,6 +394,39 @@ SH
   run ! grep -q 'resolveReviewThread' "$GH_LOG"
 }
 
+# The model can write in the directory it is handed, so the file it was shown is not evidence
+# of anything by the time it has finished. apply re-queries and validates against that.
+@test "threads.sh does not trust the threads file it handed over" {
+  setup_threads
+  # The model rewrote its own copy to whitelist a thread the API never offered.
+  printf '%s\n' '[{"thread_id":"T_forged","path":"a.py","line":1,"comments":[]}]' >"$THREADS_FILE"
+  printf '%s\n' '[{"thread_id":"T_forged","reply":"x","resolve":true}]' >"$REPLIES_FILE"
+  run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  run ! grep -q 'resolveReviewThread' "$GH_LOG"
+}
+
+# ... and the truncation flag is re-read too, not taken from the model's copy.
+@test "threads.sh does not trust a cleared truncation flag" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_long","path":"a.py","line":1,"truncated":true,"comments":[]}]' >"$STUB_THREADS"
+  printf '%s\n' '[{"thread_id":"T_long","path":"a.py","line":1,"truncated":false,"comments":[]}]' >"$THREADS_FILE"
+  printf '%s\n' '[{"thread_id":"T_long","reply":"x","resolve":true}]' >"$REPLIES_FILE"
+  run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  run ! grep -q 'resolveReviewThread' "$GH_LOG"
+}
+
+# trusted-state lives outside the directory --add-dir exposes, so the model cannot certify a
+# tree it has changed.
+@test "the trusted state file is out of the model's reach" {
+  grep -qF 'pr-medic-state/trusted-state' "$MEDIC/lib.sh"
+  run ! grep -qE 'TRUSTED_STATE_FILE:=.*/pr-medic/' "$MEDIC/lib.sh"
+  # --add-dir names only the handoff directory.
+  # shellcheck disable=SC2016  # a literal grep pattern.
+  grep -qF -- '--add-dir ${{ runner.temp }}/pr-medic' "$REPO/.github/workflows/pr-medic.yml"
+}
+
 @test "threads.sh refuses an entry with no reply" {
   setup_threads
   printf '%s\n' '[{"thread_id":"T_known","resolve":true}]' >"$REPLIES_FILE"
@@ -404,7 +448,7 @@ SH
 # missing. Replying is fine; recording it as satisfied is not.
 @test "threads.sh will not resolve a thread it could only read in part" {
   setup_threads
-  printf '%s\n' '[{"thread_id":"T_long","path":"a.py","line":1,"truncated":true,"comments":[]}]' >"$THREADS_FILE"
+  printf '%s\n' '[{"thread_id":"T_long","path":"a.py","line":1,"truncated":true,"comments":[]}]' >"$STUB_THREADS"
   printf '%s\n' '[{"thread_id":"T_long","reply":"x","resolve":true}]' >"$REPLIES_FILE"
   run "$MEDIC/threads.sh" apply
   [ "$status" -ne 0 ]
@@ -413,7 +457,7 @@ SH
 
 @test "threads.sh still replies to a thread it could only read in part" {
   setup_threads
-  printf '%s\n' '[{"thread_id":"T_long","path":"a.py","line":1,"truncated":true,"comments":[]}]' >"$THREADS_FILE"
+  printf '%s\n' '[{"thread_id":"T_long","path":"a.py","line":1,"truncated":true,"comments":[]}]' >"$STUB_THREADS"
   printf '%s\n' '[{"thread_id":"T_long","reply":"partial read, leaving open"}]' >"$REPLIES_FILE"
   "$MEDIC/threads.sh" apply
   grep -q 'addPullRequestReviewThreadReply' "$GH_LOG"
@@ -458,6 +502,7 @@ setup_after() {
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$GH_LOG"
 case "$*" in
+  *"comments(last"*) printf '[]\n' ;;
   *"api graphql"*) printf '0\n' ;;
   *"api repos/o/r"*) printf 'main\n' ;;
   *"--json mergeStateStatus"*) printf 'CLEAN\n' ;;

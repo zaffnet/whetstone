@@ -151,11 +151,21 @@ could not separate the two. The ruleset — required status checks and
 standing hole above it. Two review rounds asked for this and were told a second file would
 break the one-file drop-in; withdrawing that rule is what made it available.
 
-`.github/pr-medic/` is itself restored from the default branch after `gh pr checkout`, before
-anything in it runs. Moving the logic out of the YAML put `after.sh` — the gate — in the
-checkout, where the pull request controls it. On `schedule`, `workflow_dispatch` and
-`workflow_run` the workflow file is trusted and the restore closes that. On an entity event
-the workflow file is the pull request's as well, so nothing in the file can help; that is a
+`.github/pr-medic/` is taken from the default branch into `RUNNER_TEMP` after
+`gh pr checkout`, and the gate runs that copy. Restoring it into the checkout instead was not
+durable: the model has `Edit` and `Write` there, so it could rewrite `after.sh` between the
+restore and the gate step that executes it. Copying it out of reach also avoids a second
+problem -- a pull request that legitimately edits these scripts, as the one introducing them
+does, would look dirty to `after.sh`'s own clean-worktree check.
+
+Nothing the model writes is treated as evidence. `threads.sh apply` re-queries the open
+threads instead of reading back the file it handed over, because `--add-dir` makes that file
+writable; and `trusted-state` lives outside that directory, because only `after.sh` reads it
+and a state file the model could rewrite would certify whatever it liked.
+
+On `schedule`, `workflow_dispatch` and `workflow_run` the workflow file itself is trusted, so
+the copy in `RUNNER_TEMP` is what the gate runs and the chain holds. On an entity event the
+workflow file is the pull request's as well, so nothing written in the file can help: that is a
 property of `pull_request_review` running the head's workflow, and it means write access to
 this repository is already full control.
 

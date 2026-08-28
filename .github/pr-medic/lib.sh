@@ -46,7 +46,9 @@ approval_count() {
   printf '%s\n' "$count"
 }
 
-: "${TRUSTED_STATE_FILE:=${RUNNER_TEMP:-/tmp}/pr-medic/trusted-state}"
+# Not under pr-medic/, which the model reaches through --add-dir: only after.sh reads this,
+# and a state file the model can rewrite would certify whatever it likes.
+: "${TRUSTED_STATE_FILE:=${RUNNER_TEMP:-/tmp}/pr-medic-state/trusted-state}"
 
 # A digest of the working-tree state of TRUSTED_PATHS. trust-config.sh records it right after
 # the restore; after.sh compares. Excluding those paths from the clean-worktree check is not
