@@ -2,9 +2,11 @@
 # A missing secret or an API hiccup writes a notice and a summary, never a red X.
 name: pr-medic
 
+# workflow_run wants literal workflow names; there is no documented wildcard. These are
+# this repo's aggregate workflows. A host whose names differ falls back to the hourly cron.
 on:
   workflow_run:
-    workflows: ["*"]
+    workflows: ["CI"]
     types: [completed]
   pull_request_review:
     types: [submitted]
@@ -28,14 +30,22 @@ on:
 
 permissions: {}
 
+# One medic per head SHA. Without this, every completing workflow wakes a run, and all of
+# them read the attempts status before any of them writes it. Cancelling is safe: the push
+# and the merge are idempotent, and a cancelled rebase leaves the branch as it was.
+concurrency:
+  group: pr-medic-${{ github.event.workflow_run.head_sha || github.ref }}
+  cancel-in-progress: true
+
 env:
   # ── Who may approve ────────────────────────────────────────────────────
-  # Logins whose standing APPROVED review satisfies the gate. Also accepts
+  # Logins whose standing APPROVED review satisfies the gate. A trailing [bot] is optional
+  # on either side: GraphQL returns bot logins without it. Also accepts
   #   @collaborators  anyone with write access to this repo
-  #   @humans         any non-bot account
+  #   @humans         OWNER, MEMBER or COLLABORATOR (excludes bots and drive-by approvals)
   #   @anyone         any approving review at all
-  # Default 0 so a solo maintainer is not deadlocked (GitHub forbids
-  # self-approval; Copilot is a bot). Raise to 1 when a second human exists.
+  # Default 0 so a solo maintainer is not deadlocked: GitHub forbids self-approval, and
+  # Copilot reviews as authorAssociation NONE. Raise to 1 when a second human has write.
   APPROVERS: "@humans"
   APPROVALS_REQUIRED: "0"
 
@@ -48,27 +58,31 @@ env:
   UPDATE_STALE_BRANCH: "true"
   RESOLVE_CONFLICTS: "true"
   RESOLVE_THREADS: "true"
-  ARM_AUTO_MERGE: "true"
+  ARM_AUTO_MERGE: "false"                # opt in when this repo has a ruleset
   MERGE_METHOD: "squash"                 # squash | rebase | merge
   UPDATE_METHOD: "rebase"                # rebase (force-with-lease) | merge
 
   # ── Which pull requests ────────────────────────────────────────────────
   INCLUDE_DRAFTS: "false"
-  INCLUDE_FORKS: "false"                 # forks get no secrets; hard-gated in pick
+  # Hard-gated in pick. Do not flip this: pull_request_review*, issue_comment and
+  # workflow_run all run in the base-repo context, so the App key, the Claude credential
+  # and a write token are present whatever repo the head came from. Fork support needs a
+  # separate job that runs the untrusted code with no secrets.
+  INCLUDE_FORKS: "false"
   ONLY_LABEL: ""                         # set to opt in per PR
   SKIP_LABEL: "no-medic"
   ONLY_AUTHORS: ""                       # empty = every author
 
   # ── Reacting ───────────────────────────────────────────────────────────
-  REVIEW_BOTS: "copilot-pull-request-reviewer[bot]"
   REREQUEST_REVIEWERS: "copilot-pull-request-reviewer[bot]"
-  # Bots that may wake the Claude action (explicit list, not *).
-  TRIGGER_BOTS: "copilot-pull-request-reviewer[bot],github-actions[bot],dependabot[bot]"
+  # Bots that may wake the Claude action (explicit list, not *). The medic posts as
+  # github-actions[bot], so listing it here would let the medic wake itself.
+  TRIGGER_BOTS: "copilot-pull-request-reviewer[bot],dependabot[bot]"
 
   # ── Budget and safety ──────────────────────────────────────────────────
   MAX_TURNS: "60"
   MAX_ATTEMPTS_PER_HEAD_SHA: "2"         # 0 = unlimited
-  DRY_RUN: "false"                       # true = decide and report, change nothing
+  DRY_RUN: "true"                        # true = decide and report, change nothing
 
 jobs:
   preflight:
@@ -185,8 +199,11 @@ jobs:
             allow_squash_merge, allow_merge_commit, allow_rebase_merge
           }' 2>/dev/null)
           if [ -z "$repo_json" ]; then
-            notice "Could not read repository settings; assuming default_branch=main."
-            summary "- repo settings: unavailable"
+            # Fail closed. allow_auto_merge would default to false, which turns "arm
+            # auto-merge" into a direct merge -- a stronger action off a transient error.
+            notice "Could not read repository settings; stopping. This is not a failure."
+            summary "- repo settings: unavailable (stopped)"
+            ok=false
           else
             default_branch=$(printf '%s' "$repo_json" | jq -r '.default_branch')
             allow_auto_merge=$(printf '%s' "$repo_json" | jq -r '.allow_auto_merge')
@@ -291,97 +308,77 @@ jobs:
 
           out() { printf '%s=%s\n' "$1" "$2" >>"$GITHUB_OUTPUT"; }
 
-          read -r -d '' GATE_JQ <<'JQ' || true
-          # BEGIN pr-medic-gate.jq
-          def trim: gsub("^\\s+|\\s+$"; "");
-          def split_logins: split(",") | map(trim) | map(select(length > 0));
-          def is_true: (. | tostring | test("^true$"; "i"));
-          def is_bot: test("\\[bot\\]$");
-          def approval_count:
-            . as $in
-            | ($in.approvers | trim) as $ap
-            | ($in.collaborators // []) as $collabs
-            | [
-                ($in.pr.latestReviews // [])[]
-                | select(.state == "APPROVED")
-                | .login
-                | select(
-                    ($ap == "@anyone")
-                    or ($ap == "@humans" and (is_bot | not))
-                    or ($ap == "@collaborators" and (($collabs | index(.)) != null))
-                    or (($ap | startswith("@") | not) and (($ap | split_logins | index(.)) != null))
-                  )
-              ]
-            | unique
-            | length;
-          def bypassed:
-            . as $in
-            | ($in.bypass_actors | split_logins | index($in.pr.author_login)) != null;
-          def approvals_ok:
-            bypassed or (approval_count >= ((.approvals_required | tostring | tonumber) // 0));
-          def decide:
-            . as $in
-            | $in.pr as $p
-            | if ($p.state != "OPEN" and $p.state != "open") then
-                {action: "refuse", reason: "closed"}
-              elif ($p.isDraft | is_true) then
-                {action: "refuse", reason: "draft"}
-              elif ($p.isCrossRepository | is_true) and (($in.include_forks | is_true) | not) then
-                {action: "refuse", reason: "fork"}
-              elif $p.mergeStateStatus == "CONFLICTING" then
-                {action: "refuse", reason: "CONFLICTING"}
-              elif ((.pr.unresolved_threads | tonumber) // 0) > 0 then
-                {action: "refuse", reason: "unresolved threads"}
-              elif ((.pr.failing_checks | tonumber) // 0) > 0 then
-                {action: "refuse", reason: "failing checks"}
-              elif (approvals_ok | not) then
-                {action: "wait", reason: "approvals"}
-              elif ($in.dry_run | is_true) then
-                {action: "wait", reason: "dry-run"}
-              elif ($p.auto_merge_armed | is_true) then
-                {action: "noop", reason: "already armed"}
-              elif (($in.arm_auto_merge | is_true) | not) then
-                {action: "wait", reason: "ARM_AUTO_MERGE false"}
-              elif ($in.allow_auto_merge | is_true) then
-                {action: "arm", reason: "gate passed"}
-              elif ((.pr.pending_checks | tonumber) // 0) > 0 then
-                {action: "wait", reason: "pending checks"}
-              else
-                {action: "merge", reason: "gate passed, auto-merge off"}
-              end;
-          decide
-          # END pr-medic-gate.jq
+          read -r -d '' CHECKS_JQ <<'JQ' || true
+          # BEGIN pr-medic-checks.jq
+          # gh pr view --json statusCheckRollup mixes two shapes. A CheckRun carries status and
+          # conclusion; a StatusContext carries state and no conclusion field at all -- which is why
+          # "conclusion == null means pending" counted every commit status as pending forever, and
+          # why a plain FAILURE test missed ERROR, TIMED_OUT, CANCELLED and STARTUP_FAILURE.
+          # .bucket is not in this output; it belongs to `gh pr checks --json`.
+          def bucket:
+            if .__typename == "StatusContext" then
+              (((.state // "") | ascii_upcase) as $s
+               | if ($s == "PENDING" or $s == "EXPECTED") then "pending"
+                 elif ($s == "SUCCESS") then "ok"
+                 else "fail"
+                 end)
+            else
+              (((.status // "") | ascii_upcase) as $st
+               | ((.conclusion // "") | ascii_upcase) as $c
+               | if ($st != "COMPLETED") then "pending"
+                 elif ($c == "SUCCESS" or $c == "NEUTRAL" or $c == "SKIPPED") then "ok"
+                 else "fail"
+                 end)
+            end;
+          # Drop the medic's own status: counting it would let an untested head look tested.
+          [(.statusCheckRollup // [])[] | select((.context // "") != "pr-medic")]
+          | map(bucket)
+          | {
+              total: length,
+              failing: (map(select(. == "fail")) | length),
+              pending: (map(select(. == "pending")) | length)
+            }
+          # END pr-medic-checks.jq
           JQ
-          : "$GATE_JQ"
 
           read -r -d '' PICK_JQ <<'JQ' || true
           # BEGIN pr-medic-pick.jq
+          # BEGIN pr-medic-common.jq
           def trim: gsub("^\\s+|\\s+$"; "");
           def split_logins: split(",") | map(trim) | map(select(length > 0));
           def is_true: (. | tostring | test("^true$"; "i"));
-          def is_bot: test("\\[bot\\]$");
+          # GraphQL returns bot logins without the [bot] suffix, REST returns them with it. Compare
+          # both sides stripped, so a config value written either way matches either source.
+          def strip_bot: sub("\\[bot\\]$"; "");
+          # Every operand below is fully parenthesised on purpose: in jq `|` binds looser than `or`,
+          # so an unparenthesised `a | not or b` hands the boolean to `b` and aborts.
           def approval_count:
             . as $in
             | ($in.approvers | trim) as $ap
-            | ($in.collaborators // []) as $collabs
+            | (($in.collaborators // []) | map(strip_bot)) as $collabs
+            | (($ap | split_logins) | map(strip_bot)) as $named
             | [
                 ($in.pr.latestReviews // [])[]
                 | select(.state == "APPROVED")
-                | .login
+                | (.login | strip_bot) as $l
+                | ((.authorAssociation // "") | ascii_upcase) as $assoc
                 | select(
                     ($ap == "@anyone")
-                    or ($ap == "@humans" and (is_bot | not))
-                    or ($ap == "@collaborators" and (($collabs | index(.)) != null))
-                    or (($ap | startswith("@") | not) and (($ap | split_logins | index(.)) != null))
+                    or ($ap == "@humans" and ($assoc == "OWNER" or $assoc == "MEMBER" or $assoc == "COLLABORATOR"))
+                    or ($ap == "@collaborators" and (($collabs | index($l)) != null))
+                    or ((($ap | startswith("@")) | not) and (($named | index($l)) != null))
                   )
+                | $l
               ]
             | unique
             | length;
           def bypassed:
             . as $in
-            | ($in.bypass_actors | split_logins | index($in.pr.author_login)) != null;
+            | (($in.bypass_actors | split_logins) | map(strip_bot)) as $named
+            | ($named | index($in.pr.author_login | strip_bot)) != null;
           def approvals_ok:
             bypassed or (approval_count >= ((.approvals_required | tostring | tonumber) // 0));
+          # END pr-medic-common.jq
           def over_budget:
             (.max_attempts | tostring | tonumber) as $max
             | if $max == 0 then false
@@ -394,12 +391,13 @@ jobs:
             ((.pr.unresolved_threads | tonumber) // 0) > 0
             or ((.pr.failing_checks | tonumber) // 0) > 0
             or (.pr.mergeStateStatus == "BEHIND")
-            or (.pr.mergeStateStatus == "DIRTY")
-            or (.pr.mergeStateStatus == "CONFLICTING");
+            or (.pr.mergeStateStatus == "DIRTY");
+          # "Worth a look", not "safe to merge": total_checks is deliberately absent, because a head
+          # whose checks have not registered yet may still become armable. decide has the last word.
           def would_arm:
             ((.pr.isDraft | is_true) | not)
-            and ((.pr.isCrossRepository | is_true) | not or (.include_forks | is_true))
-            and (.pr.mergeStateStatus != "CONFLICTING")
+            and ((((.pr.isCrossRepository | is_true)) | not) or (.include_forks | is_true))
+            and (.pr.mergeStateStatus != "DIRTY")
             and ((.pr.unresolved_threads | tonumber) // 0) == 0
             and ((.pr.failing_checks | tonumber) // 0) == 0
             and ((.pr.auto_merge_armed | is_true) | not)
@@ -412,8 +410,8 @@ jobs:
                 ($p.number | tonumber) == ($in.mention_pr | tonumber)
               else false end) as $is_mention
             | if $is_mention then false
-              elif ($p.isDraft | is_true) and (($in.include_drafts | is_true) | not) then false
-              elif ($p.isCrossRepository | is_true) and (($in.include_forks | is_true) | not) then false
+              elif ($p.isDraft | is_true) and ((($in.include_drafts | is_true)) | not) then false
+              elif ($p.isCrossRepository | is_true) and ((($in.include_forks | is_true)) | not) then false
               elif ($in.skip_label | trim | length) > 0 and (($labels | index($in.skip_label)) != null) then false
               elif ($in.only_label | trim | length) > 0 and (($labels | index($in.only_label)) == null) then false
               elif ($in.only_authors | split_logins | length) > 0
@@ -436,11 +434,17 @@ jobs:
             esac
           fi
 
+          # "This event names no PR" and "sweep every open PR" are different answers. Only
+          # schedule and a blank-PR dispatch mean sweep. Without this, the issues trigger and
+          # a comment on a plain issue rebase and force-push every open PR.
           candidates=""
+          sweep=false
           case "$EVENT_NAME" in
             workflow_dispatch)
               if [ -n "$DISPATCH_PR" ]; then
                 candidates="$DISPATCH_PR"
+              else
+                sweep=true
               fi
               ;;
             workflow_run)
@@ -456,16 +460,33 @@ jobs:
                 candidates=$(jq -r '.issue.number // empty' "$EVENT_PATH")
               fi
               ;;
-            schedule) ;;
+            schedule) sweep=true ;;
           esac
 
-          if [ -z "$candidates" ]; then
+          if [ -z "$candidates" ] && [ "$sweep" != true ]; then
+            printf '::notice::%s names no pull request; nothing to do.\n' "$EVENT_NAME"
+            printf 'Event %s names no pull request. Picked 0 PR(s).\n' "$EVENT_NAME" >>"$GITHUB_STEP_SUMMARY"
+            out prs '[]'
+            out count 0
+            exit 0
+          fi
+
+          if [ "$sweep" = true ]; then
+            # --limit paginates internally; 100 is the ceiling, not a page size. Say so when
+            # we hit it, because past that the sweep is silently partial.
             candidates=$(gh pr list --repo "$REPO" --state open --limit 100 --json number --jq '.[].number' 2>/dev/null | tr '\n' ' ')
+            if [ "$(printf '%s' "$candidates" | wc -w | tr -d ' ')" -ge 100 ]; then
+              printf '::notice::Sweep hit the 100 open PR ceiling; some PRs were not considered.\n'
+            fi
           fi
 
           collaborators='[]'
           if [ "$APPROVERS" = "@collaborators" ]; then
-            collaborators=$(gh api "repos/$REPO/collaborators" --jq '[.[].login]' 2>/dev/null || printf '%s' '[]')
+            collaborators=$(gh api --paginate "repos/$REPO/collaborators" --jq '.[].login' 2>/dev/null | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            if [ -z "$collaborators" ] || [ "$collaborators" = "[]" ]; then
+              printf '::notice::Could not read collaborators; no approval can satisfy @collaborators this run.\n'
+              collaborators='[]'
+            fi
           fi
 
           prs_json='[]'
@@ -475,15 +496,31 @@ jobs:
             esac
             view=$(gh pr view "$n" --repo "$REPO" --json number,isDraft,isCrossRepository,author,labels,mergeStateStatus,headRefOid,autoMergeRequest,latestReviews,statusCheckRollup,commits,state 2>/dev/null) || continue
             # shellcheck disable=SC2016  # $owner/$name/$pr are GraphQL variables.
-            threads=$(gh api graphql -F owner="${REPO%/*}" -F name="${REPO#*/}" -F pr="$n" -f query='
+            # totalCount, not just the page: past 100 threads the page would report fewer
+            # unresolved than there are, so treat that as unreadable rather than as zero.
+            tj=$(gh api graphql -F owner="${REPO%/*}" -F name="${REPO#*/}" -F pr="$n" -f query='
               query($owner:String!,$name:String!,$pr:Int!){
                 repository(owner:$owner,name:$name){
                   pullRequest(number:$pr){
-                    reviewThreads(first:100){ nodes { isResolved } }
+                    reviewThreads(first:100){ totalCount nodes { isResolved } }
                   }
                 }
-              }' --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved==false)] | length' 2>/dev/null)
-            : "${threads:=0}"
+              }' --jq '.data.repository.pullRequest.reviewThreads
+                       | {total: .totalCount, unresolved: ([.nodes[] | select(.isResolved==false)] | length)}' 2>/dev/null)
+            tj_total=$(printf '%s' "$tj" | jq -r '.total // "x"' 2>/dev/null)
+            case "$tj_total" in
+              '' | *[!0-9]*) tj_total=101 ;;
+            esac
+            if [ -z "$tj" ] || [ "$tj_total" -gt 100 ]; then
+              # Unreadable. Report one unresolved thread so the gate refuses rather than
+              # merging on "zero threads", which is what a swallowed error used to mean.
+              threads=1
+            else
+              threads=$(printf '%s' "$tj" | jq -r '.unresolved')
+            fi
+            case "$threads" in
+              '' | *[!0-9]*) threads=1 ;;
+            esac
             sha=$(printf '%s' "$view" | jq -r '.headRefOid')
             attempts=0
             newer=false
@@ -513,14 +550,18 @@ jobs:
                 fi
               done
             fi
-            failing=$(printf '%s' "$view" | jq '[.statusCheckRollup[]? | select(.state=="FAILURE" or .conclusion=="FAILURE" or .bucket=="fail")] | length')
-            pending=$(printf '%s' "$view" | jq '[.statusCheckRollup[]? | select(.state=="PENDING" or .conclusion==null or .bucket=="pending")] | length')
+            counts=$(printf '%s' "$view" | jq -c "$CHECKS_JQ" 2>/dev/null)
+            : "${counts:={\"total\":0,\"failing\":0,\"pending\":0}}"
+            failing=$(printf '%s' "$counts" | jq -r '.failing // 0')
+            pending=$(printf '%s' "$counts" | jq -r '.pending // 0')
+            total_checks=$(printf '%s' "$counts" | jq -r '.total // 0')
             item=$(printf '%s' "$view" | jq -c \
               --argjson threads "${threads:-0}" \
               --argjson attempts "${attempts:-0}" \
               --argjson consec "${consec:-0}" \
               --argjson failing "${failing:-0}" \
               --argjson pending "${pending:-0}" \
+              --argjson total_checks "${total_checks:-0}" \
               --argjson newer "$newer" \
               '{
                 number,
@@ -530,10 +571,11 @@ jobs:
                 mergeStateStatus,
                 author_login: .author.login,
                 labels: [.labels[]?.name],
-                latestReviews: [.latestReviews[]? | {login: .author.login, state: .state}],
+                latestReviews: [.latestReviews[]? | {login: .author.login, state: .state, authorAssociation: .authorAssociation}],
                 unresolved_threads: $threads,
                 failing_checks: $failing,
                 pending_checks: $pending,
+                total_checks: $total_checks,
                 auto_merge_armed: (.autoMergeRequest != null),
                 medic_attempts: $attempts,
                 consecutive_medic_commits: $consec,
@@ -579,7 +621,15 @@ jobs:
 
   medic:
     needs: [preflight, pick]
-    if: needs.preflight.outputs.ok == 'true' && needs.pick.outputs.count != '0'
+    # Positive on every term. `count != '0'` alone admits the job when pick timed out and
+    # wrote no output, and fromJSON('') below is a matrix expression error that
+    # continue-on-error cannot absorb -- the run goes red, which this workflow promises never
+    # to do.
+    if: >-
+      needs.preflight.outputs.ok == 'true'
+      && needs.pick.result == 'success'
+      && needs.pick.outputs.count != ''
+      && needs.pick.outputs.count != '0'
     runs-on: ubuntu-latest
     timeout-minutes: 55
     continue-on-error: true
@@ -667,22 +717,37 @@ jobs:
           persist-credentials: true
 
       - name: Configure git and check out the PR
+        id: checkout-pr
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token || steps.app-token-legacy.outputs.token || github.token }}
           BOT_NAME: ${{ steps.bot.outputs.name }}
           BOT_EMAIL: ${{ steps.bot.outputs.email }}
         run: |
           set +e
+          : "${GITHUB_OUTPUT:=/dev/null}"
           git config user.name "$BOT_NAME"
           git config user.email "$BOT_EMAIL"
           gh auth setup-git
-          gh pr checkout "$PR"
-          git fetch origin "$DEFAULT_BRANCH" --depth=50 2>/dev/null || git fetch origin "$DEFAULT_BRANCH"
+          # A failed checkout used to be swallowed, leaving Claude in the default branch
+          # with a write-capable token. Record it and let the later steps refuse.
+          ok=true
+          if ! gh pr checkout "$PR"; then
+            printf '::notice::PR #%s: gh pr checkout failed; skipping this PR.\n' "$PR"
+            ok=false
+          fi
+          # No --depth: actions/checkout already ran with fetch-depth 0, so --depth could
+          # only graft a shallow boundary onto a complete clone and break a long rebase.
+          if ! git fetch origin "$DEFAULT_BRANCH"; then
+            printf '::notice::PR #%s: could not fetch %s.\n' "$PR" "$DEFAULT_BRANCH"
+            ok=false
+          fi
+          printf 'ok=%s\n' "$ok" >>"$GITHUB_OUTPUT"
+          printf 'head_before=%s\n' "$(git rev-parse HEAD 2>/dev/null)" >>"$GITHUB_OUTPUT"
           exit 0
 
       - name: Run Claude Code
         id: claude
-        if: env.HAS_CLAUDE == 'true' && env.DISPATCH_DRY_RUN != 'true' && env.DRY_RUN != 'true'
+        if: env.HAS_CLAUDE == 'true' && env.DISPATCH_DRY_RUN != 'true' && env.DRY_RUN != 'true' && steps.checkout-pr.outputs.ok == 'true'
         continue-on-error: true
         uses: anthropics/claude-code-action@9dcab633034361127cf74336d2d891d02e887881 # v1
         with:
@@ -695,7 +760,15 @@ jobs:
           bot_name: ${{ steps.bot.outputs.name }}
           settings: |
             {"permissions":{"deny":["Bash(gh pr merge:*)","Bash(gh pr review:*)","Bash(git push --force)","Bash(git push --force *)"]}}
-          claude_args: "--max-turns ${{ env.MAX_TURNS }}"
+          # An allowlist, not just the deny block. claude-code-action agent mode sets neither
+          # --permission-mode nor --allowedTools (only tag mode does), so without these the
+          # model has Read, Grep and Glob and cannot carry out steps 2-5 of the prompt.
+          # gh api graphql has to be here to resolve threads, and it can also approve or
+          # merge; the control that actually stops that is the ruleset, not this list.
+          claude_args: >-
+            --max-turns ${{ env.MAX_TURNS }}
+            --permission-mode acceptEdits
+            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git fetch:*),Bash(git rebase:*),Bash(git merge:*),Bash(git checkout:*),Bash(git push),Bash(git push --force-with-lease:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh run rerun:*),Bash(gh api graphql:*),Bash(uv run:*),Bash(just:*)"
           prompt: |
             You are pr-medic on ${{ github.repository }} pull request #${{ matrix.pr }}.
             Default branch: ${{ needs.preflight.outputs.default_branch }}.
@@ -731,35 +804,80 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token || steps.app-token-legacy.outputs.token || github.token }}
           BOT_EMAIL: ${{ steps.bot.outputs.email }}
+          CHECKOUT_OK: ${{ steps.checkout-pr.outputs.ok }}
+          HEAD_BEFORE: ${{ steps.checkout-pr.outputs.head_before }}
         run: |
+          read -r -d '' CHECKS_JQ <<'JQ' || true
+          # BEGIN pr-medic-checks.jq
+          # gh pr view --json statusCheckRollup mixes two shapes. A CheckRun carries status and
+          # conclusion; a StatusContext carries state and no conclusion field at all -- which is why
+          # "conclusion == null means pending" counted every commit status as pending forever, and
+          # why a plain FAILURE test missed ERROR, TIMED_OUT, CANCELLED and STARTUP_FAILURE.
+          # .bucket is not in this output; it belongs to `gh pr checks --json`.
+          def bucket:
+            if .__typename == "StatusContext" then
+              (((.state // "") | ascii_upcase) as $s
+               | if ($s == "PENDING" or $s == "EXPECTED") then "pending"
+                 elif ($s == "SUCCESS") then "ok"
+                 else "fail"
+                 end)
+            else
+              (((.status // "") | ascii_upcase) as $st
+               | ((.conclusion // "") | ascii_upcase) as $c
+               | if ($st != "COMPLETED") then "pending"
+                 elif ($c == "SUCCESS" or $c == "NEUTRAL" or $c == "SKIPPED") then "ok"
+                 else "fail"
+                 end)
+            end;
+          # Drop the medic's own status: counting it would let an untested head look tested.
+          [(.statusCheckRollup // [])[] | select((.context // "") != "pr-medic")]
+          | map(bucket)
+          | {
+              total: length,
+              failing: (map(select(. == "fail")) | length),
+              pending: (map(select(. == "pending")) | length)
+            }
+          # END pr-medic-checks.jq
+          JQ
+
           read -r -d '' GATE_JQ <<'JQ' || true
           # BEGIN pr-medic-gate.jq
+          # BEGIN pr-medic-common.jq
           def trim: gsub("^\\s+|\\s+$"; "");
           def split_logins: split(",") | map(trim) | map(select(length > 0));
           def is_true: (. | tostring | test("^true$"; "i"));
-          def is_bot: test("\\[bot\\]$");
+          # GraphQL returns bot logins without the [bot] suffix, REST returns them with it. Compare
+          # both sides stripped, so a config value written either way matches either source.
+          def strip_bot: sub("\\[bot\\]$"; "");
+          # Every operand below is fully parenthesised on purpose: in jq `|` binds looser than `or`,
+          # so an unparenthesised `a | not or b` hands the boolean to `b` and aborts.
           def approval_count:
             . as $in
             | ($in.approvers | trim) as $ap
-            | ($in.collaborators // []) as $collabs
+            | (($in.collaborators // []) | map(strip_bot)) as $collabs
+            | (($ap | split_logins) | map(strip_bot)) as $named
             | [
                 ($in.pr.latestReviews // [])[]
                 | select(.state == "APPROVED")
-                | .login
+                | (.login | strip_bot) as $l
+                | ((.authorAssociation // "") | ascii_upcase) as $assoc
                 | select(
                     ($ap == "@anyone")
-                    or ($ap == "@humans" and (is_bot | not))
-                    or ($ap == "@collaborators" and (($collabs | index(.)) != null))
-                    or (($ap | startswith("@") | not) and (($ap | split_logins | index(.)) != null))
+                    or ($ap == "@humans" and ($assoc == "OWNER" or $assoc == "MEMBER" or $assoc == "COLLABORATOR"))
+                    or ($ap == "@collaborators" and (($collabs | index($l)) != null))
+                    or ((($ap | startswith("@")) | not) and (($named | index($l)) != null))
                   )
+                | $l
               ]
             | unique
             | length;
           def bypassed:
             . as $in
-            | ($in.bypass_actors | split_logins | index($in.pr.author_login)) != null;
+            | (($in.bypass_actors | split_logins) | map(strip_bot)) as $named
+            | ($named | index($in.pr.author_login | strip_bot)) != null;
           def approvals_ok:
             bypassed or (approval_count >= ((.approvals_required | tostring | tonumber) // 0));
+          # END pr-medic-common.jq
           def decide:
             . as $in
             | $in.pr as $p
@@ -767,12 +885,18 @@ jobs:
                 {action: "refuse", reason: "closed"}
               elif ($p.isDraft | is_true) then
                 {action: "refuse", reason: "draft"}
-              elif ($p.isCrossRepository | is_true) and (($in.include_forks | is_true) | not) then
+              elif ($p.isCrossRepository | is_true) and ((($in.include_forks | is_true)) | not) then
                 {action: "refuse", reason: "fork"}
-              elif $p.mergeStateStatus == "CONFLICTING" then
-                {action: "refuse", reason: "CONFLICTING"}
+              # DIRTY is the conflicted value of mergeStateStatus. CONFLICTING belongs to the separate
+              # mergeable field, which this workflow never requests, so testing for it was dead code.
+              elif $p.mergeStateStatus == "DIRTY" then
+                {action: "refuse", reason: "conflicts"}
               elif ((.pr.unresolved_threads | tonumber) // 0) > 0 then
                 {action: "refuse", reason: "unresolved threads"}
+              # An empty rollup is the state right after a force-push, and the permanent state when
+              # that push used GITHUB_TOKEN. Reading it as green merges a commit nothing has tested.
+              elif ((.pr.total_checks | tonumber) // 0) == 0 then
+                {action: "refuse", reason: "no checks on this head"}
               elif ((.pr.failing_checks | tonumber) // 0) > 0 then
                 {action: "refuse", reason: "failing checks"}
               elif (approvals_ok | not) then
@@ -781,7 +905,7 @@ jobs:
                 {action: "wait", reason: "dry-run"}
               elif ($p.auto_merge_armed | is_true) then
                 {action: "noop", reason: "already armed"}
-              elif (($in.arm_auto_merge | is_true) | not) then
+              elif ((($in.arm_auto_merge | is_true)) | not) then
                 {action: "wait", reason: "ARM_AUTO_MERGE false"}
               elif ($in.allow_auto_merge | is_true) then
                 {action: "arm", reason: "gate passed"}
@@ -822,51 +946,77 @@ jobs:
           : "${INCLUDE_FORKS:=false}"
           : "${BOT_EMAIL:=}"
           : "${MAX_ATTEMPTS_PER_HEAD_SHA:=2}"
+          : "${CHECKOUT_OK:=true}"
+          : "${HEAD_BEFORE:=}"
 
           notice() { printf '::notice::%s\n' "$1"; }
           summary() { printf '%s\n' "$1" >>"$GITHUB_STEP_SUMMARY"; }
 
           summary "## medic #$PR"
 
-          if [ "$EFFECTIVE_DRY_RUN" != true ] && [ "$UPDATE_STALE_BRANCH" = true ]; then
+          # One flag for "something in this run went wrong". Every git failure below feeds it,
+          # and the arm/merge case at the end is skipped when it is set. The old code assigned
+          # status=CONFLICTING here and nothing ever read it, so the run printed "not arming"
+          # and then armed.
+          blocked=false
+          if [ "$CHECKOUT_OK" != true ]; then
+            blocked=true
+            summary "- checkout or fetch failed; not arming"
+          fi
+
+          if [ "$blocked" != true ] && [ "$EFFECTIVE_DRY_RUN" != true ] && [ "$UPDATE_STALE_BRANCH" = true ]; then
             status=$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq .mergeStateStatus 2>/dev/null)
             case "$status" in
               BEHIND | DIRTY)
-                git fetch origin "$DEFAULT_BRANCH"
-                if [ "$UPDATE_METHOD" = merge ]; then
-                  git merge "origin/$DEFAULT_BRANCH"
-                  merge_rc=$?
-                  if [ "$merge_rc" -ne 0 ]; then
+                if ! git fetch origin "$DEFAULT_BRANCH"; then
+                  notice "PR #$PR: could not fetch $DEFAULT_BRANCH; not arming."
+                  blocked=true
+                elif [ "$UPDATE_METHOD" = merge ]; then
+                  if git merge "origin/$DEFAULT_BRANCH"; then
+                    if ! git push; then
+                      notice "PR #$PR: push after merge failed; not arming."
+                      blocked=true
+                    fi
+                  else
                     git merge --abort 2>/dev/null
                     notice "PR #$PR: merge from $DEFAULT_BRANCH failed; not arming."
-                    status=CONFLICTING
-                  else
-                    git push
+                    blocked=true
                   fi
                 else
-                  git rebase "origin/$DEFAULT_BRANCH"
-                  rebase_rc=$?
-                  if [ "$rebase_rc" -ne 0 ]; then
+                  if git rebase "origin/$DEFAULT_BRANCH"; then
+                    if ! git push --force-with-lease; then
+                      notice "PR #$PR: push after rebase failed; not arming."
+                      blocked=true
+                    fi
+                  else
                     git rebase --abort 2>/dev/null
                     notice "PR #$PR: rebase onto $DEFAULT_BRANCH failed; not arming."
-                    status=CONFLICTING
-                  else
-                    git push --force-with-lease
+                    blocked=true
                   fi
                 fi
                 ;;
             esac
           fi
 
-          if [ -n "$BOT_EMAIL" ]; then
+          # Did this run move the tip? Both the attribution notice and the reviewer
+          # re-request below hang on this, and both used to fire unconditionally.
+          head_after=$(git rev-parse HEAD 2>/dev/null)
+          head_changed=false
+          if [ -n "$HEAD_BEFORE" ] && [ -n "$head_after" ] && [ "$HEAD_BEFORE" != "$head_after" ]; then
+            head_changed=true
+          fi
+
+          if [ "$head_changed" = true ] && [ -n "$BOT_EMAIL" ]; then
             last_email=$(git log -1 --format=%ae 2>/dev/null)
             if [ -n "$last_email" ] && [ "$last_email" != "$BOT_EMAIL" ]; then
-              # Only insist when this run produced the tip commit (status context will still write).
-              notice "PR #$PR: HEAD commit email is $last_email, expected $BOT_EMAIL (unattributed extra-approval risk)."
+              notice "PR #$PR: this run moved HEAD but the tip email is $last_email, expected $BOT_EMAIL (unattributed extra-approval risk)."
             fi
           fi
 
-          if [ "$EFFECTIVE_DRY_RUN" != true ] && [ -n "$REREQUEST_REVIEWERS" ]; then
+          # Only when this run pushed. Re-requesting on every wake makes a newer review than
+          # the pr-medic status by construction, and over_budget waives the attempt budget
+          # whenever that is true -- so an unconditional re-request is a self-sustaining loop.
+          if [ "$head_changed" = true ] && [ "$blocked" != true ] && [ "$EFFECTIVE_DRY_RUN" != true ] && [ -n "$REREQUEST_REVIEWERS" ]; then
             old_ifs=$IFS
             IFS=,
             for r in $REREQUEST_REVIEWERS; do
@@ -883,28 +1033,66 @@ jobs:
             query($owner:String!,$name:String!,$pr:Int!){
               repository(owner:$owner,name:$name){
                 pullRequest(number:$pr){
-                  reviewThreads(first:100){ nodes { isResolved } }
+                  reviewThreads(first:100){ totalCount nodes { isResolved } }
                 }
               }
-            }' --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved==false)] | length' 2>/dev/null)
-          : "${threads:=0}"
-          failing=$(printf '%s' "$view" | jq '[.statusCheckRollup[]? | select(.state=="FAILURE" or .conclusion=="FAILURE" or .bucket=="fail")] | length')
-          pending=$(printf '%s' "$view" | jq '[.statusCheckRollup[]? | select(.state=="PENDING" or .conclusion==null or .bucket=="pending")] | length')
+            }' --jq '.data.repository.pullRequest.reviewThreads
+                   | {total: .totalCount, unresolved: ([.nodes[] | select(.isResolved==false)] | length)}' 2>/dev/null)
+
+          # Bash decides "I could not read the state"; the gate jq decides on the state
+          # itself. Refusing here is the point: the old code turned a failed API call into
+          # "zero unresolved threads" and an unreadable PR into a merge candidate.
+          if [ -z "$view" ] || [ -z "$threads" ]; then
+            summary "- gate: \`refuse\` (state unreadable)"
+            notice "PR #$PR gate: refuse (could not read PR state; changing nothing)."
+            exit 0
+          fi
+          thread_total=$(printf '%s' "$threads" | jq -r '.total // "x"')
+          unresolved=$(printf '%s' "$threads" | jq -r '.unresolved // "x"')
+          case "$thread_total$unresolved" in
+            *[!0-9]*)
+              summary "- gate: \`refuse\` (review thread count unreadable)"
+              notice "PR #$PR gate: refuse (review thread count unreadable)."
+              exit 0
+              ;;
+          esac
+          if [ "$thread_total" -gt 100 ]; then
+            summary "- gate: \`refuse\` (more than 100 review threads; cannot count them)"
+            notice "PR #$PR gate: refuse (over 100 review threads)."
+            exit 0
+          fi
+
+          counts=$(printf '%s' "$view" | jq -c "$CHECKS_JQ" 2>/dev/null)
+          if [ -z "$counts" ]; then
+            summary "- gate: \`refuse\` (could not read the check rollup)"
+            notice "PR #$PR gate: refuse (could not read the check rollup)."
+            exit 0
+          fi
+          failing=$(printf '%s' "$counts" | jq -r '.failing')
+          pending=$(printf '%s' "$counts" | jq -r '.pending')
+          total_checks=$(printf '%s' "$counts" | jq -r '.total')
+
           collaborators='[]'
           if [ "$APPROVERS" = "@collaborators" ]; then
-            collaborators=$(gh api "repos/$REPO/collaborators" --jq '[.[].login]' 2>/dev/null || printf '%s' '[]')
+            collaborators=$(gh api --paginate "repos/$REPO/collaborators" --jq '.[].login' 2>/dev/null | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            if [ -z "$collaborators" ] || [ "$collaborators" = "[]" ]; then
+              notice "PR #$PR: could not read collaborators; no approval can satisfy @collaborators this run."
+              collaborators='[]'
+            fi
           fi
           pr_obj=$(printf '%s' "$view" | jq -c \
-            --argjson threads "${threads:-0}" \
+            --argjson threads "${unresolved:-0}" \
             --argjson failing "${failing:-0}" \
             --argjson pending "${pending:-0}" \
+            --argjson total_checks "${total_checks:-0}" \
             '{
               number, state, isDraft, isCrossRepository, mergeStateStatus,
               author_login: .author.login,
-              latestReviews: [.latestReviews[]? | {login: .author.login, state: .state}],
+              latestReviews: [.latestReviews[]? | {login: .author.login, state: .state, authorAssociation: .authorAssociation}],
               unresolved_threads: $threads,
               failing_checks: $failing,
               pending_checks: $pending,
+              total_checks: $total_checks,
               auto_merge_armed: (.autoMergeRequest != null)
             }')
           payload=$(jq -n \
@@ -934,13 +1122,19 @@ jobs:
           summary "- gate: \`$action\` ($reason)"
           notice "PR #$PR gate: $action ($reason)"
 
-          if [ "$EFFECTIVE_DRY_RUN" != true ]; then
+          # --match-head-commit pins the merge to the head the gate just evaluated, so a push
+          # that lands between the read above and the call here cannot slip in unevaluated.
+          sha=$(printf '%s' "$view" | jq -r '.headRefOid // empty')
+
+          if [ "$blocked" = true ]; then
+            summary "- not arming: this run was blocked"
+          elif [ "$EFFECTIVE_DRY_RUN" != true ]; then
             case "$action" in
               arm)
                 case "$RESOLVED_MERGE_METHOD" in
-                  rebase) gh pr merge "$PR" --repo "$REPO" --rebase --auto ;;
-                  merge) gh pr merge "$PR" --repo "$REPO" --merge --auto ;;
-                  *) gh pr merge "$PR" --repo "$REPO" --squash --auto ;;
+                  rebase) gh pr merge "$PR" --repo "$REPO" --rebase --auto --match-head-commit "$sha" ;;
+                  merge) gh pr merge "$PR" --repo "$REPO" --merge --auto --match-head-commit "$sha" ;;
+                  *) gh pr merge "$PR" --repo "$REPO" --squash --auto --match-head-commit "$sha" ;;
                 esac
                 rc=$?
                 if [ "$rc" -ne 0 ]; then
@@ -951,9 +1145,9 @@ jobs:
                 ;;
               merge)
                 case "$RESOLVED_MERGE_METHOD" in
-                  rebase) gh pr merge "$PR" --repo "$REPO" --rebase ;;
-                  merge) gh pr merge "$PR" --repo "$REPO" --merge ;;
-                  *) gh pr merge "$PR" --repo "$REPO" --squash ;;
+                  rebase) gh pr merge "$PR" --repo "$REPO" --rebase --match-head-commit "$sha" ;;
+                  merge) gh pr merge "$PR" --repo "$REPO" --merge --match-head-commit "$sha" ;;
+                  *) gh pr merge "$PR" --repo "$REPO" --squash --match-head-commit "$sha" ;;
                 esac
                 rc=$?
                 if [ "$rc" -ne 0 ]; then
@@ -965,18 +1159,24 @@ jobs:
             esac
           fi
 
-          sha=$(printf '%s' "$view" | jq -r '.headRefOid // empty')
+          # Inside the non-dry-run branch. This POST used to run on every path, so two
+          # dry_run=true dispatches -- and true is the dispatch default -- spent
+          # MAX_ATTEMPTS_PER_HEAD_SHA and dropped the head out of pick.
           if [ -n "$sha" ]; then
             prev=$(gh api "repos/$REPO/commits/$sha/statuses" --jq '[.[] | select(.context=="pr-medic")] | first | .description // ""' 2>/dev/null)
             n=1
             case "$prev" in
               attempts=*) n=$((${prev#attempts=} + 1)) ;;
             esac
-            gh api -X POST "repos/$REPO/statuses/$sha" \
-              -f state=success \
-              -f context=pr-medic \
-              -f description="attempts=$n" >/dev/null 2>&1
-            summary "- status pr-medic attempts=$n on ${sha:0:7}"
+            if [ "$EFFECTIVE_DRY_RUN" = true ]; then
+              summary "- dry run: would write status pr-medic attempts=$n on ${sha:0:7}"
+            else
+              gh api -X POST "repos/$REPO/statuses/$sha" \
+                -f state=success \
+                -f context=pr-medic \
+                -f description="attempts=$n" >/dev/null 2>&1
+              summary "- status pr-medic attempts=$n on ${sha:0:7}"
+            fi
           fi
           exit 0
           # END pr-medic-after.sh
@@ -990,8 +1190,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 55
     continue-on-error: true
+    # Answering a mention needs write on pull-requests and issues -- the action posts a
+    # tracking comment -- but not on contents. The medic job is the one that pushes.
     permissions:
-      contents: write
+      contents: read
       pull-requests: write
       issues: write
       id-token: write
@@ -1052,6 +1254,8 @@ jobs:
           use_commit_signing: false
           settings: |
             {"permissions":{"deny":["Bash(gh pr merge:*)","Bash(gh pr review:*)","Bash(git push --force)","Bash(git push --force *)"]}}
+          # This path had no budget at all; MAX_TURNS only reached the medic job.
+          claude_args: "--max-turns ${{ env.MAX_TURNS }}"
 
   report:
     if: always()

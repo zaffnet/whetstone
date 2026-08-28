@@ -40,7 +40,10 @@ jobs:
           for f in _common.sh ruff_format.sh setup-working-tree.sh; do
             diff -u "hooks/$f" "template/project/.claude/hooks/$f"
           done
-      - name: pr-medic.yml matches the template copy
-        run: diff -u .github/workflows/pr-medic.yml template/project/.github/workflows/pr-medic.yml
+      # The template copy is rendered from the root copy, not byte-identical: it ships
+      # disarmed and names a generated project's workflows. The substitution table in the
+      # tool is the whole of the difference.
+      - name: pr-medic.yml renders the template copy
+        run: python3 tools/extract_pr_medic.py --check-template
       - name: Reviewer subagents match between Claude markdown and Codex TOML
         run: python3 tools/check-agents-sync.py
