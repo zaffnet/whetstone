@@ -8,6 +8,10 @@ here=$(dirname "$0")
 # shellcheck source=.github/pr-medic/lib.sh
 . "$here/lib.sh"
 
+# The Claude step ran with this directory read-only, so a redirection could not rewrite the
+# snapshot or trusted-state. threads.sh writes resolved.json into it from here.
+chmod -R u+w "$(dirname "$TRUSTED_STATE_FILE")" 2>/dev/null || true
+
 # Before anything irreversible: a fix that was never committed is not on the remote, and
 # resolving a thread for it would leave the next run reading "no unresolved threads" as ready
 # to merge. This is also why the rebase below is not attempted on a dirty tree.
@@ -93,6 +97,15 @@ remote_head=$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid
 # reversible, so it happens after every check that could still stop this run. The head goes in
 # with it: the check above cannot cover the time apply spends posting, so apply re-reads the
 # head at each resolve and undoes its own work if the pull request moved under it.
+# From here a resolution can exist that only this run can account for, and most of the ways
+# this script can stop are set -e exits that run no code path at all -- the reviewer POST
+# below, a gate API call, a jq failure. Any of them leaves the thread resolved against a head
+# nothing judged, and the next wake reads that as satisfied. So the undo is a trap, cleared
+# only once the resolutions are accounted for. `|| true` because threads.sh answers its own
+# failure by labelling the pull request, and the original exit status is the useful one.
+undo_resolutions_on_exit=1
+trap '[ "$undo_resolutions_on_exit" = 0 ] || "$here/threads.sh" undo || true' EXIT
+
 EXPECTED_HEAD=$remote_head "$here/threads.sh" apply
 
 # Only when this run pushed. Re-requesting on every wake leaves a review newer than the last
@@ -136,7 +149,6 @@ case "$action" in
   merge)
     gh pr merge "$PR" --repo "$REPO" "--$MERGE_METHOD" --match-head-commit "$remote_head" || {
       echo "::error::PR #$PR: the merge was refused on ${remote_head:0:7}; undoing this run's resolutions"
-      "$here/threads.sh" undo
       exit 1
     }
     ;;
@@ -145,8 +157,9 @@ case "$action" in
     now=$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid)
     [ "$now" = "$remote_head" ] || {
       echo "::error::PR #$PR moved to ${now:0:7} after the gate read ${remote_head:0:7}; undoing"
-      "$here/threads.sh" undo
       exit 1
     }
     ;;
 esac
+# Merged on the head the gate judged, or still on it. Either way the resolutions stand.
+undo_resolutions_on_exit=0

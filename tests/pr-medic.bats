@@ -452,6 +452,33 @@ SH
   run ! grep -q 'run rerun' "$RERUN_LOG"
 }
 
+# Every `Bash(... :*)` rule is a prefix match, so it admits a redirection as well as the
+# command: `gh run view --log > $GITHUB_ENV` is an allowed `gh run view`. BASH_ENV or PATH set
+# in that file is read by the next step -- the gate, holding the write token -- so the tool
+# allowlist cannot be the control here.
+@test "the model cannot write the runner command files" {
+  local wf="$REPO/.github/workflows/pr-medic.yml"
+  # shellcheck disable=SC2016  # grepping for the literals.
+  grep -qF 'GITHUB_ENV: ${{ runner.temp }}/discard/env' "$wf"
+  # shellcheck disable=SC2016
+  grep -qF 'GITHUB_PATH: ${{ runner.temp }}/discard/path' "$wf"
+}
+
+# The same redirection aimed at the gate's own evidence: `git status > .../trusted-state` needs
+# no tool at all, so keeping those files outside --add-dir is not enough by itself.
+@test "the gate's evidence is read-only while the model runs" {
+  local wf="$REPO/.github/workflows/pr-medic.yml"
+  at() { grep -nF "$1" "$wf" | head -1 | cut -d: -f1; }
+  # shellcheck disable=SC2016  # grepping for the literal.
+  local lock='chmod -R a-w "$RUNNER_TEMP/pr-medic-state"'
+  grep -qF "$lock" "$wf"
+  # After dump has written the snapshot, and before the model can reach it.
+  [ "$(at 'threads.sh" dump')" -lt "$(at "$lock")" ]
+  [ "$(at "$lock")" -lt "$(at 'Run Claude Code')" ]
+  # And the gate takes the writes back, or it could not record what it resolved.
+  grep -qF 'chmod -R u+w' "$MEDIC/after.sh"
+}
+
 @test "the model cannot reach gh run rerun directly" {
   local wf="$REPO/.github/workflows/pr-medic.yml"
   run ! grep -qF 'Bash(gh run rerun' "$wf"
@@ -879,6 +906,7 @@ case "$*" in
     ;;
   *unresolveReviewThread*) printf 'false\n' ;;
   *"pr merge"*) exit "${STUB_MERGE_STATUS:-0}" ;;
+  *requested_reviewers*) exit "${STUB_REREQUEST_STATUS:-0}" ;;
 esac
 exit 0
 SH
@@ -1070,6 +1098,26 @@ commit_and_push() {
   STUB_PUSH_AFTER_GATE=deadbee run run_after
   [ "$status" -ne 0 ]
   grep -q 'unresolveReviewThread' "$GH_LOG"
+}
+
+# Most of the ways after.sh can stop are set -e exits that run no code path at all: the
+# reviewer POST, a gate API call, a jq failure. A resolution left behind by one of those is what
+# the next wake reads as satisfied, so the undo has to be a trap rather than a branch.
+@test "the gate reopens its resolutions when it fails after resolving" {
+  setup_after
+  after_resolves_a_thread
+  REREQUEST_REVIEWERS='copilot-pull-request-reviewer[bot]'
+  export REREQUEST_REVIEWERS
+  commit_and_push # so the re-request block runs at all
+  STUB_REREQUEST_STATUS=1 run run_after
+  [ "$status" -ne 0 ]
+  grep -q 'unresolveReviewThread' "$GH_LOG"
+}
+
+@test "the undo is armed before the first resolution and cleared only at the end" {
+  at() { grep -nF "$1" "$MEDIC/after.sh" | head -1 | cut -d: -f1; }
+  [ "$(at 'trap ')" -lt "$(at 'threads.sh" apply')" ]
+  [ "$(at 'threads.sh" apply')" -lt "$(at 'undo_resolutions_on_exit=0')" ]
 }
 
 @test "the gate leaves its resolutions alone when nothing moved" {

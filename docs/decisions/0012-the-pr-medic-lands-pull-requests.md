@@ -263,6 +263,29 @@ own per-resolve check cannot cover the time `after.sh` spends reading the gate a
 the merge -- a push landing there leaves the resolutions attached to a head nothing judged, and
 the refused merge does not undo them. `after.sh` reopens them instead.
 
+The tool allowlist cannot be the control against redirection. Every `Bash(... :*)` rule is a
+prefix match, so it admits a redirection as readily as the command: `gh run view --log >
+$GITHUB_ENV` is an allowed `gh run view`, and `BASH_ENV` or `PATH` set in that file is read by
+the *next* step -- the gate, holding the write token -- which would undo the point of giving
+the model a read-only one. A step cannot sanitise its own environment after the fact either,
+because `BASH_ENV` is read before a run block's first line. So `GITHUB_ENV` and `GITHUB_PATH`
+are pointed at throwaway files for the Claude step, and the runner reads back the paths it
+assigned, which stay empty. `GITHUB_OUTPUT` and `GITHUB_STATE` are left alone: they reach no
+other step, and the action needs them. The alternative -- the model in a separate job -- was
+not taken, because the gate's checks are about runner state that no artifact can carry across a
+job boundary without the model being able to forge it.
+
+The same redirection reaches the gate's evidence: `git status > .../trusted-state` needs no tool
+at all, so keeping the snapshot and `trusted-state` outside `--add-dir` only stops the Write
+tool. `$RUNNER_TEMP/pr-medic-state` is made read-only, directory included, before the Claude
+step, and `after.sh` takes the writes back.
+
+Reopening a resolution is a trap, not a branch. Most of the ways `after.sh` can stop are `set
+-e` exits that run no code path -- the reviewer POST, a gate API call, a jq failure -- and any
+of them would leave a thread resolved against a head nothing judged. The trap is armed before
+`apply` and cleared only once the run has merged on the judged head or confirmed the head has
+not moved.
+
 On `schedule`, `workflow_dispatch` and `workflow_run` the workflow file itself is trusted, so
 the copy in `RUNNER_TEMP` is what the gate runs and the chain holds. On an entity event the
 workflow file is the pull request's as well, so nothing written in the file can help: that is a

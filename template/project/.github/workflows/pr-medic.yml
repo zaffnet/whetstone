@@ -160,6 +160,13 @@ jobs:
           export TRUSTED_BOTS="$login,$TRIGGER_BOTS"
           "$RUNNER_TEMP/medic/trust-config.sh"
           "$RUNNER_TEMP/medic/threads.sh" dump # threads in as a file, replies out as a file
+          # The snapshot and trusted-state are the gate's evidence, and being outside --add-dir
+          # only keeps the Write tool off them: every `Bash(... :*)` rule below is a prefix
+          # match, so it admits a redirection, and `git status > .../trusted-state` needs no
+          # tool at all. Read-only, directory included, so nothing can be rewritten or added.
+          # after.sh takes the writes back for resolved.json.
+          chmod -R a-w "$RUNNER_TEMP/pr-medic-state"
+          mkdir -p "$RUNNER_TEMP/discard" # decoy runner command files; see the Claude step
           {
             echo "prompt<<PROMPT"
             cat "$RUNNER_TEMP/medic/prompt.md"
@@ -171,6 +178,18 @@ jobs:
 
       - name: Run Claude Code
         if: env.HAS_CLAUDE == 'true'
+        # Redirection is the hole the tool allowlist cannot close: the rules below are prefix
+        # matches, so `gh run view --log > $GITHUB_ENV` is an allowed `gh run view`, and it puts
+        # PR-controlled text in the runner's command file. BASH_ENV or PATH set there is read by
+        # the *next* step -- the gate, holding the write token -- which would undo the whole
+        # point of giving this step a read-only one. The step cannot sanitise its own
+        # environment afterwards either: BASH_ENV is read before a run block's first line. So
+        # the two files that execute code are pointed at throwaways. The runner reads back the
+        # paths it assigned, which stay empty. GITHUB_OUTPUT and GITHUB_STATE are left alone:
+        # they reach no other step, and the action needs them.
+        env:
+          GITHUB_ENV: ${{ runner.temp }}/discard/env
+          GITHUB_PATH: ${{ runner.temp }}/discard/path
         uses: anthropics/claude-code-action@9dcab633034361127cf74336d2d891d02e887881 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
