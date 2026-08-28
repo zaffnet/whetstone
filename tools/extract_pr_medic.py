@@ -35,6 +35,10 @@ EXPECTED_COPIES = {
     "pr-medic-preflight.sh": 1,
     "pr-medic-after.sh": 1,
 }
+# Definitions only, with no top-level program: nested inside the two filters that use them.
+# jq will not compile a bare run of defs, so the check appends a trailing `.`.
+JQ_FRAGMENTS = frozenset({"pr-medic-common.jq"})
+
 # (line in the root copy, line in the template copy). Every difference between the two
 # files lives here. A generated project should not merge on its own until its owner says so.
 TEMPLATE_SUBSTITUTIONS = (
@@ -107,10 +111,48 @@ def check_template(text: str, *, write: bool) -> int:
     return 1
 
 
-def check(text: str) -> int:
-    """Check copy counts, that copies match, that jq parses, and shellcheck."""
+def _run(tool: str, args: list[str], text: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(  # noqa: S603  -- tool from PATH, stdin is this repo's workflow
+        [tool, *args],
+        input=text,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _check_jq(name: str, program: str) -> int:
+    """Compile one extracted jq region. Returns the number of problems."""
     jq = shutil.which("jq")
+    if jq is None:
+        _err("jq: not on PATH")
+        return 1
+    if name in JQ_FRAGMENTS:
+        program += "\n.\n"
+    # Any nonzero exit, not just the phrase "syntax error": jq exits 3 on an undefined
+    # filter, which would otherwise pass this check.
+    proc = _run(jq, ["-n", "-f", "/dev/stdin"], program)
+    if proc.returncode != 0:
+        _err(f"{name}: jq will not compile\n{proc.stderr}")
+        return 1
+    return 0
+
+
+def _check_shell(name: str, script: str) -> int:
+    """Shellcheck one extracted bash region. Returns the number of problems."""
     shellcheck = shutil.which("shellcheck")
+    if shellcheck is None:
+        _err("shellcheck: not on PATH")
+        return 1
+    proc = _run(shellcheck, ["-s", "bash", "-"], script)
+    if proc.returncode != 0:
+        _err(f"{name}: shellcheck\n{proc.stdout}{proc.stderr}")
+        return 1
+    return 0
+
+
+def check(text: str) -> int:
+    """Check copy counts, that copies match, that jq compiles, and shellcheck."""
     errors = 0
     for name, expected in EXPECTED_COPIES.items():
         parts = extract(name, text)
@@ -123,35 +165,9 @@ def check(text: str) -> int:
             _err(f"{name}: copies differ")
             errors += 1
         if name.endswith(".jq"):
-            if jq is None:
-                _err("jq: not on PATH")
-                errors += 1
-                continue
-            proc = subprocess.run(  # noqa: S603  -- jq from PATH, stdin is this repo's workflow
-                [jq, "-n", "-f", "/dev/stdin"],
-                input=parts[0],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if "syntax error" in proc.stderr:
-                _err(f"{name}: jq will not parse\n{proc.stderr}")
-                errors += 1
+            errors += _check_jq(name, parts[0])
         else:
-            if shellcheck is None:
-                _err("shellcheck: not on PATH")
-                errors += 1
-                continue
-            proc = subprocess.run(  # noqa: S603  -- shellcheck from PATH, stdin is this repo's workflow
-                [shellcheck, "-s", "bash", "-"],
-                input=parts[0],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            if proc.returncode != 0:
-                _err(f"{name}: shellcheck\n{proc.stdout}{proc.stderr}")
-                errors += 1
+            errors += _check_shell(name, parts[0])
     return errors
 
 

@@ -1,25 +1,20 @@
 version: 2
 updates:
+  # One entry over both directories, not two. The template ships the same SHA pins as the
+  # root workflows, and `single-source` compares them, so a bump that moves one copy and
+  # not the other goes red on dependabot's own pull request. Two `directory` entries would
+  # still do that -- they are independent update streams. `group-by: dependency-name`
+  # is what puts both copies of an action in the same PR.
   - package-ecosystem: github-actions
-    directory: /
+    directories:
+      - /
+      - /template/project
     schedule:
       interval: weekly
     groups:
       actions:
         patterns: ["*"]
-    commit-message:
-      prefix: "chore(deps)"
-
-  # The template ships its own workflows with the same SHA pins. Without this entry the
-  # weekly bump rewrites only the root copy, and `single-source` goes red on dependabot's
-  # own pull request every week.
-  - package-ecosystem: github-actions
-    directory: /template/project
-    schedule:
-      interval: weekly
-    groups:
-      actions:
-        patterns: ["*"]
+        group-by: dependency-name
     commit-message:
       prefix: "chore(deps)"
 

@@ -30,11 +30,12 @@ on:
 
 permissions: {}
 
-# One medic per head SHA. Without this, every completing workflow wakes a run, and all of
-# them read the attempts status before any of them writes it. Cancelling is safe: the push
-# and the merge are idempotent, and a cancelled rebase leaves the branch as it was.
+# Only workflow_run fans out: one push completes several workflows and wakes a run for each,
+# and all of them read the attempts status before any writes it. Those collapse to one run
+# per head SHA. Every other event gets github.run_id, which is unique, so it is never
+# cancelled -- a cancelled run reports as a failed check, and this workflow does not go red.
 concurrency:
-  group: pr-medic-${{ github.event.workflow_run.head_sha || github.ref }}
+  group: pr-medic-${{ github.event.workflow_run.head_sha || github.run_id }}
   cancel-in-progress: true
 
 env:
@@ -410,6 +411,9 @@ jobs:
                 ($p.number | tonumber) == ($in.mention_pr | tonumber)
               else false end) as $is_mention
             | if $is_mention then false
+              # decide refuses a closed PR, but only after Claude has run. Reject here so the
+              # write-capable step never opens one.
+              elif ($p.state != "OPEN" and $p.state != "open") then false
               elif ($p.isDraft | is_true) and ((($in.include_drafts | is_true)) | not) then false
               elif ($p.isCrossRepository | is_true) and ((($in.include_forks | is_true)) | not) then false
               elif ($in.skip_label | trim | length) > 0 and (($labels | index($in.skip_label)) != null) then false
@@ -783,10 +787,12 @@ jobs:
             Do not push to the default branch. Do not use git push --force without --force-with-lease.
 
             1. Read state: unresolved review threads, failing checks, mergeStateStatus, the files changed.
-            2. If FIX_REVIEW_COMMENTS is true, for each unresolved thread do one of: implement the ask,
-               reply naming the commit, and resolve it; or leave it open and reply why. Never resolve
-               a thread without a reply. Never resolve an ask you did not implement. Resolving is the
-               record that the code now satisfies the comment.
+            2. If FIX_REVIEW_COMMENTS is true, for each unresolved thread either implement the ask and
+               reply naming the commit, or leave it and reply why. Always reply. Then, only if
+               RESOLVE_THREADS is true, resolve the ones you implemented. Never resolve a thread
+               without a reply, and never resolve an ask you did not implement: resolving is the
+               record that the code now satisfies the comment. If RESOLVE_THREADS is false, reply
+               and leave every thread open.
             3. If FIX_FAILING_CHECKS is true, read `gh run view --log-failed` for failed runs on this
                head and fix the cause. Never disable a check or weaken a rule. Re-run rather than edit
                when the failure is infrastructural (`gh run rerun --failed RUN_ID`).
@@ -907,10 +913,13 @@ jobs:
                 {action: "noop", reason: "already armed"}
               elif ((($in.arm_auto_merge | is_true)) | not) then
                 {action: "wait", reason: "ARM_AUTO_MERGE false"}
-              elif ($in.allow_auto_merge | is_true) then
-                {action: "arm", reason: "gate passed"}
+              # Before arm, not only before merge: gh pr merge --auto waits for *required*
+              # checks, and a repo with no ruleset has none, so arming there merges at once
+              # while optional CI is still running.
               elif ((.pr.pending_checks | tonumber) // 0) > 0 then
                 {action: "wait", reason: "pending checks"}
+              elif ($in.allow_auto_merge | is_true) then
+                {action: "arm", reason: "gate passed"}
               else
                 {action: "merge", reason: "gate passed, auto-merge off"}
               end;
@@ -1225,6 +1234,12 @@ jobs:
         with:
           client-id: ${{ env.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # Downscoped explicitly. An App token carries the installation's permissions and
+          # ignores this job's permissions: block, so contents: read above is only real if
+          # the token says so too.
+          permission-contents: read
+          permission-issues: write
+          permission-pull-requests: write
 
       - name: Mint GitHub App token (app-id)
         id: app-token-legacy
@@ -1234,6 +1249,9 @@ jobs:
         with:
           app-id: ${{ env.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: read
+          permission-issues: write
+          permission-pull-requests: write
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.creds.outputs.ok == 'true'
