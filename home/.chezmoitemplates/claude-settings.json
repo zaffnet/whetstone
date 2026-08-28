@@ -66,18 +66,6 @@
           }
         ]
       }
-    ],
-    "StopFailure": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "afplay /System/Library/Sounds/Sosumi.aiff",
-            "async": true
-          }
-        ]
-      }
     ]
   },
   "worktree": {
