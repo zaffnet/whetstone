@@ -1,0 +1,41 @@
+# Shared definitions for pick.jq and gate.jq. Include with `jq -L <this directory>`.
+
+# gh pr view --json statusCheckRollup mixes two shapes. A CheckRun carries status and
+# conclusion; a StatusContext carries state and no conclusion field at all -- which is why
+# reading a missing conclusion as pending counted every commit status as pending forever,
+# and why a plain FAILURE test missed ERROR, TIMED_OUT, CANCELLED and STARTUP_FAILURE.
+def check_counts:
+  def bucket:
+    if .__typename == "StatusContext" then
+      ((.state // "") | ascii_upcase) as $s
+      | if $s == "PENDING" or $s == "EXPECTED" then "pending"
+        elif $s == "SUCCESS" then "ok"
+        else "fail"
+        end
+    else
+      ((.status // "") | ascii_upcase) as $st
+      | ((.conclusion // "") | ascii_upcase) as $c
+      | if $st != "COMPLETED" then "pending"
+        elif $c == "SUCCESS" or $c == "NEUTRAL" or $c == "SKIPPED" then "ok"
+        else "fail"
+        end
+    end;
+  [(.statusCheckRollup // [])[] | bucket]
+  | {
+      total: length,
+      failing: (map(select(. == "fail")) | length),
+      pending: (map(select(. == "pending")) | length)
+    };
+
+# An approval is an APPROVED review by someone with write access. authorAssociation
+# excludes Copilot, which reviews as NONE, by construction, and also excludes the drive-by
+# approval any authenticated account can leave on a public repository. Input: latestReviews.
+def approvals:
+  [
+    .[]?
+    | select(.state == "APPROVED")
+    | select((.authorAssociation // "") | ascii_upcase | IN("OWNER", "MEMBER", "COLLABORATOR"))
+    | .author.login
+  ]
+  | unique
+  | length;

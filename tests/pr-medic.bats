@@ -5,6 +5,9 @@ bats_require_minimum_version 1.5.0
 
 setup() {
   REPO="$(git -C "$BATS_TEST_DIRNAME" rev-parse --show-toplevel)"
+  # The rollup filter reads $ENV.GITHUB_WORKFLOW to drop its own checks. On a runner that is
+  # whatever workflow ran bats -- "lint" -- so pin it, or these cases pass only on a laptop.
+  export GITHUB_WORKFLOW=pr-medic
   EXTRACT="$REPO/tools/extract_pr_medic.py"
   GATE_JQ="$BATS_TEST_TMPDIR/gate.jq"
   PICK_JQ="$BATS_TEST_TMPDIR/pick.jq"
@@ -28,10 +31,15 @@ setup() {
   {"__typename": "StatusContext", "context": "legacy", "state": "SUCCESS"},
   {"__typename": "StatusContext", "context": "waiting", "state": "PENDING"},
   {"__typename": "StatusContext", "context": "broke", "state": "ERROR"},
-  {"__typename": "StatusContext", "context": "pr-medic", "state": "SUCCESS"}
+  {"__typename": "StatusContext", "context": "pr-medic", "state": "SUCCESS"},
+  {"__typename": "CheckRun", "name": "medic", "workflowName": "pr-medic", "status": "IN_PROGRESS"},
+  {"__typename": "CheckRun", "name": "report", "workflowName": "pr-medic", "status": "QUEUED"}
 ]}
 JSON
   )
+  # Still 7: the pr-medic commit status and this workflow's own two jobs are all dropped. A
+  # pull_request_review wake runs against the PR head, so `medic` is IN_PROGRESS and `report`
+  # is queued behind it exactly while the gate reads this -- counted, the gate can never arm.
   [ "$got" = '{"total":7,"failing":2,"pending":2}' ] || {
     echo "check rollup: got $got" >&2
     return 1

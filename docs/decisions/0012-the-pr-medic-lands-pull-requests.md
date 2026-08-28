@@ -91,6 +91,13 @@ commit status it writes must not be added to a ruleset.
   against the head the run ahead just pushed, and the CI wake that could have armed the PR
   finds the budget gone. Standing down loses nothing: the run that pushed arms it, and the
   hourly cron re-picks whatever neither did.
+- `pick` and the gate must agree on what is worth a wake, because the gate spends an attempt
+  whatever it decides. The rollup drops this workflow's own checks in both shapes: a
+  `pull_request_review` wake runs against the PR head, so `medic` is in progress and `report`
+  is queued behind it exactly while the gate counts them. And `would_arm` now requires the
+  "checks exist, none pending" that `decide` already requires. Either one out of step turns a
+  wake into a guaranteed `wait` that still spends an attempt, and two of those exhaust the
+  budget before the green wake arrives.
 - A green PR can land before Copilot has posted. `APPROVALS_REQUIRED` is `0`, and the
   ruleset holds a PR only for threads that already exist. This is a consequence of the solo
   maintainer, not an oversight.

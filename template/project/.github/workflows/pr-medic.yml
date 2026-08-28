@@ -334,8 +334,18 @@ jobs:
                  else "fail"
                  end)
             end;
-          # Drop the medic's own status: counting it would let an untested head look tested.
-          [(.statusCheckRollup // [])[] | select((.context // "") != "pr-medic")]
+          # Drop this workflow's own checks, both shapes. The commit status, because counting it
+          # would let an untested head look tested. The CheckRuns, because a pull_request_review
+          # wake runs against the PR head -- run 33180380089 attached `preflight`, `pick`, `medic`
+          # and `report` to it -- so the medic job is IN_PROGRESS and `report` is queued behind it
+          # while the gate reads the rollup. Counted, they are pending by construction, every wake
+          # decides "wait (pending checks)", and each one still spends an attempt.
+          # $ENV, not --arg: this region is compiled standalone by tools/extract_pr_medic.py, and an
+          # undefined $variable makes jq exit 3 there. A host that renames the workflow is followed.
+          ($ENV.GITHUB_WORKFLOW // "pr-medic") as $self
+          | [(.statusCheckRollup // [])[]
+             | select((.context // "") != "pr-medic")
+             | select((.workflowName // "") != $self)]
           | map(bucket)
           | {
               total: length,
@@ -396,13 +406,21 @@ jobs:
             or ((.pr.failing_checks | tonumber) // 0) > 0
             or (.pr.mergeStateStatus == "BEHIND")
             or (.pr.mergeStateStatus == "DIRTY");
-          # "Worth a look", not "safe to merge": total_checks is deliberately absent, because a head
-          # whose checks have not registered yet may still become armable. decide has the last word.
+          # "Worth a look", not "safe to merge" -- but it must not admit a state decide can only
+          # refuse. decide answers "no checks on this head" to an empty rollup and "wait (pending
+          # checks)" to a pending one, and the gate step spends an attempt either way. Two wakes
+          # while CI is still running used to exhaust MAX_ATTEMPTS_PER_HEAD_SHA, so the green wake
+          # that could have armed the PR was dropped by over_budget and nothing armed it at all.
+          # fixable is the other half of keep_pr and is untouched: failing checks still get worked.
           def would_arm:
             ((.pr.isDraft | is_true) | not)
             and ((((.pr.isCrossRepository | is_true)) | not) or (.include_forks | is_true))
             and (.pr.mergeStateStatus != "DIRTY")
             and ((.pr.unresolved_threads | tonumber) // 0) == 0
+            # `null | tonumber` aborts jq, so the default goes inside: pick always emits both,
+            # but a filter that dies on a missing field would take the whole run with it.
+            and ((.pr.total_checks // 0) | tonumber) > 0
+            and ((.pr.pending_checks // 0) | tonumber) == 0
             and ((.pr.failing_checks | tonumber) // 0) == 0
             and ((.pr.auto_merge_armed | is_true) | not)
             and approvals_ok;
@@ -900,8 +918,18 @@ jobs:
                  else "fail"
                  end)
             end;
-          # Drop the medic's own status: counting it would let an untested head look tested.
-          [(.statusCheckRollup // [])[] | select((.context // "") != "pr-medic")]
+          # Drop this workflow's own checks, both shapes. The commit status, because counting it
+          # would let an untested head look tested. The CheckRuns, because a pull_request_review
+          # wake runs against the PR head -- run 33180380089 attached `preflight`, `pick`, `medic`
+          # and `report` to it -- so the medic job is IN_PROGRESS and `report` is queued behind it
+          # while the gate reads the rollup. Counted, they are pending by construction, every wake
+          # decides "wait (pending checks)", and each one still spends an attempt.
+          # $ENV, not --arg: this region is compiled standalone by tools/extract_pr_medic.py, and an
+          # undefined $variable makes jq exit 3 there. A host that renames the workflow is followed.
+          ($ENV.GITHUB_WORKFLOW // "pr-medic") as $self
+          | [(.statusCheckRollup // [])[]
+             | select((.context // "") != "pr-medic")
+             | select((.workflowName // "") != $self)]
           | map(bucket)
           | {
               total: length,
