@@ -67,11 +67,21 @@ prune_retired_defaults_keys() {
       if defaults delete "$domain" "$previous_key" 2>/dev/null; then
         continue
       fi
-      # Delete also fails when the key is already absent, which is the outcome wanted, so
-      # carry it only when it is still there.
-      if defaults read "$domain" "$previous_key" >/dev/null 2>&1; then
-        carry+=("$previous_key")
+
+      # Delete also fails when the key is already absent, which is the wanted end state, so
+      # the two have to be told apart -- and a failed `defaults read` of the key does not
+      # tell them apart, because a permission problem or a cfprefsd hiccup fails exactly
+      # like an absent key. Reading the domain does: if the domain answers, the key really
+      # is gone and there is nothing left to retry; if the domain does not answer either,
+      # the failure is about the domain and the key is carried.
+      #
+      # Carrying every failed deletion would also be safe, and would never converge: an
+      # already-absent key fails `delete` on every apply, so it would sit in the state
+      # forever.
+      if defaults read "$domain" >/dev/null 2>&1; then
+        continue
       fi
+      carry+=("$previous_key")
     done <"$keys_file"
   fi
 

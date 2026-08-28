@@ -196,7 +196,7 @@ STUB
 echo "$*" >>"$DEFAULTS_LOG"
 case "$1" in
   delete) [ -z "${DELETE_FAILS:-}" ] || exit 1 ;;
-  read) [ -n "${KEY_STILL_THERE:-}" ] || exit 1 ;;
+  read) [ -z "${DOMAIN_UNREADABLE:-}" ] || exit 1 ;;
 esac
 exit 0
 STUB
@@ -325,9 +325,27 @@ WRITES
   log="$BATS_TEST_TMPDIR/prune-stuck-2.log"
   : >"$log"
   run env PATH="$stub:$PATH" HOME="$stuck" FAKE_ITERM_RUNNING=false DEFAULTS_LOG="$log" \
-    DELETE_FAILS=1 KEY_STILL_THERE=1 bash "$retired"
+    DELETE_FAILS=1 DOMAIN_UNREADABLE=1 bash "$retired"
   [ "$status" -eq 0 ]
   grep -qFx 'ShowFullScreenTabBar' "$keys"
+
+  # Copilot on #39: a failed `defaults read` of the key does not prove the key is absent --
+  # a permission problem or a cfprefsd hiccup fails exactly like one. Reading the domain
+  # tells them apart. Domain answers, so the key really is gone: drop it, nothing to retry.
+  absent="$BATS_TEST_TMPDIR/state-absent"
+  mkdir -p "$absent"
+  log="$BATS_TEST_TMPDIR/prune-absent-1.log"
+  : >"$log"
+  run env PATH="$stub:$PATH" HOME="$absent" FAKE_ITERM_RUNNING=false DEFAULTS_LOG="$log" \
+    bash "$iterm_script"
+  [ "$status" -eq 0 ]
+  log="$BATS_TEST_TMPDIR/prune-absent-2.log"
+  : >"$log"
+  run env PATH="$stub:$PATH" HOME="$absent" FAKE_ITERM_RUNNING=false DEFAULTS_LOG="$log" \
+    DELETE_FAILS=1 bash "$retired"
+  [ "$status" -eq 0 ]
+  run ! grep -qFx 'ShowFullScreenTabBar' \
+    "$absent/.local/state/whetstone/macos-iterm2-managed-keys.txt"
 
   # Next apply, the delete works: it is retried, and only then dropped from the state.
   log="$BATS_TEST_TMPDIR/prune-stuck-3.log"
