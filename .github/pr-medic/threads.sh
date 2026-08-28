@@ -113,28 +113,35 @@ unresolve() {
   return 1
 }
 
-# The marker that outlives this run. A failed reopen used to be a warning, which was no control
-# at all: the job goes red, but pr-medic is deliberately not a required check, so the next wake
-# would read the thread as satisfied and merge. The skip label is the state that stops that --
-# pick.jq drops a labelled pull request and gate.jq refuses one -- and it takes a person to
-# clear, which is the right cost for a thread nobody can prove was answered.
-block_later_runs() {
-  [ -n "${SKIP_LABEL:-}" ] || {
-    echo "::error::PR #$PR: no SKIP_LABEL to set; a later run may merge on a stale resolution"
-    return 0
+# Whether the pull request carries a label right now.
+has_label() {
+  gh pr view "$PR" --repo "$REPO" --json labels --jq '.labels[].name' | grep -qxF "$1"
+}
+
+# The block that outlives this run, taken before the first resolve rather than after a failed
+# undo. A marker applied only on the way out can fail on the way out too, and then there is no
+# block at all -- the job goes red, but pr-medic is deliberately not a required check, so the
+# next wake reads the thread as satisfied and merges. This way nothing is resolved until the
+# block that might be needed is in place and has been read back. pick.jq drops a labelled pull
+# request and gate.jq refuses one; release_block lifts it once this run has accounted for what
+# it resolved.
+acquire_block() {
+  [ -n "${BLOCK_LABEL:-}" ] || {
+    echo "::error::no BLOCK_LABEL is set, so a resolution that went wrong could not be blocked"
+    return 1
   }
-  # A repository that has never used the label does not have it, and --add-label cannot create
-  # one. Without this the block reported itself applied and was not there at all.
-  gh label create "$SKIP_LABEL" --repo "$REPO" --color B60205 \
-    --description "pr-medic: leave this pull request alone" >/dev/null 2>&1 || true
-  gh pr edit "$PR" --repo "$REPO" --add-label "$SKIP_LABEL" >/dev/null 2>&1 || true
-  # Verified, because a block that is not there is worse than no block: this path is the only
-  # thing standing between a stale resolution and the next wake merging on it.
-  if gh pr view "$PR" --repo "$REPO" --json labels --jq '.labels[].name' | grep -qxF "$SKIP_LABEL"; then
-    echo "::error::PR #$PR labelled $SKIP_LABEL: a resolution could not be undone and must be checked by hand"
-  else
-    echo "::error::PR #$PR: could not add $SKIP_LABEL; a later run may merge on a stale resolution"
-  fi
+  if has_label "$BLOCK_LABEL"; then return 0; fi
+  # A repository that has never used it does not have the label, and --add-label cannot create
+  # one, so without this the block would be reported and not applied.
+  gh label create "$BLOCK_LABEL" --repo "$REPO" --color B60205 \
+    --description "pr-medic: a thread resolution needs checking by hand" >/dev/null 2>&1 || true
+  gh pr edit "$PR" --repo "$REPO" --add-label "$BLOCK_LABEL" >/dev/null 2>&1 || true
+  has_label "$BLOCK_LABEL"
+}
+
+release_block() {
+  [ -n "${BLOCK_LABEL:-}" ] || return 0
+  gh pr edit "$PR" --repo "$REPO" --remove-label "$BLOCK_LABEL" >/dev/null 2>&1 || true
 }
 
 # Put back what this run resolved. Leaving a thread resolved against a head the gate never
@@ -151,8 +158,9 @@ undo_resolutions() {
   if [ "$failed" = 0 ]; then
     resolved_ids=() # nothing outstanding, so nothing for after.sh to undo a second time
     record_resolved
+    release_block
   else
-    block_later_runs
+    echo "::error::PR #$PR keeps ${BLOCK_LABEL:-}: a resolution could not be undone and needs a person"
   fi
 }
 
@@ -237,6 +245,12 @@ apply() {
         undo_resolutions
         exit 1
       fi
+      # Before anything irreversible, and on every resolve, because it is a no-op once held.
+      acquire_block || {
+        echo "::error::PR #$PR: ${BLOCK_LABEL:-<unset>} cannot be held; nothing will be resolved"
+        undo_resolutions
+        exit 1
+      }
       # The head the gate verified the checkout against. A push landing between that check and
       # here would leave this thread resolved against code the gate never judged, and the next
       # run reads a resolved thread as satisfied. Nothing makes the mutation atomic with this
@@ -287,12 +301,16 @@ undo() {
   undo_resolutions
 }
 
+# after.sh, once the run has merged on the head the gate judged or confirmed it did not move.
+release() { release_block; }
+
 case "${1:-}" in
   dump) dump ;;
   apply) apply ;;
   undo) undo ;;
+  release) release ;;
   *)
-    echo "usage: threads.sh dump|apply|undo" >&2
+    echo "usage: threads.sh dump|apply|undo|release" >&2
     exit 2
     ;;
 esac

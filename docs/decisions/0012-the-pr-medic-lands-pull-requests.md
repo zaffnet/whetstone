@@ -312,6 +312,29 @@ it had work and no App, because a silently skipped job reads as nothing to do. T
 `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` is also set, but as the second line: its own documentation
 calls it best-effort, and a control that has to hold cannot be best-effort.
 
+A re-run request has to name one of the pull request's own checks, not merely a run on its head
+sha. A release or deployment workflow triggered by the same commit is on the same sha, and
+`gh run list` is on the model's allowlist, so it could find one. `rerun.sh` intersects the id
+with the run ids in the pull request's `statusCheckRollup`.
+
+A bot's comment wakes the medic only if the bot is in `TRIGGER_BOTS`. `threads.sh` posts a reply
+whether or not it resolves the thread, and that reply is a `pull_request_review_comment` like
+any other -- so a thread the model decided not to resolve woke the medic, which replied again,
+which woke it again. The medic's own login is not in `TRIGGER_BOTS` and Copilot's is, which is
+the whole of the distinction.
+
+The resolution block is a label of its own, `BLOCK_LABEL`, taken before the first resolve and
+lifted only once the run has accounted for what it resolved. Separate from `SKIP_LABEL` so that
+lifting it cannot clear a person's "leave this alone", and taken first because a marker applied
+on the way out can fail on the way out: `apply` resolves nothing until the block is in place and
+has been read back. Both names go to `pick.jq` and `gate.jq`, which refuse on either.
+
+The token given to the model's step is read-only in every scope. Its `pull-requests` permission
+was `write` until it did not need to be: an explicit prompt selects the action's agent mode,
+which creates no tracking comment -- `src/modes/agent/index.ts` leaves `claudeCommentId`
+undefined and the update at the end of `run.ts` is guarded on it -- and the medic's replies are
+posted by `threads.sh` in the gate step.
+
 On `schedule`, `workflow_dispatch` and `workflow_run` the workflow file itself is trusted, so
 the copy in `RUNNER_TEMP` is what the gate runs and the chain holds. On an entity event the
 workflow file is the pull request's as well, so nothing written in the file can help: that is a

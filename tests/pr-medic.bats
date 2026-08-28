@@ -386,6 +386,76 @@ SH
 # substring or an undo would read as a resolve.
 resolved_in_log() { grep -qE '(^|[^[:alpha:]])resolveReviewThread' "$GH_LOG"; }
 
+# pick.sh decides which pull requests an event is about. The cases below assert on whether it
+# looked a pull request up at all, which is what the bot filter changes, rather than modelling
+# pick.jq's selection -- that has its own fixtures.
+setup_pick() {
+  export REPO=o/r
+  export GH_LOG="$BATS_TEST_TMPDIR/gh.log"
+  : >"$GH_LOG"
+  export GITHUB_OUTPUT="$BATS_TEST_TMPDIR/output"
+  export GITHUB_STEP_SUMMARY="$BATS_TEST_TMPDIR/summary"
+  : >"$GITHUB_OUTPUT"
+  export SKIP_LABEL=no-medic BLOCK_LABEL=medic-blocked
+  export APPROVALS_REQUIRED=0 MAY_MERGE=false
+  export TRIGGER_BOTS='copilot-pull-request-reviewer[bot],dependabot[bot]'
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  cat >"$BATS_TEST_TMPDIR/bin/gh" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$GH_LOG"
+case "$*" in
+  *"api graphql"*) printf '0\n' ;;
+  *"pr view"*) printf '%s\n' '{"number":7,"state":"OPEN","isDraft":false,"isCrossRepository":false,"labels":[],"mergeStateStatus":"CLEAN","autoMergeRequest":null,"latestReviews":[],"statusCheckRollup":[]}' ;;
+esac
+exit 0
+SH
+  chmod +x "$BATS_TEST_TMPDIR/bin/gh"
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+  export PATH
+}
+
+pick_event() {
+  export GITHUB_EVENT_NAME=$1
+  export GITHUB_EVENT_PATH="$BATS_TEST_TMPDIR/event.json"
+  printf '%s\n' "$2" >"$GITHUB_EVENT_PATH"
+}
+
+# threads.sh posts a reply whether or not the thread is resolved, and that reply is a review
+# comment like any other. Without this filter it selects the pull request again, replies again,
+# and never stops -- a paid loop, and the medic's own login is in allowed_bots by design.
+@test "pick.sh ignores the medic's own review reply" {
+  setup_pick
+  pick_event pull_request_review_comment \
+    '{"pull_request":{"number":7},"comment":{"user":{"login":"medic[bot]"},"body":"fixed in abc123"}}'
+  "$MEDIC/pick.sh"
+  run ! grep -q 'pr view' "$GH_LOG"
+}
+
+# And the bot the medic exists to answer still wakes it.
+@test "pick.sh wakes for a bot in TRIGGER_BOTS" {
+  setup_pick
+  pick_event pull_request_review_comment \
+    '{"pull_request":{"number":7},"comment":{"user":{"login":"copilot-pull-request-reviewer[bot]"},"body":"fix this"}}'
+  "$MEDIC/pick.sh"
+  grep -q 'pr view 7' "$GH_LOG"
+}
+
+@test "pick.sh wakes for a person" {
+  setup_pick
+  pick_event pull_request_review_comment \
+    '{"pull_request":{"number":7},"comment":{"user":{"login":"zaffnet"},"body":"fix this"}}'
+  "$MEDIC/pick.sh"
+  grep -q 'pr view 7' "$GH_LOG"
+}
+
+# The sweep is not an event about a comment, so the filter must not touch it.
+@test "pick.sh still sweeps on schedule" {
+  setup_pick
+  pick_event schedule '{}'
+  "$MEDIC/pick.sh"
+  grep -q 'pr list' "$GH_LOG"
+}
+
 # rerun.sh exists so `Bash(gh run rerun:*)` need not be on the model's allowlist: with the
 # actions: write token that wildcard is the run id of anything in the repository, and the model
 # reads PR-controlled check logs.
@@ -399,6 +469,9 @@ setup_rerun() {
 printf '%s\n' "$*" >>"$RERUN_LOG"
 case "$*" in
   *"--json headRefOid"*) printf '%s\n' "$STUB_PR_HEAD" ;;
+  # Before the run lookup: rerun.sh's own --jq mentions /actions/runs/, so the broader pattern
+  # would swallow this call.
+  *"--json statusCheckRollup"*) printf '%s\n' "$STUB_PR_CHECK_RUNS" ;;
   *actions/runs/*)
     printf '{"sha":"%s","path":"%s","repo":"%s"}\n' "$STUB_RUN_SHA" "$STUB_RUN_PATH" "$STUB_RUN_REPO"
     ;;
@@ -410,12 +483,23 @@ SH
   export PATH
   export STUB_PR_HEAD=headsha STUB_RUN_SHA=headsha STUB_RUN_REPO=o/r
   export STUB_RUN_PATH=.github/workflows/lint.yml
+  # rerun.sh reads the run ids out of the rollup's detailsUrl, so the shape matters.
+  export STUB_PR_CHECK_RUNS='["123"]'
 }
 
 @test "rerun.sh re-runs a failed run on this PR's head" {
   setup_rerun
   "$MEDIC/rerun.sh" 123
   grep -q 'run rerun 123 --failed' "$RERUN_LOG"
+}
+
+# The sha alone is not enough: a release or deployment workflow triggered by the same commit is
+# on the same sha, and `gh run list` is on the model's allowlist so it can find one.
+@test "rerun.sh refuses a run on this head that is not one of the PR's checks" {
+  setup_rerun
+  STUB_PR_CHECK_RUNS='["999"]' run "$MEDIC/rerun.sh" 123
+  [ "$status" -ne 0 ]
+  run ! grep -q 'run rerun' "$RERUN_LOG"
 }
 
 # An earlier head says nothing about the code the gate is about to judge.
@@ -554,8 +638,10 @@ setup_threads() {
   export EXPECTED_HEAD=c0ffee1
   # The medic's own reply must not withhold the thread it was posted to.
   export TRUSTED_BOTS='medic[bot]'
-  # The marker a failed reopen falls back to.
-  export SKIP_LABEL=no-medic
+  # The block threads.sh takes before it resolves anything.
+  export SKIP_LABEL=no-medic BLOCK_LABEL=medic-blocked
+  export STUB_LABELS="$BATS_TEST_TMPDIR/labels"
+  : >"$STUB_LABELS"
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'SH'
 #!/usr/bin/env bash
@@ -566,10 +652,21 @@ case "$*" in
   *collaborators/writer/permission*) printf 'write\n' ;;
   *collaborators/*/permission*) exit 1 ;; # not a collaborator at all: the API 404s
   *"--json headRefOid"*) cat "$STUB_HEAD_FILE" ;;
-  *"--json labels"*)
-    # STUB_LABEL_MISSING is the repository where the label could not be created.
-    if [ -z "${STUB_LABEL_MISSING:-}" ]; then printf 'no-medic\n'; fi
+  *"--add-label"*)
+    # As the API would, unless STUB_LABEL_MISSING is the repository where it cannot be created.
+    args="$*"
+    label=${args#*--add-label }
+    label=${label%% *}
+    if [ -z "${STUB_LABEL_MISSING:-}" ]; then printf '%s\n' "$label" >>"$STUB_LABELS"; fi
     ;;
+  *"--remove-label"*)
+    args="$*"
+    label=${args#*--remove-label }
+    label=${label%% *}
+    grep -vxF "$label" "$STUB_LABELS" >"$STUB_LABELS.new" || true
+    mv "$STUB_LABELS.new" "$STUB_LABELS"
+    ;;
+  *"--json labels"*) cat "$STUB_LABELS" ;;
   *addPullRequestReviewThreadReply*)
     # As the API would: the reply becomes the thread's last comment, which is what apply
     # expects to find when it re-reads before resolving. STUB_INTERLOPER adds a reviewer
@@ -859,48 +956,63 @@ SH
   grep -qF 'EXPECTED_HEAD=$remote_head "$here/threads.sh" apply' "$MEDIC/after.sh"
 }
 
-# A failed reopen was a warning, which is no control at all: the job goes red, but pr-medic is
+# The block is taken before anything is resolved. Applied only on the way out, it could fail on
+# the way out too, and then there is no block at all -- the job goes red, but pr-medic is
 # deliberately not a required check, so the next wake reads the thread as satisfied and merges.
-@test "threads.sh labels the PR when a resolution cannot be undone" {
+@test "threads.sh blocks the PR before it resolves anything" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
+  "$MEDIC/threads.sh" apply
+  # -- before the pattern, or a pattern starting with a dash is read as grep's own option.
+  at() { grep -nF -- "$1" "$GH_LOG" | head -1 | cut -d: -f1; }
+  # Created first, because --add-label cannot create a label the repository does not have.
+  [ "$(at 'label create medic-blocked')" -lt "$(at '--add-label medic-blocked')" ]
+  [ "$(at '--add-label medic-blocked')" -lt "$(at 'resolveReviewThread')" ]
+}
+
+@test "threads.sh resolves nothing if it cannot hold the block" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
+  STUB_LABEL_MISSING=1 run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  run ! resolved_in_log
+}
+
+@test "threads.sh will not resolve without a block label to hold" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
+  run env -u BLOCK_LABEL "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  run ! resolved_in_log
+}
+
+# The block comes off only once the run has accounted for what it resolved.
+@test "threads.sh keeps the block when a resolution cannot be undone" {
   setup_threads
   printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
   STUB_UNRESOLVE_FAILS=1 STUB_PUSH_ON_RESOLVE=deadbee run "$MEDIC/threads.sh" apply
   [ "$status" -ne 0 ]
   grep -q 'unresolveReviewThread' "$GH_LOG"
-  grep -q -- '--add-label no-medic' "$GH_LOG"
+  run ! grep -q -- '--remove-label medic-blocked' "$GH_LOG"
+  grep -qxF medic-blocked "$STUB_LABELS"
 }
 
-# The other half: a reopen that works must not label anything.
-# A repository that has never used the label does not have it, and --add-label cannot create
-# one -- so this path reported a block that was not applied at all.
-@test "threads.sh creates the skip label before it applies it" {
-  setup_threads
-  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
-  STUB_UNRESOLVE_FAILS=1 STUB_PUSH_ON_RESOLVE=deadbee run "$MEDIC/threads.sh" apply
-  [ "$status" -ne 0 ]
-  # -- before the pattern, or a pattern starting with a dash is read as grep's own option.
-  at() { grep -nF -- "$1" "$GH_LOG" | head -1 | cut -d: -f1; }
-  [ "$(at 'label create no-medic')" -lt "$(at '--add-label no-medic')" ]
-}
-
-# And it says so only if the label is really there afterwards.
-@test "threads.sh reports a block it could not apply" {
-  setup_threads
-  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
-  STUB_LABEL_MISSING=1 STUB_UNRESOLVE_FAILS=1 STUB_PUSH_ON_RESOLVE=deadbee \
-    run "$MEDIC/threads.sh" apply
-  [ "$status" -ne 0 ]
-  printf '%s\n' "$output" | grep -q 'could not add no-medic'
-}
-
-@test "threads.sh does not label the PR when the undo works" {
+@test "threads.sh lifts the block when the undo works" {
   setup_threads
   printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
   STUB_PUSH_ON_RESOLVE=deadbee run "$MEDIC/threads.sh" apply
   [ "$status" -ne 0 ]
-  run ! grep -q -- '--add-label' "$GH_LOG"
+  grep -q -- '--remove-label medic-blocked' "$GH_LOG"
+  run ! grep -qxF medic-blocked "$STUB_LABELS"
   # And it leaves nothing for after.sh to undo a second time.
   [ "$(jq length "$RUNNER_TEMP/pr-medic-state/resolved.json")" = 0 ]
+}
+
+@test "threads.sh release lifts the block" {
+  setup_threads
+  printf 'medic-blocked\n' >"$STUB_LABELS"
+  "$MEDIC/threads.sh" release
+  run ! grep -qxF medic-blocked "$STUB_LABELS"
 }
 
 @test "threads.sh records what it resolved for after.sh" {
@@ -987,6 +1099,19 @@ case "$*" in
     if [ -n "${STUB_PUSH_AFTER_GATE:-}" ]; then printf '%s\n' "$STUB_PUSH_AFTER_GATE" >"$STUB_HEAD_FILE"; fi
     ;;
   *unresolveReviewThread*) printf 'false\n' ;;
+  *"--add-label"*)
+    args="$*"
+    label=${args#*--add-label }
+    printf '%s\n' "${label%% *}" >>"$STUB_LABELS"
+    ;;
+  *"--remove-label"*)
+    args="$*"
+    label=${args#*--remove-label }
+    label=${label%% *}
+    grep -vxF "$label" "$STUB_LABELS" >"$STUB_LABELS.new" || true
+    mv "$STUB_LABELS.new" "$STUB_LABELS"
+    ;;
+  *"--json labels"*) cat "$STUB_LABELS" ;;
   *"pr merge"*) exit "${STUB_MERGE_STATUS:-0}" ;;
   *requested_reviewers*) exit "${STUB_REREQUEST_STATUS:-0}" ;;
 esac
@@ -1038,7 +1163,11 @@ SH
   RESOLVED_FILE="$BATS_TEST_TMPDIR/pr-medic-state/resolved.json"
   STUB_HEAD_FILE="$BATS_TEST_TMPDIR/moved-head"
   SKIP_LABEL=no-medic
-  export RESOLVED_FILE STUB_HEAD_FILE SKIP_LABEL
+  # threads.sh takes this before it resolves anything, and after.sh releases it at the end.
+  BLOCK_LABEL=medic-blocked
+  STUB_LABELS="$BATS_TEST_TMPDIR/labels"
+  : >"$STUB_LABELS"
+  export RESOLVED_FILE STUB_HEAD_FILE SKIP_LABEL BLOCK_LABEL STUB_LABELS
   # shellcheck source=/dev/null
   (cd "$WORK" && . "$MEDIC/lib.sh" && trusted_state) >"$TRUSTED_STATE_FILE"
 }

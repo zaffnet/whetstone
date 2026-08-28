@@ -13,7 +13,7 @@ def keep($skip; $required; $may_merge):
     # a write token are all present whatever repo the head came from. Fork support needs a
     # separate job that runs the untrusted code with no secrets.
     elif $p.isCrossRepository then false
-    elif ($skip | length) > 0 and (([$p.labels[]?.name] | index($skip)) != null) then false
+    elif ([$p.labels[]?.name] | any(IN($skip[]))) then false
     else
       # Work Claude can do. total_checks is deliberately absent: a head whose checks have not
       # registered yet may still be mergeable by the time the gate runs, and gate.jq has the
@@ -27,7 +27,9 @@ def keep($skip; $required; $may_merge):
       or ($may_merge and $approved and $p.autoMergeRequest == null)
     end;
 
-.skip_label as $skip
+# A list, not one name: the human skip label and the medic's own resolution block both refuse,
+# and an empty entry must not match a pull request with no labels.
+((.skip_label // "") | split(",") | map(select(length > 0))) as $skip
 | .approvals_required as $required
 | (.may_merge == true) as $may_merge
 | [.prs[] | select(keep($skip; $required; $may_merge)) | .view.number]

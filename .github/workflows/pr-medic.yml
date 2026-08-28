@@ -34,7 +34,10 @@ env:
   APPROVALS_REQUIRED: "0"
   MAY_MERGE: ${{ vars.PR_MEDIC_MAY_MERGE || 'false' }} # set the repo variable to "true"
   MERGE_METHOD: squash # squash | rebase | merge
-  SKIP_LABEL: no-medic
+  SKIP_LABEL: no-medic # a person saying leave this alone
+  # The medic's own: taken before it resolves a thread, lifted once the run has accounted for
+  # what it resolved. Separate from SKIP_LABEL so releasing it cannot clear a person's.
+  BLOCK_LABEL: medic-blocked
   REREQUEST_REVIEWERS: copilot-pull-request-reviewer[bot]
   # The medic's own login is added at runtime; see the `bot` step.
   TRIGGER_BOTS: copilot-pull-request-reviewer[bot],dependabot[bot]
@@ -132,7 +135,11 @@ jobs:
           client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           permission-contents: read
-          permission-pull-requests: write
+          # read: an explicit prompt selects the action's agent mode, which creates no tracking
+          # comment (src/modes/agent/index.ts sets claudeCommentId undefined, and the update at
+          # the end of run.ts is guarded on it), so nothing in this step needs to write. The
+          # model's replies are posted by threads.sh, in the gate step, with the App token.
+          permission-pull-requests: read
           permission-checks: read
           # read, not write: the action copies this token into the model's subprocess, and every
           # allowed command takes arguments -- `commit.sh "$GH_TOKEN"` would have published it in

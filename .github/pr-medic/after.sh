@@ -146,7 +146,7 @@ decision=$(jq -n \
   --argjson approvals "$(approval_count <<<"$view")" \
   --argjson required "$APPROVALS_REQUIRED" \
   --argjson may "${MAY_MERGE:-false}" \
-  --arg skip "${SKIP_LABEL:-}" \
+  --arg skip "${SKIP_LABEL:-},${BLOCK_LABEL:-}" \
   '{pr: $pr, unresolved: $unresolved, approvals: $approvals, approvals_required: $required,
     may_merge: $may, skip_label: $skip}' \
   | jq -c -L "$here" -f "$here/gate.jq")
@@ -179,5 +179,7 @@ case "$action" in
     }
     ;;
 esac
-# Merged on the head the gate judged, or still on it. Either way the resolutions stand.
+# Merged on the head the gate judged, or still on it. Either way the resolutions stand, so the
+# block threads.sh took before it resolved anything can come off.
 undo_resolutions_on_exit=0
+"$here/threads.sh" release

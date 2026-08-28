@@ -36,6 +36,16 @@ run_sha=$(jq -r .sha <<<"$run")
   echo "::error::run $run_id is on ${run_sha:0:7}, not PR #$PR's head ${head:0:7}"
   exit 1
 }
+# And one of this pull request's own checks. The sha alone is not enough: a release or
+# deployment workflow triggered by the same commit is on the same sha, `gh run list` is on the
+# model's allowlist so it can find one, and re-running that is a side effect nobody asked for.
+checks=$(gh pr view "$PR" --repo "$REPO" --json statusCheckRollup \
+  --jq '[.statusCheckRollup[]? | (.detailsUrl // "")
+         | (capture("/actions/runs/(?<id>[0-9]+)").id)?] | unique')
+[ "$(jq --argjson c "$checks" --arg i "$run_id" -n '$c | index($i) != null')" = true ] || {
+  echo "::error::run $run_id is not one of PR #$PR's checks"
+  exit 1
+}
 # Never this workflow. A medic re-running itself is a loop no gate result can end.
 case "$(jq -r .path <<<"$run")" in
   */pr-medic.yml)

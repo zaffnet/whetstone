@@ -14,13 +14,14 @@ include "lib";
 
 .pr as $p
 | ($p | check_counts) as $c
-| (.skip_label // "") as $skip
+# A list, not one name: the human skip label and the medic's own resolution block both refuse.
+| ((.skip_label // "") | split(",") | map(select(length > 0))) as $skip
 | if ($p.state | ascii_upcase) != "OPEN" then {action: "refuse", reason: "closed"}
   elif $p.isDraft then {action: "refuse", reason: "draft"}
   elif $p.isCrossRepository then {action: "refuse", reason: "fork"}
   # Re-read here, not just in pick: a label applied after pick has to stop the merge.
   # $skip, not .skip_label: inside the pipe below `.` is the label array, not the root.
-  elif ($skip | length) > 0 and (([$p.labels[]?.name] | index($skip)) != null) then
+  elif ([$p.labels[]?.name] | any(IN($skip[]))) then
     {action: "refuse", reason: "skip label"}
   # DIRTY is the conflicted value of mergeStateStatus. CONFLICTING belongs to the separate
   # mergeable field, which this workflow never asks for.

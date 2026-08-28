@@ -32,6 +32,29 @@ if [ -f "${GITHUB_EVENT_PATH:-}" ]; then
   esac
 fi
 
+# A bot's comment wakes the medic only if it is a bot we listen for. The medic's own replies are
+# review comments like any other -- threads.sh posts one whether or not the thread is resolved,
+# so a thread it decided not to resolve would wake it, be replied to again, and never stop. Its
+# own login is not in TRIGGER_BOTS, and Copilot's is, which is the difference that matters.
+case "$GITHUB_EVENT_NAME" in
+  pull_request_review | pull_request_review_comment | issue_comment)
+    author=$(event '[.comment.user.login, .review.user.login] | map(select(.)) | first // ""')
+    case $author in
+      *"[bot]")
+        listed=0
+        IFS=, read -r -a trigger_bots <<<"${TRIGGER_BOTS:-}"
+        for bot in ${trigger_bots[@]+"${trigger_bots[@]}"}; do
+          if [ "$bot" = "$author" ]; then listed=1; fi
+        done
+        if [ "$listed" = 0 ]; then
+          echo "::notice::$author is not in TRIGGER_BOTS; this event wakes nothing"
+          candidates=""
+        fi
+        ;;
+    esac
+    ;;
+esac
+
 state=$(mktemp)
 view=$(mktemp)
 while read -r pr; do
@@ -45,7 +68,7 @@ while read -r pr; do
 done <<<"$candidates"
 
 selected=$(jq -s -c \
-  --arg skip "${SKIP_LABEL:-}" \
+  --arg skip "${SKIP_LABEL:-},${BLOCK_LABEL:-}" \
   --argjson required "${APPROVALS_REQUIRED:-0}" \
   --argjson may "${MAY_MERGE:-false}" \
   '{prs: ., skip_label: $skip, approvals_required: $required, may_merge: $may}' "$state" \
