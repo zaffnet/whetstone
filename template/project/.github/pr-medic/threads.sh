@@ -90,7 +90,26 @@ dump() {
 
 comments_of() { jq -c --arg i "$1" '[.[] | select(.thread_id == $i) | .comments] | first'; }
 
+current_head() { gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid; }
+
+# Put back what this run resolved. Leaving a thread resolved against a head the gate never
+# judged is the failure that matters: the reply stays either way, but a resolved thread is
+# what the next run reads as satisfied, and it would merge on that.
+undo_resolutions() {
+  local id
+  for id in ${resolved_ids[@]+"${resolved_ids[@]}"}; do
+    # shellcheck disable=SC2016  # $threadId is a GraphQL variable.
+    gh api graphql -f threadId="$id" -f query='
+      mutation($threadId: ID!) {
+        unresolveReviewThread(input: {threadId: $threadId}) { thread { isResolved } }
+      }' >/dev/null || echo "::warning::thread $id could not be unresolved"
+  done
+}
+
 apply() {
+  # The head after.sh verified the checkout against. Resolving a thread is a claim about a
+  # specific head, so without it there is nothing to make the claim true.
+  : "${EXPECTED_HEAD:?}"
   # Claude wrote this file, so nothing in it is trusted. A malformed file is a failure rather
   # than a silent no-op: the gate is about to read "no unresolved threads" as ready to merge.
   jq -e 'type == "array"' "$REPLIES_FILE" >/dev/null || {
@@ -100,7 +119,8 @@ apply() {
   # Re-queried, not read back from THREADS_FILE: the model can write in that directory, so
   # the file it was handed is not evidence of anything once it has finished. This is the list
   # of threads that are open now, which is also the list that matters.
-  local threads known entry id reply body_file resolved=0 replied=0
+  local threads known entry id reply body_file fresh now was head resolved=0 replied=0
+  local resolved_ids=()
   threads=$(fetch_threads)
   # Open now *and* in the snapshot the model was given. Current alone would accept a thread
   # opened after dump, which the model never saw and cannot have an answer to.
@@ -134,27 +154,60 @@ apply() {
     # Resolving is the record that the code now satisfies the comment, so it is a separate
     # decision from replying and Claude has to ask for it.
     if [ "$(jq -r '.resolve // false' <<<"$entry")" = true ]; then
+      # Read again rather than reuse the list from the top of this function. Posting replies
+      # takes seconds, and a reviewer comment landing in that window would be invisible in the
+      # older list and marked satisfied along with everything else.
+      fresh=$(fetch_threads)
       # `last: 100` shows the most recent comments, so a truncated thread is one whose
       # beginning is missing. Replying to it is fine; recording it as satisfied is not.
-      if [ "$(jq -r --arg i "$id" '[.[] | select(.thread_id == $i) | .truncated] | first' <<<"$threads")" = true ]; then
+      if [ "$(jq -r --arg i "$id" '[.[] | select(.thread_id == $i) | .truncated] | first' <<<"$fresh")" = true ]; then
         echo "::error::thread $id has more than 100 comments; it cannot be resolved from a partial read"
+        undo_resolutions
         exit 1
       fi
-      # A reviewer can add a comment while the model works. Resolving then would mark that new
-      # comment satisfied as well, and the gate would go on to see no unresolved threads.
-      if [ "$(comments_of "$id" <<<"$threads")" != "$(comments_of "$id" <"$THREAD_SNAPSHOT")" ]; then
+      # A reviewer can add a comment while the model works, or while this loop runs. Resolving
+      # then would mark that comment satisfied too, and the gate would go on to see no
+      # unresolved threads. The one comment that is expected is the reply just posted, so the
+      # thread has to be the snapshot with exactly one appended -- which also catches a comment
+      # that arrived before the reply, because ours would no longer be the only addition.
+      now=$(comments_of "$id" <<<"$fresh")
+      was=$(comments_of "$id" <"$THREAD_SNAPSHOT")
+      if [ "$(jq -n --argjson now "$now" --argjson was "$was" \
+        '$now | length == (($was | length) + 1) and .[0:($was | length)] == $was')" != true ]; then
         echo "::error::thread $id changed while this run was in progress; not resolving it"
+        undo_resolutions
         exit 1
       fi
+      # The head the gate verified the checkout against. A push landing between that check and
+      # here would leave this thread resolved against code the gate never judged, and the next
+      # run reads a resolved thread as satisfied. Nothing makes the mutation atomic with this
+      # read, so the window is one call wide and a move seen later is undone below.
+      head=$(current_head)
+      [ "$head" = "$EXPECTED_HEAD" ] || {
+        echo "::error::PR #$PR moved to ${head:0:7} from ${EXPECTED_HEAD:0:7}; not resolving thread $id"
+        undo_resolutions
+        exit 1
+      }
       # shellcheck disable=SC2016  # $threadId is a GraphQL variable.
       gh api graphql -f threadId="$id" -f query='
         mutation($threadId: ID!) {
           resolveReviewThread(input: {threadId: $threadId}) { thread { isResolved } }
         }' >/dev/null
+      resolved_ids+=("$id")
       resolved=$((resolved + 1))
     fi
   done < <(jq -c '.[]' "$REPLIES_FILE")
   rm -f "$body_file"
+  # A push that lands after the last resolve is still a resolve against a head the gate did not
+  # judge, and no per-thread check can see it. Undo rather than leave it.
+  if [ "${#resolved_ids[@]}" -gt 0 ]; then
+    head=$(current_head)
+    [ "$head" = "$EXPECTED_HEAD" ] || {
+      echo "::error::PR #$PR moved to ${head:0:7} while threads were being resolved; undoing"
+      undo_resolutions
+      exit 1
+    }
+  fi
   printf -- '- PR #%s: replied to %s thread(s), resolved %s\n' \
     "$PR" "$replied" "$resolved" >>"${GITHUB_STEP_SUMMARY:-/dev/null}"
 }

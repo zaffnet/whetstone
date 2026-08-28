@@ -222,6 +222,19 @@ written before that arrived would mark the new comment satisfied too -- after wh
 sees no unresolved threads and merges. Replying to such a thread is still allowed; only the
 claim that the code now satisfies it is refused.
 
+That comparison reads the thread again immediately before each resolve, not once at the top of
+`apply`: posting replies takes seconds, and a comment landing in that window was invisible in
+the older list. Since the reply just posted is this run's own, the test is that the thread is
+the snapshot with exactly one comment appended, which also catches a comment that arrived
+before the reply -- ours would no longer be the only addition.
+
+Resolving is a claim about a particular head, so `after.sh` passes the head it verified and
+`apply` re-reads the live head before each resolve. Nothing can make the read atomic with the
+mutation, so the window is one call wide, and a move seen afterwards is compensated rather
+than left: `apply` unresolves every thread it resolved in that run and fails. A thread left
+resolved against a head the gate never judged is the state that matters, because the next run
+reads a resolved thread as satisfied and would merge on it.
+
 On `schedule`, `workflow_dispatch` and `workflow_run` the workflow file itself is trusted, so
 the copy in `RUNNER_TEMP` is what the gate runs and the chain holds. On an entity event the
 workflow file is the pull request's as well, so nothing written in the file can help: that is a

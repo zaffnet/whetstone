@@ -76,8 +76,10 @@ remote_head=$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid
 
 # Only now: the checkout is clean and matches the remote, so the fix the model is about to
 # claim in a reply is demonstrably on the head the gate will judge. Resolving a thread is not
-# reversible, so it happens after every check that could still stop this run.
-"$here/threads.sh" apply
+# reversible, so it happens after every check that could still stop this run. The head goes in
+# with it: the check above cannot cover the time apply spends posting, so apply re-reads the
+# head at each resolve and undoes its own work if the pull request moved under it.
+EXPECTED_HEAD=$remote_head "$here/threads.sh" apply
 
 # Only when this run pushed. Re-requesting on every wake leaves a review newer than the last
 # medic run by construction, which is a self-sustaining loop.

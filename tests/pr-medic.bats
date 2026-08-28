@@ -380,12 +380,22 @@ SH
   [ "$(printf '' | approvals_for)" = 0 ]
 }
 
+# `unresolveReviewThread` contains `resolveReviewThread`, so match the field rather than the
+# substring or an undo would read as a resolve.
+resolved_in_log() { grep -qE '(^|[^[:alpha:]])resolveReviewThread' "$GH_LOG"; }
+
 setup_threads() {
   export PR=7 REPO=o/r RUNNER_TEMP="$BATS_TEST_TMPDIR"
   export THREADS_FILE="$BATS_TEST_TMPDIR/threads.json"
   export REPLIES_FILE="$BATS_TEST_TMPDIR/replies.json"
   export GH_LOG="$BATS_TEST_TMPDIR/gh.log"
   : >"$GH_LOG"
+  # apply pins each resolve to the head after.sh verified, and re-reads it from the API.
+  export STUB_HEAD_FILE="$BATS_TEST_TMPDIR/head"
+  printf 'c0ffee1\n' >"$STUB_HEAD_FILE"
+  export EXPECTED_HEAD=c0ffee1
+  # The medic's own reply must not withhold the thread it was posted to.
+  export TRUSTED_BOTS='medic[bot]'
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   cat >"$BATS_TEST_TMPDIR/bin/gh" <<'SH'
 #!/usr/bin/env bash
@@ -395,6 +405,28 @@ case "$*" in
   *"comments(last"*) cat "$STUB_THREADS" ;;
   *collaborators/writer/permission*) printf 'write\n' ;;
   *collaborators/*/permission*) exit 1 ;; # not a collaborator at all: the API 404s
+  *"--json headRefOid"*) cat "$STUB_HEAD_FILE" ;;
+  *addPullRequestReviewThreadReply*)
+    # As the API would: the reply becomes the thread's last comment, which is what apply
+    # expects to find when it re-reads before resolving. STUB_INTERLOPER adds a reviewer
+    # comment alongside it, the race the re-read exists to catch.
+    # One string first: ${*#...} applies the removal to each positional parameter in turn.
+    args="$*"
+    id=${args#*threadId=}
+    id=${id%% *}
+    jq --arg i "$id" --arg extra "${STUB_INTERLOPER:-}" '
+      [.[] | if .thread_id == $i then
+          .comments += (if $extra == "" then [] else [{author: "writer", body: $extra}] end)
+                     + [{author: "medic[bot]", body: "a reply"}]
+        else . end]' "$STUB_THREADS" >"$STUB_THREADS.new"
+    mv "$STUB_THREADS.new" "$STUB_THREADS"
+    ;;
+  *unresolveReviewThread*) ;;
+  *resolveReviewThread*)
+    # STUB_PUSH_ON_RESOLVE is an author pushing the instant a thread is resolved: no
+    # per-resolve check can see it, so apply has to notice afterwards and undo.
+    if [ -n "${STUB_PUSH_ON_RESOLVE:-}" ]; then printf '%s\n' "$STUB_PUSH_ON_RESOLVE" >"$STUB_HEAD_FILE"; fi
+    ;;
 esac
 exit 0
 SH
@@ -416,7 +448,7 @@ SH
   printf '%s\n' '[{"thread_id":"T_known","reply":"fixed in abc1234","resolve":true}]' >"$REPLIES_FILE"
   "$MEDIC/threads.sh" apply
   grep -q 'addPullRequestReviewThreadReply' "$GH_LOG"
-  grep -q 'resolveReviewThread' "$GH_LOG"
+  resolved_in_log
 }
 
 @test "threads.sh replies without resolving when not asked" {
@@ -424,7 +456,7 @@ SH
   printf '%s\n' '[{"thread_id":"T_known","reply":"left alone because ..."}]' >"$REPLIES_FILE"
   "$MEDIC/threads.sh" apply
   grep -q 'addPullRequestReviewThreadReply' "$GH_LOG"
-  run ! grep -q 'resolveReviewThread' "$GH_LOG"
+  run ! resolved_in_log
 }
 
 # The model wrote this file, so an id it invented -- or one belonging to another pull request
@@ -434,7 +466,7 @@ SH
   printf '%s\n' '[{"thread_id":"T_elsewhere","reply":"x","resolve":true}]' >"$REPLIES_FILE"
   run "$MEDIC/threads.sh" apply
   [ "$status" -ne 0 ]
-  run ! grep -q 'resolveReviewThread' "$GH_LOG"
+  run ! resolved_in_log
 }
 
 # The model can write in the directory it is handed, so the file it was shown is not evidence
@@ -446,7 +478,7 @@ SH
   printf '%s\n' '[{"thread_id":"T_forged","reply":"x","resolve":true}]' >"$REPLIES_FILE"
   run "$MEDIC/threads.sh" apply
   [ "$status" -ne 0 ]
-  run ! grep -q 'resolveReviewThread' "$GH_LOG"
+  run ! resolved_in_log
 }
 
 # ... and the truncation flag is re-read too, not taken from the model's copy.
@@ -484,7 +516,7 @@ SH
   printf '%s\n' '[{"thread_id":"T_long","reply":"x","resolve":true}]' >"$REPLIES_FILE"
   run "$MEDIC/threads.sh" apply
   [ "$status" -ne 0 ]
-  run ! grep -q 'resolveReviewThread' "$GH_LOG"
+  run ! resolved_in_log
 }
 
 # trusted-state lives outside the directory --add-dir exposes, so the model cannot certify a
@@ -502,7 +534,7 @@ SH
   printf '%s\n' '[{"thread_id":"T_known","resolve":true}]' >"$REPLIES_FILE"
   run "$MEDIC/threads.sh" apply
   [ "$status" -ne 0 ]
-  run ! grep -q 'resolveReviewThread' "$GH_LOG"
+  run ! resolved_in_log
 }
 
 # A malformed file is a failure, not a no-op: the gate is about to read "no unresolved
@@ -523,7 +555,7 @@ SH
   printf '%s\n' '[{"thread_id":"T_long","reply":"x","resolve":true}]' >"$REPLIES_FILE"
   run "$MEDIC/threads.sh" apply
   [ "$status" -ne 0 ]
-  run ! grep -q 'resolveReviewThread' "$GH_LOG"
+  run ! resolved_in_log
 }
 
 @test "threads.sh still replies to a thread it could only read in part" {
@@ -545,7 +577,7 @@ SH
   printf '%s\n' '[{"thread_id":"T_known","reply":"done","resolve":true}]' >"$REPLIES_FILE"
   run "$MEDIC/threads.sh" apply
   [ "$status" -ne 0 ]
-  run ! grep -q 'resolveReviewThread' "$GH_LOG"
+  run ! resolved_in_log
 }
 
 @test "threads.sh still replies to a thread that changed mid-run" {
@@ -608,6 +640,55 @@ SH
   printf '%s\n' '[{"thread_id":"T_ghost","path":"a.py","line":1,"comments":[{"author":null,"body":"x"}]}]' >"$STUB_THREADS"
   "$MEDIC/threads.sh" dump
   [ "$(jq length "$THREADS_FILE")" = 0 ]
+}
+
+# The list at the top of apply is read before any reply is posted, and posting takes seconds.
+# A reviewer comment arriving in that window was invisible to the old comparison and got marked
+# satisfied along with everything else, after which the gate saw no unresolved threads.
+@test "threads.sh will not resolve a thread a reviewer commented on mid-apply" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
+  STUB_INTERLOPER="wait, one more thing" run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  run ! resolved_in_log
+}
+
+# Resolving is a claim about a specific head. after.sh verifies the checkout against the remote
+# head and hands it over; a push landing between that check and the mutation would leave the
+# thread resolved against code the gate never judged, and the next run reads it as satisfied.
+@test "threads.sh will not resolve when the PR head moved" {
+  setup_threads
+  printf 'deadbee\n' >"$STUB_HEAD_FILE"
+  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
+  run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  run ! resolved_in_log
+  # The reply is not the problem and stands: it is the record of what this run did.
+  grep -q 'addPullRequestReviewThreadReply' "$GH_LOG"
+}
+
+# A push the instant a resolve lands is past every per-resolve check, so the only correct
+# answer is to notice afterwards and put it back.
+@test "threads.sh undoes its resolutions when the head moves as they land" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
+  STUB_PUSH_ON_RESOLVE=deadbee run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  resolved_in_log # it did resolve, before the push was visible
+  grep -q 'unresolveReviewThread' "$GH_LOG"
+}
+
+@test "threads.sh apply will not run without the head to pin resolutions to" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed","resolve":true}]' >"$REPLIES_FILE"
+  run env -u EXPECTED_HEAD "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  run ! resolved_in_log
+}
+
+@test "after.sh hands apply the head it verified" {
+  # shellcheck disable=SC2016  # grepping for the literal.
+  grep -qF 'EXPECTED_HEAD=$remote_head "$here/threads.sh" apply' "$MEDIC/after.sh"
 }
 
 @test "threads.sh apply is a no-op when the model wrote nothing" {
