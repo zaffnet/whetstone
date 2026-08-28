@@ -314,6 +314,28 @@ WRITES
   # And nothing was pruned on the way out: an interrupted batch must not delete anything.
   run ! grep -q '^delete' "$log"
 
+  # Copilot on #39: the key file is replaced, not truncated and rewritten. A rewrite that
+  # dies halfway would forget the carried keys permanently, so a failing rename must leave
+  # the previous list untouched rather than an empty or half-written file.
+  atomic="$BATS_TEST_TMPDIR/h7"
+  mkdir -p "$atomic"
+  # Finder is the first domain, so its rewrite is the one the failing rename catches.
+  keys7="$atomic/.local/state/whetstone/macos-finder-managed-keys.txt"
+  run env PATH="$stub:$PATH" HOME="$atomic" FAKE_ITERM_RUNNING=false \
+    DEFAULTS_LOG="$BATS_TEST_TMPDIR/w7a.log" bash "$script"
+  [ "$status" -eq 0 ]
+  before="$(cat "$keys7")"
+  [ -n "$before" ]
+  printf '#!/usr/bin/env bash\nexit 1\n' >"$stub/mv"
+  chmod +x "$stub/mv"
+  run env PATH="$stub:$PATH" HOME="$atomic" FAKE_ITERM_RUNNING=false \
+    DEFAULTS_LOG="$BATS_TEST_TMPDIR/w7b.log" bash "$script"
+  [ "$status" -ne 0 ]
+  [ "$(cat "$keys7")" = "$before" ]
+  # And no half-written temporary file is left behind for the next apply to trip over.
+  [ "$(find "$(dirname "$keys7")" -name 'macos-finder-managed-keys.txt.*' | wc -l)" -eq 0 ]
+  rm -f "$stub/mv"
+
   # Retiring the last setting of a domain must not abort: an empty array under `set -u` is
   # an unbound variable on bash 3.2, which would take the whole apply down.
   empty="$BATS_TEST_TMPDIR/empty.sh"

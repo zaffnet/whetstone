@@ -117,10 +117,25 @@ prune_retired_defaults_keys() {
     done <"$keys_file"
   fi
 
+  # Replaced, never truncated in place. Redirecting onto the file empties it before the new
+  # list is written, and a failure in between -- a full disk, an interrupted apply -- would
+  # lose the carried keys for good: nothing else records that this repository wrote them, so
+  # their values would sit on the machine with no later apply knowing to delete them. The
+  # temporary file is in the same directory so the rename is on one filesystem, hence atomic.
+  #
   # ${arr[@]+...} throughout: bash 3.2, the system bash here, treats an empty array as
   # unset under `set -u`, so retiring a domain's last setting would abort the script.
-  printf '%s\n' ${current_keys[@]+"${current_keys[@]}"} ${carry[@]+"${carry[@]}"} \
-    >"$keys_file"
+  local pending_file
+  pending_file="$(mktemp "$keys_file.XXXXXX")"
+  if ! printf '%s\n' ${current_keys[@]+"${current_keys[@]}"} ${carry[@]+"${carry[@]}"} \
+    >"$pending_file"; then
+    rm -f "$pending_file"
+    return 1
+  fi
+  if ! mv "$pending_file" "$keys_file"; then
+    rm -f "$pending_file"
+    return 1
+  fi
 }
 
 apply_managed_defaults() {
