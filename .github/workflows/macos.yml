@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # uv: tests/home.bats parses TOML through it, because the system python3 on macOS
       # has no tomllib. A real machine gets uv from the Brewfile.
-      - run: brew install chezmoi bats-core jq uv
+      - run: brew install chezmoi bats-core jq uv shellcheck
       - name: Write the chezmoi config
         env:
           ROLE: ${{ matrix.role }}
@@ -45,6 +45,9 @@ jobs:
         env:
           ROLE: ${{ matrix.role }}
         run: |
+          # pipefail, or the pipe swallows bats' exit status and the whole suite becomes
+          # unable to fail this job -- which is how a failing pr-medic case shipped green.
+          set -o pipefail
           bats --formatter tap tests/ | tee /tmp/tap.txt
           # tests/home.bats states which conditions skip a case. Pinning the set here is
           # what keeps that honest: a skip nobody declared is the shape that let the
