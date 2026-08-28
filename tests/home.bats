@@ -210,6 +210,11 @@ STUB
   cat >"$stub/defaults" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >>"$DEFAULTS_LOG"
+case "$1" in
+  delete) [ -z "${DELETE_FAILS:-}" ] || exit 1 ;;
+  read) [ -n "${KEY_STILL_THERE:-}" ] || exit 1 ;;
+esac
+exit 0
 STUB
   chmod +x "$stub/osascript" "$stub/defaults"
 
@@ -272,6 +277,35 @@ STUB
   grep -qFx 'delete com.googlecode.iterm2 ShowFullScreenTabBar' "$log"
   # Only the retired one: pruning must not reach a key the script still manages.
   [ "$(grep -c '^delete' "$log")" -eq 1 ]
+
+  # A delete can fail for reasons that will not hold next time -- the domain locked by a
+  # running app, a preferences daemon mid-write. Forgetting the key then would strand the
+  # retired value forever, because no later apply would know it had been managed. It stays
+  # tracked while it is still present, and is forgotten only once it is gone.
+  stuck="$BATS_TEST_TMPDIR/state-stuck"
+  mkdir -p "$stuck"
+  log="$BATS_TEST_TMPDIR/prune-stuck-1.log"
+  : >"$log"
+  run env PATH="$stub:$PATH" HOME="$stuck" FAKE_ITERM_RUNNING=false DEFAULTS_LOG="$log" \
+    bash "$iterm_script"
+  [ "$status" -eq 0 ]
+
+  keys="$stuck/.local/state/whetstone/macos-iterm2-managed-keys.txt"
+  log="$BATS_TEST_TMPDIR/prune-stuck-2.log"
+  : >"$log"
+  run env PATH="$stub:$PATH" HOME="$stuck" FAKE_ITERM_RUNNING=false DEFAULTS_LOG="$log" \
+    DELETE_FAILS=1 KEY_STILL_THERE=1 bash "$retired"
+  [ "$status" -eq 0 ]
+  grep -qFx 'ShowFullScreenTabBar' "$keys"
+
+  # Next apply, the delete works: it is retried, and only then dropped from the state.
+  log="$BATS_TEST_TMPDIR/prune-stuck-3.log"
+  : >"$log"
+  run env PATH="$stub:$PATH" HOME="$stuck" FAKE_ITERM_RUNNING=false DEFAULTS_LOG="$log" \
+    bash "$retired"
+  [ "$status" -eq 0 ]
+  grep -qFx 'delete com.googlecode.iterm2 ShowFullScreenTabBar' "$log"
+  run ! grep -qFx 'ShowFullScreenTabBar' "$keys"
 
   # Finder's search scope and new-window target, plus the two hot corners with modifiers:
   # an unset modifier is not the same as zero.

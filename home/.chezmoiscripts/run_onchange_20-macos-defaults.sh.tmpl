@@ -3,12 +3,10 @@
 # build version below changes (Apple resets some preferences on major updates).
 # macOS build: {{ output "sw_vers" "--buildVersion" | trim }}
 #
-# Removing a setting is two steps, as it is for the Cursor settings script: delete the line
-# here, then run `defaults delete` once on each machine. `defaults write` only writes, so a
-# line that goes leaves its last value behind. A tombstone list would automate the second
-# step and cost more than it saves -- it has to persist per machine, and it would delete a
-# value the owner had since set by hand, which is exactly the surprise the preserve-what-we
-# -do-not-own rule elsewhere in this tree exists to avoid.
+# Removing a setting is one step: delete the line. `defaults write` only writes, so the
+# value would otherwise sit on every machine that ever applied it. The managed-key state
+# below records what this script owns, and a key that leaves the list is deleted from the
+# domain on the next apply. Keys the repository never wrote are untouched.
 set -euo pipefail
 
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/whetstone"
@@ -40,6 +38,12 @@ prune_retired_defaults_keys() {
 
   mkdir -p "$(dirname "$keys_file")"
 
+  # Keys still owed a deletion after this run. A `defaults delete` can fail for reasons
+  # that will not be true next time -- the domain locked by a running app, a preferences
+  # daemon mid-write -- and dropping the key from the state on that failure would forget it
+  # for good: no later apply would know it had ever been managed, so the retired value
+  # would sit on the machine forever. A key is only forgotten once it is gone.
+  local carry=()
   if [ -f "$keys_file" ]; then
     while IFS= read -r previous_key; do
       [ -n "$previous_key" ] || continue
@@ -52,14 +56,23 @@ prune_retired_defaults_keys() {
           break
         fi
       done
+      [ "$still_managed" -ne 0 ] || continue
 
-      if [ "$still_managed" -ne 0 ]; then
-        defaults delete "$domain" "$previous_key" 2>/dev/null || true
+      if defaults delete "$domain" "$previous_key" 2>/dev/null; then
+        continue
+      fi
+      # Delete also fails when the key is already absent, which is the outcome wanted, so
+      # carry it only when it is still there.
+      if defaults read "$domain" "$previous_key" >/dev/null 2>&1; then
+        carry+=("$previous_key")
       fi
     done <"$keys_file"
   fi
 
-  printf '%s\n' "${current_keys[@]}" >"$keys_file"
+  # ${carry[@]+...} because bash 3.2, the system bash here, treats an empty array as unset
+  # under `set -u`.
+  printf '%s
+' "${current_keys[@]}" ${carry[@]+"${carry[@]}"} >"$keys_file"
 }
 
 # Keyboard: fast repeat, no press-and-hold accent popup (matters in editors).
