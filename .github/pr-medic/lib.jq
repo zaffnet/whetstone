@@ -37,16 +37,3 @@ def check_counts:
       failing: (map(select(. == "fail")) | length),
       pending: (map(select(. == "pending")) | length)
     };
-
-# An approval is an APPROVED review by someone with write access. authorAssociation
-# excludes Copilot, which reviews as NONE, by construction, and also excludes the drive-by
-# approval any authenticated account can leave on a public repository. Input: latestReviews.
-def approvals:
-  [
-    .[]?
-    | select(.state == "APPROVED")
-    | select((.authorAssociation // "") | ascii_upcase | IN("OWNER", "MEMBER", "COLLABORATOR"))
-    | .author.login
-  ]
-  | unique
-  | length;

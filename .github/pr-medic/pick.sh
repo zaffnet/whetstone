@@ -33,11 +33,15 @@ if [ -f "${GITHUB_EVENT_PATH:-}" ]; then
 fi
 
 state=$(mktemp)
+view=$(mktemp)
 while read -r pr; do
   [ -n "$pr" ] || continue
   gh pr view "$pr" --repo "$REPO" \
     --json number,state,isDraft,isCrossRepository,labels,mergeStateStatus,autoMergeRequest,latestReviews,statusCheckRollup \
-    | jq -c --argjson unresolved "$(unresolved_threads "$pr")" '{view: ., unresolved: $unresolved}' >>"$state"
+    >"$view"
+  jq -c --argjson unresolved "$(unresolved_threads "$pr")" \
+    --argjson approvals "$(approval_count <"$view")" \
+    '{view: ., unresolved: $unresolved, approvals: $approvals}' <"$view" >>"$state"
 done <<<"$candidates"
 
 selected=$(jq -s -c \

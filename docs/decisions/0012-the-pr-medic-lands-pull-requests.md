@@ -90,8 +90,9 @@ review thread needs `gh api graphql` and there is no narrower form of that comma
 same command approves and merges. So the model no longer touches the threads directly:
 `.github/pr-medic/threads.sh dump` writes the unresolved threads to a file, the model writes
 `[{thread_id, reply, resolve}]` to another, and `apply` performs the replies in bash. It
-accepts only thread IDs that `dump` captured, requires a reply on every entry, and treats a
-malformed file as a failure rather than as nothing to do. Both files live under `RUNNER_TEMP`
+accepts only thread IDs that `dump` captured, requires a reply on every entry, refuses to
+resolve a thread whose comments `dump` could only read in part, and treats a malformed file as
+a failure rather than as nothing to do. Both files live under `RUNNER_TEMP`
 and the model reaches them through `--add-dir`, because a file written inside the worktree
 would trip the clean-worktree check in `after.sh`.
 

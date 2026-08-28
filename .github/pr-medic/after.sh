@@ -8,9 +8,18 @@ here=$(dirname "$0")
 # shellcheck source=.github/pr-medic/lib.sh
 . "$here/lib.sh"
 
-# First: the model answered the review threads into a file, and this posts them. It has to
-# happen before the gate counts unresolved threads below.
-"$here/threads.sh" apply
+# Before anything irreversible: a fix that was never committed is not on the remote, and
+# resolving a thread for it would leave the next run reading "no unresolved threads" as ready
+# to merge. This is also why the rebase below is not attempted on a dirty tree.
+# Excluding TRUSTED_PATHS: trust-config.sh reverted those to the default branch's copies, so
+# a pull request that legitimately edits CLAUDE.md or .claude/ shows up here as a difference
+# it did not make. Reading that as an uncommitted fix would reject exactly those PRs.
+untracked=()
+for p in "${TRUSTED_PATHS[@]}"; do untracked+=(":(exclude)$p"); done
+[ -z "$(git status --porcelain -- . "${untracked[@]}")" ] || {
+  echo "::error::PR #$PR: the worktree is not clean, so a change here was never committed"
+  exit 1
+}
 
 repo=$(gh api "repos/$REPO" --jq '{default_branch, allow_auto_merge}')
 default_branch=$(jq -r .default_branch <<<"$repo")
@@ -33,18 +42,19 @@ case "$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq .mergeState
     ;;
 esac
 
-# The gate judges the remote head. A fix that was never committed, or never pushed, is not
-# in it -- and remote state alone cannot tell that apart from a run that finished cleanly.
-[ -z "$(git status --porcelain)" ] || {
-  echo "::error::PR #$PR: the worktree is not clean, so a change here was never committed"
-  exit 1
-}
+# The gate judges the remote head, and remote state alone cannot tell a finished run apart
+# from one that committed a fix and never pushed it.
 head_now=$(git rev-parse HEAD)
 remote_head=$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid)
 [ "$head_now" = "$remote_head" ] || {
   echo "::error::PR #$PR: the checkout is at ${head_now:0:7} but the PR head is ${remote_head:0:7}"
   exit 1
 }
+
+# Only now: the checkout is clean and matches the remote, so the fix the model is about to
+# claim in a reply is demonstrably on the head the gate will judge. Resolving a thread is not
+# reversible, so it happens after every check that could still stop this run.
+"$here/threads.sh" apply
 
 # Only when this run pushed. Re-requesting on every wake leaves a review newer than the last
 # medic run by construction, which is a self-sustaining loop.
@@ -60,10 +70,11 @@ view=$(gh pr view "$PR" --repo "$REPO" \
 decision=$(jq -n \
   --argjson pr "$view" \
   --argjson unresolved "$(unresolved_threads "$PR")" \
+  --argjson approvals "$(approval_count <<<"$view")" \
   --argjson required "$APPROVALS_REQUIRED" \
   --argjson arm "$ARM_AUTO_MERGE" \
   --argjson auto "$(jq .allow_auto_merge <<<"$repo")" \
-  '{pr: $pr, unresolved: $unresolved, approvals_required: $required,
+  '{pr: $pr, unresolved: $unresolved, approvals: $approvals, approvals_required: $required,
     arm_auto_merge: $arm, allow_auto_merge: $auto}' \
   | jq -c -L "$here" -f "$here/gate.jq")
 action=$(jq -r .action <<<"$decision")

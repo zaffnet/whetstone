@@ -1,12 +1,12 @@
 # Which of these pull requests can the medic help? Input:
-#   {prs: [{view, unresolved}], skip_label, approvals_required, arm_auto_merge}
+#   {prs: [{view, unresolved, approvals}], skip_label, approvals_required, arm_auto_merge}
 # where `view` is `gh pr view --json` output. Result: an array of PR numbers.
 include "lib";
 
 def keep($skip; $required; $arm):
   .view as $p
   | ($p | check_counts) as $c
-  | ((($p.latestReviews | approvals)) >= $required) as $approved
+  | (.approvals >= $required) as $approved
   | if ($p.state | ascii_upcase) != "OPEN" then false
     elif $p.isDraft then false
     # Every trigger runs in the base-repo context, so the App key, the Claude credential and

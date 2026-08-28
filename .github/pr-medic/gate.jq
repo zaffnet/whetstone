@@ -1,5 +1,7 @@
 # May the medic land this pull request? Input:
-#   {pr, unresolved, approvals_required, arm_auto_merge, allow_auto_merge}
+#   {pr, unresolved, approvals, approvals_required, arm_auto_merge, allow_auto_merge}
+# `approvals` is counted by approval_count in lib.sh, which asks for push access rather than
+# trusting authorAssociation.
 # where `pr` is `gh pr view --json` output. Result: {action, reason}, one of
 # refuse (do not touch it), wait (come back later), noop, arm (hand the merge to GitHub) or
 # merge (for a repo with auto-merge switched off). The branch order is the design.
@@ -18,8 +20,7 @@ include "lib";
   # push used GITHUB_TOKEN. Reading it as green merges a commit nothing has tested.
   elif $c.total == 0 then {action: "refuse", reason: "no checks on this head"}
   elif $c.failing > 0 then {action: "refuse", reason: "failing checks"}
-  elif ($p.latestReviews | approvals) < .approvals_required then
-    {action: "wait", reason: "approvals"}
+  elif .approvals < .approvals_required then {action: "wait", reason: "approvals"}
   elif .arm_auto_merge != true then {action: "wait", reason: "ARM_AUTO_MERGE false"}
   # After the switch, not before it: an armed PR that ignored ARM_AUTO_MERGE would keep a
   # kill switch from doing anything, because GitHub merges on required checks alone.

@@ -19,7 +19,10 @@ unresolved review threads, and `replies.json`, which you write.
 3. For each failing check, read `gh run view --log-failed` and fix the cause. Never disable a
    check or weaken a rule. Re-run instead (`gh run rerun --failed RUN_ID`) when the failure is
    infrastructural.
-4. Commit and push. git user.name and user.email are already set.
+4. Commit and push. git user.name and user.email are already set. Stage the files you
+   changed, never `git add -A`: `.claude/`, `CLAUDE.md`, `.mcp.json` and `.husky` in this
+   checkout have been reset to the default branch's copies for safety, and staging them would
+   commit that reset onto the author's branch.
 5. Last, because a push dismisses approvals: if the branch conflicts with the default branch,
    rebase onto it, resolve the conflicts, and push --force-with-lease. If you cannot resolve
    them, `git rebase --abort` and say so in a reply.

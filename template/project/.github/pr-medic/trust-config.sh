@@ -8,12 +8,11 @@
 # reads them before any tool-permission gating -- SessionStart hooks, MCP servers, env vars
 # such as NODE_OPTIONS and LD_PRELOAD, apiKeyHelper commands -- while a write token and the
 # Anthropic credential are present.
-#
-# The list mirrors SENSITIVE_PATHS in that file. If upstream adds a path, this restores one
-# fewer than it should, so re-check it when bumping the action.
 set -euo pipefail
 
-paths=(.claude .mcp.json .claude.json .gitmodules .ripgreprc CLAUDE.md CLAUDE.local.md .husky)
+# shellcheck source=.github/pr-medic/lib.sh
+. "$(dirname "$0")/lib.sh"
+paths=("${TRUSTED_PATHS[@]}")
 default_branch=$(gh api "repos/$REPO" --jq .default_branch)
 
 # Delete before fetching: an attacker-controlled .gitmodules is read during fetch under the

@@ -26,7 +26,7 @@ dump() {
           reviewThreads(first: 100) {
             nodes {
               id isResolved isOutdated path line
-              comments(first: 20) { nodes { author { login } body } }
+              comments(last: 100) { totalCount nodes { author { login } body } }
             }
           }
         }
@@ -34,6 +34,7 @@ dump() {
     }' --jq '[.data.repository.pullRequest.reviewThreads.nodes[]
               | select(.isResolved == false)
               | {thread_id: .id, path, line, outdated: .isOutdated,
+                 truncated: (.comments.totalCount > 100),
                  comments: [.comments.nodes[] | {author: .author.login, body}]}]' >"$THREADS_FILE"
   printf '[]\n' >"$REPLIES_FILE"
   printf 'Wrote %s unresolved thread(s) to %s\n' "$(jq length "$THREADS_FILE")" "$THREADS_FILE"
@@ -76,6 +77,12 @@ apply() {
     # Resolving is the record that the code now satisfies the comment, so it is a separate
     # decision from replying and Claude has to ask for it.
     if [ "$(jq -r '.resolve // false' <<<"$entry")" = true ]; then
+      # `last: 100` shows the most recent comments, so a truncated thread is one whose
+      # beginning is missing. Replying to it is fine; recording it as satisfied is not.
+      if [ "$(jq -r --arg i "$id" '[.[] | select(.thread_id == $i) | .truncated] | first' "$THREADS_FILE")" = true ]; then
+        echo "::error::thread $id has more than 100 comments; it cannot be resolved from a partial read"
+        exit 1
+      fi
       # shellcheck disable=SC2016  # $threadId is a GraphQL variable.
       graphql -f threadId="$id" -f query='
         mutation($threadId: ID!) {

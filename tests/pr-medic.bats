@@ -115,9 +115,14 @@ JSON
 @test "trusted config is restored before Claude runs" {
   local wf="$REPO/.github/workflows/pr-medic.yml"
   # The order matters: after the checkout, before the Claude step.
-  at() { grep -n "$1" "$wf" | head -1 | cut -d: -f1; }
-  [ "$(at 'gh pr checkout')" -lt "$(at 'trust-config.sh')" ]
-  [ "$(at 'trust-config.sh')" -lt "$(at 'Run Claude Code')" ]
+  # Anchored on the commands, not on prose: matching the first occurrence of the bare name
+  # picked up the comment above the step, so moving the command itself left this green.
+  at() { grep -nE "$1" "$wf" | head -1 | cut -d: -f1; }
+  [ "$(at '^ +gh pr checkout ')" -lt "$(at '^ +\.github/pr-medic/trust-config\.sh$')" ]
+  [ "$(at '^ +\.github/pr-medic/trust-config\.sh$')" -lt "$(at '^ +- name: Run Claude Code$')" ]
+  # And the medic's own scripts are taken from the default branch before any of them runs.
+  [ "$(at '^ +git checkout .origin/.base. -- \.github/pr-medic')" -lt \
+    "$(at '^ +\.github/pr-medic/trust-config\.sh$')" ]
   # And no settings file is read out of the checkout.
   run ! grep -q 'settings: \.github' "$wf"
   run ! grep -q 'settings: \.github' "$REPO/.github/workflows/claude.yml"
@@ -127,11 +132,15 @@ JSON
   # Mirrors SENSITIVE_PATHS in claude-code-action's restore-config.ts. If upstream adds one,
   # this restores fewer than it should; re-check when bumping the pinned SHA.
   local got
-  got=$(sed -n 's/^paths=(\(.*\))$/\1/p' "$MEDIC/trust-config.sh")
+  got=$(sed -n 's/^TRUSTED_PATHS=(\(.*\))$/\1/p' "$MEDIC/lib.sh")
   [ "$got" = ".claude .mcp.json .claude.json .gitmodules .ripgreprc CLAUDE.md CLAUDE.local.md .husky" ] || {
-    echo "trust-config paths drifted: $got" >&2
+    echo "TRUSTED_PATHS drifted: $got" >&2
     return 1
   }
+  # One list, two readers: trust-config.sh reverts these, so after.sh must not read the
+  # difference as an uncommitted fix and reject the PR that legitimately edited one.
+  grep -q 'TRUSTED_PATHS\[@\]' "$MEDIC/trust-config.sh"
+  grep -q 'TRUSTED_PATHS\[@\]' "$MEDIC/after.sh"
 }
 
 # threads.sh replaces `gh api graphql` on the tool allowlist: that was the last command left
@@ -157,6 +166,64 @@ JSON
   # And denied outright in both workflows, since deny beats allow.
   grep -qF 'Bash(gh api:*)' "$REPO/.github/workflows/pr-medic.yml"
   grep -qF 'Bash(gh api:*)' "$REPO/.github/workflows/claude.yml"
+}
+
+# Resolving a thread is not reversible. If it happened before the runner checks, a run that
+# exits on an unpushed fix would leave the next one reading "no unresolved threads" as ready to
+# merge -- the exact partial-run state the gate exists to catch.
+@test "threads are resolved only after the checks that can still stop the run" {
+  at() { grep -nE "$1" "$MEDIC/after.sh" | head -1 | cut -d: -f1; }
+  [ "$(at 'git status --porcelain')" -lt "$(at 'threads\.sh" apply')" ]
+  [ "$(at 'remote_head=')" -lt "$(at 'threads\.sh" apply')" ]
+  # The invocation, not the bare name: the bare name matched the header comment on line 2.
+  [ "$(at 'threads\.sh" apply')" -lt "$(at 'jq .* -f .*gate\.jq')" ]
+}
+
+# authorAssociation is not a permission check: MEMBER only means org membership, whose base
+# role may be Read, and a collaborator can hold Read or Triage. So the count asks for the
+# permission. It excluded Copilot before, but only by accident.
+# approval_count LOGIN:STATE ... -> the count, against a stub permission API.
+# Arguments rather than hand-built JSON: quoting a nested object inside a bats assertion is
+# its own source of bugs, and jq -n cannot get it wrong.
+approvals_for() {
+  local reviews
+  reviews=$(printf '%s\n' "$@" | jq -R -s -c '
+    split("\n") | map(select(length > 0) | split(":"))
+    | {latestReviews: map({author: {login: .[0]}, state: (.[1] // "APPROVED")})}')
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  cat >"$BATS_TEST_TMPDIR/bin/gh" <<'SH'
+#!/usr/bin/env bash
+case "$*" in
+  *collaborators/writer/permission*) printf 'write\n' ;;
+  *collaborators/owner/permission*) printf 'admin\n' ;;
+  *collaborators/reader/permission*) printf 'read\n' ;;
+  *collaborators/triager/permission*) printf 'read\n' ;;
+  *) exit 1 ;; # not a collaborator at all: the API 404s
+esac
+SH
+  chmod +x "$BATS_TEST_TMPDIR/bin/gh"
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH" REPO=o/r bash -c \
+    ". '$MEDIC/lib.sh'; approval_count" <<<"$reviews"
+}
+
+@test "approval_count counts push access, not association" {
+  [ "$(approvals_for writer)" = 1 ]
+  [ "$(approvals_for owner)" = 1 ]
+  # Read and Triage roles cannot push, so their approval must not satisfy the gate.
+  [ "$(approvals_for reader)" = 0 ]
+  [ "$(approvals_for triager)" = 0 ]
+  # Copilot reviews as a non-collaborator, so the permission lookup 404s. The old
+  # authorAssociation test excluded it too, but only by accident.
+  [ "$(approvals_for copilot-pull-request-reviewer)" = 0 ]
+}
+
+@test "approval_count ignores non-approvals and counts a login once" {
+  [ "$(approvals_for writer:CHANGES_REQUESTED)" = 0 ]
+  [ "$(approvals_for writer:COMMENTED)" = 0 ]
+  [ "$(approvals_for writer writer)" = 1 ]
+  [ "$(approvals_for writer owner)" = 2 ]
+  [ "$(approvals_for writer:APPROVED reader:APPROVED)" = 1 ]
+  [ "$(printf '' | approvals_for)" = 0 ]
 }
 
 setup_threads() {
@@ -218,6 +285,25 @@ SH
   printf 'not json\n' >"$REPLIES_FILE"
   run "$MEDIC/threads.sh" apply
   [ "$status" -ne 0 ]
+}
+
+# `last: 100` shows the newest comments, so a truncated thread is one whose beginning is
+# missing. Replying is fine; recording it as satisfied is not.
+@test "threads.sh will not resolve a thread it could only read in part" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_long","path":"a.py","line":1,"truncated":true,"comments":[]}]' >"$THREADS_FILE"
+  printf '%s\n' '[{"thread_id":"T_long","reply":"x","resolve":true}]' >"$REPLIES_FILE"
+  run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  run ! grep -q 'resolveReviewThread' "$GH_LOG"
+}
+
+@test "threads.sh still replies to a thread it could only read in part" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_long","path":"a.py","line":1,"truncated":true,"comments":[]}]' >"$THREADS_FILE"
+  printf '%s\n' '[{"thread_id":"T_long","reply":"partial read, leaving open"}]' >"$REPLIES_FILE"
+  "$MEDIC/threads.sh" apply
+  grep -q 'addPullRequestReviewThreadReply' "$GH_LOG"
 }
 
 @test "threads.sh apply is a no-op when the model wrote nothing" {
@@ -303,6 +389,18 @@ commit_and_push() {
 
 @test "the gate merges when the checkout is clean and matches the PR head" {
   setup_after
+  run_after
+  grep -q 'pr merge' "$GH_LOG"
+}
+
+# trust-config.sh reverts CLAUDE.md and friends to the default branch's copies, so a PR that
+# legitimately edits one leaves the worktree differing from its head. Reading that as an
+# uncommitted fix would reject exactly those pull requests.
+@test "the gate ignores the config trust-config.sh reverted" {
+  setup_after
+  echo "edited by the PR" >"$WORK/CLAUDE.md"
+  mkdir -p "$WORK/.claude"
+  echo '{}' >"$WORK/.claude/settings.json"
   run_after
   grep -q 'pr merge' "$GH_LOG"
 }

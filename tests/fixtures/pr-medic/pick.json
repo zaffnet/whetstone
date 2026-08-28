@@ -19,12 +19,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -32,7 +33,8 @@
             "autoMergeRequest": null,
             "number": 1
           },
-          "unresolved": 1
+          "unresolved": 1,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -53,12 +55,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "TIMED_OUT"
               }
@@ -66,7 +69,8 @@
             "autoMergeRequest": null,
             "number": 2
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -87,12 +91,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "BEHIND",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -100,7 +105,8 @@
             "autoMergeRequest": null,
             "number": 3
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -121,12 +127,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "DIRTY",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -134,7 +141,8 @@
             "autoMergeRequest": null,
             "number": 4
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -155,12 +163,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -168,7 +177,8 @@
             "autoMergeRequest": null,
             "number": 5
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -189,13 +199,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [],
             "autoMergeRequest": null,
             "number": 6
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -216,12 +226,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -231,7 +242,8 @@
             },
             "number": 7
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -250,12 +262,13 @@
             "isDraft": true,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -263,7 +276,8 @@
             "autoMergeRequest": null,
             "number": 8
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -282,12 +296,13 @@
             "isDraft": false,
             "isCrossRepository": true,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -295,7 +310,8 @@
             "autoMergeRequest": null,
             "number": 9
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -314,12 +330,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -327,7 +344,8 @@
             "autoMergeRequest": null,
             "number": 10
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -346,7 +364,6 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [
               {
                 "name": "no-medic"
@@ -355,7 +372,9 @@
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -363,7 +382,8 @@
             "autoMergeRequest": null,
             "number": 11
           },
-          "unresolved": 1
+          "unresolved": 1,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -382,7 +402,6 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [
               {
                 "name": "chore"
@@ -391,7 +410,9 @@
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -399,7 +420,8 @@
             "autoMergeRequest": null,
             "number": 12
           },
-          "unresolved": 1
+          "unresolved": 1,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -420,12 +442,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -433,7 +456,8 @@
             "autoMergeRequest": null,
             "number": 13
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         },
         {
           "view": {
@@ -441,12 +465,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -454,7 +479,8 @@
             "autoMergeRequest": null,
             "number": 14
           },
-          "unresolved": 1
+          "unresolved": 1,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -475,12 +501,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -488,7 +515,8 @@
             "autoMergeRequest": null,
             "number": 20
           },
-          "unresolved": 1
+          "unresolved": 1,
+          "approvals": 0
         },
         {
           "view": {
@@ -496,12 +524,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -509,7 +538,8 @@
             "autoMergeRequest": null,
             "number": 21
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         },
         {
           "view": {
@@ -517,12 +547,13 @@
             "isDraft": true,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -530,7 +561,8 @@
             "autoMergeRequest": null,
             "number": 22
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -552,12 +584,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -567,7 +600,8 @@
             },
             "number": 31
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -586,12 +620,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -601,7 +636,8 @@
             },
             "number": 32
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -622,12 +658,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -637,7 +674,8 @@
             },
             "number": 33
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -658,7 +696,6 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [],
             "autoMergeRequest": {
@@ -666,7 +703,8 @@
             },
             "number": 34
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
@@ -687,12 +725,13 @@
             "isDraft": false,
             "isCrossRepository": false,
             "mergeStateStatus": "CLEAN",
-            "latestReviews": [],
             "labels": [],
             "statusCheckRollup": [
               {
                 "__typename": "CheckRun",
-                "name": "ci",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
                 "status": "COMPLETED",
                 "conclusion": "SUCCESS"
               }
@@ -700,7 +739,8 @@
             "autoMergeRequest": null,
             "number": 35
           },
-          "unresolved": 0
+          "unresolved": 0,
+          "approvals": 0
         }
       ],
       "skip_label": "no-medic",
