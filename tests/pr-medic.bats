@@ -181,6 +181,9 @@ JSON
   # file, `git commit -F` reads one into the message, bare `git push` follows the upstream and
   # `git checkout` can change what that is. Each goes through a helper instead.
   run ! grep -qE 'Bash\(git (diff|commit|push|checkout):' <<<"$tools"
+  # `gh pr comment --body-file` reads any file, and thread replies go through replies.json,
+  # so the model has no use for it.
+  run ! grep -q 'gh pr comment' <<<"$tools"
   run ! grep -qE 'Bash\(git push\)' <<<"$tools"
   for helper in rebase.sh 'commit.sh:*' push.sh; do
     grep -qF "Bash(.github/pr-medic/$helper)" <<<"$tools" || {
@@ -199,6 +202,7 @@ JSON
   for entry in 'Bash(just:*)' 'Bash(uv run:*)' 'Bash(git fetch:*)' \
     'Bash(git rebase --exec:*)' 'Bash(git rebase -x:*)' 'Bash(git push:*)' 'Bash(git push)' \
     'Bash(git commit:*)' 'Bash(git diff --no-index:*)' 'Bash(git diff --ext-diff:*)' \
+    'Bash(gh pr comment:*)' \
     'Write(.git/**)' 'Edit(.git/**)' 'Read(.git/**)' 'Grep(.git/**)' 'Glob(.git/**)'; do
     grep -qF "$entry" <<<"$deny" || {
       echo "missing deny entry: $entry" >&2
