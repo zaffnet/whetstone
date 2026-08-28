@@ -129,6 +129,8 @@ apply_managed_defaults() {
   shift 2
   local settings=(${@+"$@"})
 
+  mkdir -p "$(dirname "$keys_file")"
+
   local keys=()
   local setting key type value rest
   for setting in ${settings[@]+"${settings[@]}"}; do
@@ -137,11 +139,18 @@ apply_managed_defaults() {
     type="${rest%%|*}"
     value="${rest#*|}"
     defaults write "$domain" "$key" "$type" "$value"
+    # Owned from the moment its own write lands, not at the end of the batch. `set -e`
+    # stops the script on a failed write, and recording only afterwards would leave every
+    # key written before it unowned -- retire one of those later and nothing would know to
+    # delete it. Recorded one at a time, a half-finished batch still owns what it wrote.
+    # Duplicates cost nothing: pruning only reads the list, and the rewrite below collapses
+    # them on the next complete run.
+    grep -qxF -- "$key" "$keys_file" 2>/dev/null || printf '%s\n' "$key" >>"$keys_file"
     keys+=("$key")
   done
 
-  # Only now: `set -e` aborts above if any write fails, and a key recorded as owned but
-  # never written could be deleted by a later retirement even though nothing here set it.
+  # Pruning waits for the whole batch. A key absent because its write failed is not a
+  # retired key, and deleting it would throw away the value this run was trying to set.
   prune_retired_defaults_keys "$domain" "$keys_file" ${keys[@]+"${keys[@]}"}
 }
 

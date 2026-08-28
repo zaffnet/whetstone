@@ -174,6 +174,7 @@ STUB
 #!/usr/bin/env bash
 echo "$*" >>"$DEFAULTS_LOG"
 case "$1" in
+  write) [ "$3" != "${FAIL_ON_KEY:-}" ] || exit 1 ;;
   delete) [ -z "${DELETE_FAILS:-}" ] || exit 1 ;;
   read)
     if [ "$#" -ge 3 ]; then
@@ -291,6 +292,27 @@ WRITES
     DEFAULTS_LOG="$BATS_TEST_TMPDIR/w4b.log" DELETE_FAILS=1 DOMAIN_UNREADABLE=1 bash "$retired"
   [ "$status" -eq 0 ]
   grep -qFx 'ShowFullScreenTabBar' "$keys4"
+
+  # Copilot on #39: a key is owned from the moment its own write lands. Recording the whole
+  # batch at the end meant a later write failing left every earlier key unowned, so retiring
+  # one of them afterwards would delete nothing. Pruning still waits for the batch, because
+  # a key missing due to a failed write is not a retired key.
+  partial="$BATS_TEST_TMPDIR/h6"
+  mkdir -p "$partial"
+  log="$BATS_TEST_TMPDIR/w-partial.log"
+  : >"$log"
+  run env PATH="$stub:$PATH" HOME="$partial" FAKE_ITERM_RUNNING=false DEFAULTS_LOG="$log" \
+    FAIL_ON_KEY=tilesize bash "$script"
+  [ "$status" -ne 0 ]
+
+  dock_keys="$partial/.local/state/whetstone/macos-dock-managed-keys.txt"
+  # The three written before the failure are owned; the one that failed is not.
+  grep -qFx 'autohide' "$dock_keys"
+  grep -qFx 'show-recents' "$dock_keys"
+  grep -qFx 'expose-group-apps' "$dock_keys"
+  run ! grep -qFx 'tilesize' "$dock_keys"
+  # And nothing was pruned on the way out: an interrupted batch must not delete anything.
+  run ! grep -q '^delete' "$log"
 
   # Retiring the last setting of a domain must not abort: an empty array under `set -u` is
   # an unbound variable on bash 3.2, which would take the whole apply down.
