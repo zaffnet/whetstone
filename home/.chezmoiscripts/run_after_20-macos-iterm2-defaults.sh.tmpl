@@ -29,7 +29,9 @@ else
   defaults write com.googlecode.iterm2 CopySelection -bool false
   defaults write com.googlecode.iterm2 CopyLastNewline -bool true
   defaults write com.googlecode.iterm2 ClickToSelectCommand -bool false
+{{ if eq .role "work" -}}
   defaults write com.googlecode.iterm2 AllowClipboardAccess -bool true
+{{- end }}
   defaults write com.googlecode.iterm2 EnableAPIServer -bool true
   defaults write com.googlecode.iterm2 HideActivityIndicator -bool false
   defaults write com.googlecode.iterm2 ShowFullScreenTabBar -bool false

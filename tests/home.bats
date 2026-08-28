@@ -170,13 +170,19 @@ chezmoi_managed() {
     "  defaults write com.googlecode.iterm2 CopySelection -bool false" \
     "  defaults write com.googlecode.iterm2 CopyLastNewline -bool true" \
     "  defaults write com.googlecode.iterm2 ClickToSelectCommand -bool false" \
-    "  defaults write com.googlecode.iterm2 AllowClipboardAccess -bool true" \
     "  defaults write com.googlecode.iterm2 EnableAPIServer -bool true" \
     "  defaults write com.googlecode.iterm2 HideActivityIndicator -bool false" \
     "  defaults write com.googlecode.iterm2 ShowFullScreenTabBar -bool false" \
     "  defaults write com.googlecode.iterm2 \"Default Bookmark Guid\" -string \"whetstone-default\""; do
     grep -qFx "$line" "$iterm_script"
   done
+  if [ "$(chezmoi_role)" = work ]; then
+    grep -qFx "  defaults write com.googlecode.iterm2 AllowClipboardAccess -bool true" \
+      "$iterm_script"
+  else
+    run ! grep -qFx "  defaults write com.googlecode.iterm2 AllowClipboardAccess -bool true" \
+      "$iterm_script"
+  fi
 
   # The guard skips rather than aborting: an apply is normally run from a shell inside
   # iTerm2, so exiting non-zero there would fail every apply and block the scripts after it.
