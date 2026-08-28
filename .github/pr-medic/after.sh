@@ -66,7 +66,7 @@ if [ "$head_before" != "$head_now" ]; then
 fi
 
 view=$(gh pr view "$PR" --repo "$REPO" \
-  --json state,isDraft,isCrossRepository,mergeStateStatus,latestReviews,statusCheckRollup,autoMergeRequest)
+  --json state,isDraft,isCrossRepository,mergeStateStatus,labels,latestReviews,statusCheckRollup,autoMergeRequest)
 decision=$(jq -n \
   --argjson pr "$view" \
   --argjson unresolved "$(unresolved_threads "$PR")" \
@@ -74,8 +74,9 @@ decision=$(jq -n \
   --argjson required "$APPROVALS_REQUIRED" \
   --argjson arm "$ARM_AUTO_MERGE" \
   --argjson auto "$(jq .allow_auto_merge <<<"$repo")" \
+  --arg skip "${SKIP_LABEL:-}" \
   '{pr: $pr, unresolved: $unresolved, approvals: $approvals, approvals_required: $required,
-    arm_auto_merge: $arm, allow_auto_merge: $auto}' \
+    arm_auto_merge: $arm, allow_auto_merge: $auto, skip_label: $skip}' \
   | jq -c -L "$here" -f "$here/gate.jq")
 action=$(jq -r .action <<<"$decision")
 reason=$(jq -r .reason <<<"$decision")

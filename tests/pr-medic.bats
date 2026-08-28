@@ -168,6 +168,20 @@ JSON
   grep -qF 'Bash(gh api:*)' "$REPO/.github/workflows/claude.yml"
 }
 
+# Denying `gh api` is worth nothing if something on the allowlist can launch it. `uv run gh
+# api ...` matches `Bash(uv run:*)`, and `just` reads a justfile out of the PR checkout, so
+# either one hands a prompt-injected instruction the write token.
+@test "no launcher can run PR-controlled code" {
+  local tools
+  tools=$(grep -o 'allowedTools "[^"]*"' "$REPO/.github/workflows/pr-medic.yml")
+  run ! grep -qE 'uv run|Bash\(just' <<<"$tools"
+  grep -qF 'Bash(just:*)' "$REPO/.github/workflows/pr-medic.yml"
+  grep -qF 'Bash(uv run:*)' "$REPO/.github/workflows/pr-medic.yml"
+  # And the force push takes no refspec, or it could name the default branch.
+  run ! grep -q 'force-with-lease:\*' <<<"$tools"
+  grep -qF 'Bash(git push --force-with-lease)' <<<"$tools"
+}
+
 # Resolving a thread is not reversible. If it happened before the runner checks, a run that
 # exits on an unpushed fix would leave the next one reading "no unresolved threads" as ready to
 # merge -- the exact partial-run state the gate exists to catch.

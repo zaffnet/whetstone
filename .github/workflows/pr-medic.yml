@@ -32,8 +32,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # 0, not 1: GitHub forbids self-approval and Copilot reviews as authorAssociation NONE, so
-  # 1 would deadlock a solo maintainer. Raise it when a second human has write access.
+  # 0, not 1: GitHub forbids self-approval and Copilot cannot approve, so 1 deadlocks a solo
+  # maintainer. Raise it when a second human has write access. Counted by push permission.
   APPROVALS_REQUIRED: "0"
   # Set the repository variable to "true" to let the medic land pull requests unattended.
   ARM_AUTO_MERGE: ${{ vars.PR_MEDIC_ARM_AUTO_MERGE || 'false' }}
@@ -141,7 +141,7 @@ jobs:
           # Everything below runs out of the checkout, which is now the PR's -- after.sh and
           # trust-config.sh included. Take .github/pr-medic from the default branch first, so
           # the gate guarding the merge is ours. On an entity event the workflow file is the
-          # PR's too and this cannot help; it closes schedule, dispatch and workflow_run.
+          # PR's too, so this closes schedule, dispatch and workflow_run only.
           base=$(gh api "repos/$REPO" --jq .default_branch)
           git fetch --depth=1 --no-recurse-submodules origin "$base"
           git checkout "origin/$base" -- .github/pr-medic ||
@@ -149,8 +149,7 @@ jobs:
           git reset -q -- .github/pr-medic
           .github/pr-medic/trust-config.sh
           # The model gets the threads as a file and answers with a file; after.sh does the
-          # replying. `gh api graphql` resolves a thread and can equally approve or merge, so
-          # it is off the tool allowlist entirely rather than allowed and hoped about.
+          # replying, so `gh api` need not be on the allowlist at all.
           .github/pr-medic/threads.sh dump
           {
             echo "prompt<<PROMPT"
@@ -173,19 +172,20 @@ jobs:
           use_commit_signing: false
           bot_id: ${{ steps.bot.outputs.id }}
           bot_name: ${{ steps.bot.outputs.login }}
-          # Inline, not a path: a file in the checkout is PR-controlled and is not in the
-          # action's SENSITIVE_PATHS, so trust-config.sh does not cover it.
+          # Inline, not a path: a file in the checkout is PR-controlled and is not in
+          # SENSITIVE_PATHS, so trust-config.sh does not cover it.
           settings: |
-            {"permissions":{"deny":["Bash(gh api:*)","Bash(gh pr merge:*)","Bash(gh pr review:*)","Bash(git push --force)","Bash(git push --force *)"]}}
+            {"permissions":{"deny":["Bash(gh api:*)","Bash(gh pr merge:*)","Bash(gh pr review:*)","Bash(git push --force)","Bash(git push --force *)","Bash(just:*)","Bash(uv run:*)"]}}
           # An allowlist, not only the deny block: agent mode sets neither --permission-mode
-          # nor --allowedTools, so without these the model has Read, Grep and Glob and cannot
-          # do the work at all. No `gh api` on it: that was the one command left that could
-          # approve or merge, and threads.sh replaced the need for it. See ADR 0012.
+          # nor --allowedTools, so the model would otherwise have Read, Grep and Glob and
+          # could not work. No `gh api`, and no launcher that would run it anyway -- `just`
+          # reads a PR-controlled justfile, `uv run` takes any argv. `--force-with-lease`
+          # takes no refspec, which could name the default branch. See ADR 0012.
           claude_args: >-
             --max-turns ${{ env.MAX_TURNS }}
             --permission-mode acceptEdits
             --add-dir ${{ runner.temp }}/pr-medic
-            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git fetch:*),Bash(git rebase:*),Bash(git checkout:*),Bash(git push),Bash(git push --force-with-lease:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh run rerun:*),Bash(uv run:*),Bash(just:*)"
+            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git fetch:*),Bash(git rebase:*),Bash(git checkout:*),Bash(git push),Bash(git push --force-with-lease),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh run rerun:*)"
           prompt: ${{ steps.bot.outputs.prompt }}
 
       # The action reports `is_error:true` without the message that caused it.

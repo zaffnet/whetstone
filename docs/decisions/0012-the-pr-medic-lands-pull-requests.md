@@ -96,6 +96,15 @@ a failure rather than as nothing to do. Both files live under `RUNNER_TEMP`
 and the model reaches them through `--add-dir`, because a file written inside the worktree
 would trip the clean-worktree check in `after.sh`.
 
+`just` and `uv run` came off the allowlist at the same time, and onto the deny list. Denying
+`gh api` buys nothing while something on the list can launch it: `uv run gh api ...` matches
+`Bash(uv run:*)`, and `just` reads a justfile out of the pull request's own checkout. More
+generally, any command that runs the pull request's code — its tests, its justfile, its hooks
+— with a write token in the environment is equivalent to handing that pull request the token,
+and there is no narrow form of it. Verification is CI's job; the medic reads the result.
+`git push --force-with-lease` takes no argument either, because a refspec can name the default
+branch.
+
 That leaves the model with no command that can approve or merge, rather than an allowlist that
 could not separate the two. The ruleset — required status checks and
 `required_review_thread_resolution` — is still the control that holds; this removes the
@@ -123,6 +132,11 @@ disarm it provided is `ARM_AUTO_MERGE` instead.
 
 Local agents still never merge. Merging belongs to this workflow and to zaffnet in the web
 UI.
+
+`SKIP_LABEL` is checked by the gate as well as by `pick`, and `pick` deliberately still
+selects a labelled pull request when it is armed. A label is only an escape hatch if it works
+after the medic has already armed something, and only the gate can take an arming back — so
+the label produces `refuse`, and `refuse` disarms.
 
 A missing Claude credential or a missing GitHub App is configuration, and the run does the
 reduced thing quietly: without Claude it still gates, and without an App it pushes with

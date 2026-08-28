@@ -13,7 +13,11 @@ def keep($skip; $required; $arm):
     # a write token are all present whatever repo the head came from. Fork support needs a
     # separate job that runs the untrusted code with no secrets.
     elif $p.isCrossRepository then false
-    elif ($skip | length) > 0 and (([$p.labels[]?.name] | index($skip)) != null) then false
+    # Not a flat `false`: the label has to be able to stop a pull request the medic already
+    # armed, and only the gate can take an arming back. So a labelled PR is still selected
+    # when it is armed, and the gate refuses it, which disarms.
+    elif ($skip | length) > 0 and (([$p.labels[]?.name] | index($skip)) != null) then
+      $p.autoMergeRequest != null
     else
       # Work Claude can do. total_checks is absent from the unarmed case below for the same
       # reason it is absent here: a head whose checks have not registered yet may still be

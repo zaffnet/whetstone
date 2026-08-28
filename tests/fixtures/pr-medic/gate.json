@@ -26,7 +26,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -56,7 +57,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -86,7 +88,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -116,7 +119,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -146,7 +150,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -176,7 +181,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -197,7 +203,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -235,7 +242,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -265,7 +273,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -302,7 +311,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": true
+      "allow_auto_merge": true,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -331,7 +341,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -369,7 +380,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": true
+      "allow_auto_merge": true,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -407,7 +419,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -445,7 +458,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -475,7 +489,8 @@
       "approvals": 0,
       "approvals_required": 1,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -505,7 +520,8 @@
       "approvals": 1,
       "approvals_required": 1,
       "arm_auto_merge": true,
-      "allow_auto_merge": true
+      "allow_auto_merge": true,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -535,7 +551,8 @@
       "approvals": 2,
       "approvals_required": 1,
       "arm_auto_merge": true,
-      "allow_auto_merge": true
+      "allow_auto_merge": true,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -567,7 +584,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -597,7 +615,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": false,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -629,7 +648,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": false,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -661,7 +681,8 @@
       "approvals": 0,
       "approvals_required": 1,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -684,7 +705,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -723,7 +745,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -760,7 +783,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": true
+      "allow_auto_merge": true,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -797,7 +821,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -827,7 +852,8 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": true
+      "allow_auto_merge": true,
+      "skip_label": "no-medic"
     }
   },
   {
@@ -857,7 +883,115 @@
       "approvals": 0,
       "approvals_required": 0,
       "arm_auto_merge": true,
-      "allow_auto_merge": false
+      "allow_auto_merge": false,
+      "skip_label": "no-medic"
+    }
+  },
+  {
+    "name": "the skip label refuses",
+    "expect": "refuse",
+    "expect_reason": "skip label",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "labels": [
+          {
+            "name": "no-medic"
+          }
+        ],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "ci0",
+            "workflowName": "lint",
+            "startedAt": "2026-01-01T00:00:00Z",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS"
+          }
+        ],
+        "autoMergeRequest": null
+      },
+      "unresolved": 0,
+      "approvals": 0,
+      "approvals_required": 0,
+      "arm_auto_merge": true,
+      "allow_auto_merge": true,
+      "skip_label": "no-medic"
+    }
+  },
+  {
+    "name": "the skip label reaches an armed PR",
+    "expect": "refuse",
+    "expect_reason": "skip label",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "labels": [
+          {
+            "name": "no-medic"
+          }
+        ],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "ci0",
+            "workflowName": "lint",
+            "startedAt": "2026-01-01T00:00:00Z",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS"
+          }
+        ],
+        "autoMergeRequest": {
+          "enabledAt": "2026-01-01T00:00:00Z"
+        }
+      },
+      "unresolved": 0,
+      "approvals": 0,
+      "approvals_required": 0,
+      "arm_auto_merge": true,
+      "allow_auto_merge": true,
+      "skip_label": "no-medic"
+    }
+  },
+  {
+    "name": "another label is not the skip label",
+    "expect": "arm",
+    "expect_reason": "gate passed",
+    "input": {
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "labels": [
+          {
+            "name": "chore"
+          }
+        ],
+        "statusCheckRollup": [
+          {
+            "__typename": "CheckRun",
+            "name": "ci0",
+            "workflowName": "lint",
+            "startedAt": "2026-01-01T00:00:00Z",
+            "status": "COMPLETED",
+            "conclusion": "SUCCESS"
+          }
+        ],
+        "autoMergeRequest": null
+      },
+      "unresolved": 0,
+      "approvals": 0,
+      "approvals_required": 0,
+      "arm_auto_merge": true,
+      "allow_auto_merge": true,
+      "skip_label": "no-medic"
     }
   }
 ]

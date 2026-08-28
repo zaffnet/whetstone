@@ -748,5 +748,85 @@
       "arm_auto_merge": false
     },
     "expect": []
+  },
+  {
+    "name": "a labelled armed PR is picked so the gate can disarm it",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "labels": [
+              {
+                "name": "no-medic"
+              }
+            ],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": {
+              "enabledAt": "2026-01-01T00:00:00Z"
+            },
+            "number": 40
+          },
+          "unresolved": 0,
+          "approvals": 0
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0,
+      "arm_auto_merge": true
+    },
+    "expect": [
+      40
+    ]
+  },
+  {
+    "name": "a labelled unarmed PR is left alone",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "labels": [
+              {
+                "name": "no-medic"
+              }
+            ],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci0",
+                "workflowName": "lint",
+                "startedAt": "2026-01-01T00:00:00Z",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 41
+          },
+          "unresolved": 1,
+          "approvals": 0
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0,
+      "arm_auto_merge": true
+    },
+    "expect": []
   }
 ]

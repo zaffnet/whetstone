@@ -1,5 +1,6 @@
 # May the medic land this pull request? Input:
-#   {pr, unresolved, approvals, approvals_required, arm_auto_merge, allow_auto_merge}
+#   {pr, unresolved, approvals, approvals_required, arm_auto_merge, allow_auto_merge,
+#    skip_label}
 # `approvals` is counted by approval_count in lib.sh, which asks for push access rather than
 # trusting authorAssociation.
 # where `pr` is `gh pr view --json` output. Result: {action, reason}, one of
@@ -9,9 +10,15 @@ include "lib";
 
 .pr as $p
 | ($p | check_counts) as $c
+| (.skip_label // "") as $skip
 | if ($p.state | ascii_upcase) != "OPEN" then {action: "refuse", reason: "closed"}
   elif $p.isDraft then {action: "refuse", reason: "draft"}
   elif $p.isCrossRepository then {action: "refuse", reason: "fork"}
+  # Re-read here, not just in pick: the label is the escape hatch, so it has to work when it
+  # is applied to a pull request the medic has already armed. `refuse` disarms.
+  # $skip, not .skip_label: inside the pipe below `.` is the label array, not the root.
+  elif ($skip | length) > 0 and (([$p.labels[]?.name] | index($skip)) != null) then
+    {action: "refuse", reason: "skip label"}
   # DIRTY is the conflicted value of mergeStateStatus. CONFLICTING belongs to the separate
   # mergeable field, which this workflow never asks for.
   elif $p.mergeStateStatus == "DIRTY" then {action: "refuse", reason: "conflicts"}
