@@ -1,0 +1,65 @@
+# Answer an @claude mention. This job replies; it never pushes and never merges. Landing
+# pull requests is pr-medic.yml.
+name: claude
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, assigned]
+
+permissions: {}
+
+jobs:
+  mention:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    # The action posts a tracking comment, so it needs write on pull-requests and issues, but
+    # not on contents.
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    env:
+      HAS_CLAUDE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.ANTHROPIC_API_KEY != '' }}
+    steps:
+      # An App token carries the whole installation's permissions and ignores this job's
+      # permissions: block, so it is downscoped here too.
+      - id: token
+        if: vars.APP_CLIENT_ID != ''
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: read
+          permission-issues: write
+          permission-pull-requests: write
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          token: ${{ steps.token.outputs.token || github.token }}
+
+      - name: Run Claude Code
+        if: env.HAS_CLAUDE == 'true'
+        uses: anthropics/claude-code-action@9dcab633034361127cf74336d2d891d02e887881 # v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ steps.token.outputs.token || github.token }}
+          # Not github-actions[bot]: pr-medic posts under that login and would wake this.
+          allowed_bots: copilot-pull-request-reviewer[bot],dependabot[bot]
+          use_commit_signing: false
+          settings: .github/pr-medic/settings.json
+          claude_args: "--max-turns 60"

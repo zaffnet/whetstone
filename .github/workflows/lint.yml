@@ -40,10 +40,17 @@ jobs:
           for f in _common.sh ruff_format.sh setup-working-tree.sh; do
             diff -u "hooks/$f" "template/project/.claude/hooks/$f"
           done
-      # The template copy is rendered from the root copy, not byte-identical: it ships
-      # disarmed and names a generated project's workflows. The substitution table in the
-      # tool is the whole of the difference.
-      - name: pr-medic.yml renders the template copy
-        run: python3 tools/extract_pr_medic.py --check-template
+      # The pr-medic scripts are copied verbatim. The two workflows differ on one line:
+      # workflow_run names workflows literally, and a generated project's are not this
+      # repo's. ARM_AUTO_MERGE is a repository variable, so it is the same in both.
+      - name: pr-medic matches the template copy
+        run: |
+          for f in .github/pr-medic/*; do
+            diff -u "$f" "template/project/$f"
+          done
+          diff -u \
+            <(sed 's/^    workflows: .*/    workflows: PINNED/' .github/workflows/pr-medic.yml) \
+            <(sed 's/^    workflows: .*/    workflows: PINNED/' template/project/.github/workflows/pr-medic.yml)
+          diff -u .github/workflows/claude.yml template/project/.github/workflows/claude.yml
       - name: Reviewer subagents match between Claude markdown and Codex TOML
         run: python3 tools/check-agents-sync.py

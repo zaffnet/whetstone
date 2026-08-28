@@ -126,7 +126,8 @@ bin/                  Scripts: AI commit messages, PR descriptions, worktree cle
 template/             Copier template for a Python project (copier.yml is at the root)
 docs/                 Handbook, decisions, runbooks
 tests/                bats assertions run against an applied home
-.github/workflows/    lint, secrets, template, macos, pr-medic
+.github/workflows/    lint, secrets, template, macos, pr-medic, claude
+.github/pr-medic/     The medic's bash and jq, called by the workflow
 ```
 
 ## Keeping it current

@@ -1,0 +1,30 @@
+# May the medic land this pull request? Input:
+#   {pr, unresolved, approvals_required, arm_auto_merge, allow_auto_merge}
+# where `pr` is `gh pr view --json` output. Result: {action, reason}, one of
+# refuse (do not touch it), wait (come back later), noop, arm (hand the merge to GitHub) or
+# merge (for a repo with auto-merge switched off). The branch order is the design.
+include "lib";
+
+.pr as $p
+| ($p | check_counts) as $c
+| if ($p.state | ascii_upcase) != "OPEN" then {action: "refuse", reason: "closed"}
+  elif $p.isDraft then {action: "refuse", reason: "draft"}
+  elif $p.isCrossRepository then {action: "refuse", reason: "fork"}
+  # DIRTY is the conflicted value of mergeStateStatus. CONFLICTING belongs to the separate
+  # mergeable field, which this workflow never asks for.
+  elif $p.mergeStateStatus == "DIRTY" then {action: "refuse", reason: "conflicts"}
+  elif .unresolved > 0 then {action: "refuse", reason: "unresolved threads"}
+  # An empty rollup is the state right after a force-push, and the permanent state when that
+  # push used GITHUB_TOKEN. Reading it as green merges a commit nothing has tested.
+  elif $c.total == 0 then {action: "refuse", reason: "no checks on this head"}
+  elif $c.failing > 0 then {action: "refuse", reason: "failing checks"}
+  elif ($p.latestReviews | approvals) < .approvals_required then
+    {action: "wait", reason: "approvals"}
+  elif $p.autoMergeRequest != null then {action: "noop", reason: "already armed"}
+  elif .arm_auto_merge != true then {action: "wait", reason: "ARM_AUTO_MERGE false"}
+  # Before arm, not only before merge: gh pr merge --auto waits for *required* checks, and a
+  # repo with no ruleset has none, so arming there merges at once while optional CI runs.
+  elif $c.pending > 0 then {action: "wait", reason: "pending checks"}
+  elif .allow_auto_merge then {action: "arm", reason: "gate passed"}
+  else {action: "merge", reason: "gate passed, auto-merge off"}
+  end

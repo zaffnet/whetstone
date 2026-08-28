@@ -1,606 +1,530 @@
 [
   {
-    "name": "include an armable open PR",
+    "name": "no candidates",
+    "input": {
+      "prs": [],
+      "skip_label": "no-medic",
+      "approvals_required": 0
+    },
+    "expect": []
+  },
+  {
+    "name": "an unresolved thread is work",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 1
+          },
+          "unresolved": 1
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0
+    },
     "expect": [
       1
-    ],
-    "input": {
-      "include_drafts": "false",
-      "include_forks": "false",
-      "only_label": "",
-      "skip_label": "no-medic",
-      "only_authors": "",
-      "max_attempts": "2",
-      "mention_pr": null,
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
-      "prs": [
-        {
-          "number": 1,
-          "state": "OPEN",
-          "isDraft": false,
-          "isCrossRepository": false,
-          "mergeStateStatus": "CLEAN",
-          "author_login": "zaffnet",
-          "labels": [],
-          "latestReviews": [],
-          "unresolved_threads": 0,
-          "failing_checks": 0,
-          "pending_checks": 0,
-          "total_checks": 1,
-          "auto_merge_armed": false,
-          "medic_attempts": 0,
-          "consecutive_medic_commits": 0,
-          "newer_review_than_medic": false
-        }
-      ]
-    }
+    ]
   },
   {
-    "name": "skip a draft",
-    "expect": [],
+    "name": "a failing check is work",
     "input": {
-      "include_drafts": "false",
-      "include_forks": "false",
-      "only_label": "",
-      "skip_label": "no-medic",
-      "only_authors": "",
-      "max_attempts": "2",
-      "mention_pr": null,
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
       "prs": [
         {
-          "number": 2,
-          "state": "OPEN",
-          "isDraft": true,
-          "isCrossRepository": false,
-          "mergeStateStatus": "DRAFT",
-          "author_login": "zaffnet",
-          "labels": [],
-          "latestReviews": [],
-          "unresolved_threads": 0,
-          "failing_checks": 0,
-          "pending_checks": 0,
-          "total_checks": 1,
-          "auto_merge_armed": false,
-          "medic_attempts": 0,
-          "consecutive_medic_commits": 0,
-          "newer_review_than_medic": false
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "TIMED_OUT"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 2
+          },
+          "unresolved": 0
         }
-      ]
-    }
-  },
-  {
-    "name": "skip a fork",
-    "expect": [],
-    "input": {
-      "include_drafts": "false",
-      "include_forks": "false",
-      "only_label": "",
+      ],
       "skip_label": "no-medic",
-      "only_authors": "",
-      "max_attempts": "2",
-      "mention_pr": null,
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
-      "prs": [
-        {
-          "number": 3,
-          "state": "OPEN",
-          "isDraft": false,
-          "isCrossRepository": true,
-          "mergeStateStatus": "CLEAN",
-          "author_login": "outsider",
-          "labels": [],
-          "latestReviews": [],
-          "unresolved_threads": 1,
-          "failing_checks": 0,
-          "pending_checks": 0,
-          "total_checks": 1,
-          "auto_merge_armed": false,
-          "medic_attempts": 0,
-          "consecutive_medic_commits": 0,
-          "newer_review_than_medic": false
-        }
-      ]
-    }
-  },
-  {
-    "name": "skip SKIP_LABEL",
-    "expect": [],
-    "input": {
-      "include_drafts": "false",
-      "include_forks": "false",
-      "only_label": "",
-      "skip_label": "no-medic",
-      "only_authors": "",
-      "max_attempts": "2",
-      "mention_pr": null,
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
-      "prs": [
-        {
-          "number": 4,
-          "state": "OPEN",
-          "isDraft": false,
-          "isCrossRepository": false,
-          "mergeStateStatus": "CLEAN",
-          "author_login": "zaffnet",
-          "labels": [
-            "no-medic"
-          ],
-          "latestReviews": [],
-          "unresolved_threads": 3,
-          "failing_checks": 0,
-          "pending_checks": 0,
-          "total_checks": 1,
-          "auto_merge_armed": false,
-          "medic_attempts": 0,
-          "consecutive_medic_commits": 0,
-          "newer_review_than_medic": false
-        }
-      ]
-    }
-  },
-  {
-    "name": "skip when ONLY_LABEL is set and missing",
-    "expect": [],
-    "input": {
-      "include_drafts": "false",
-      "include_forks": "false",
-      "only_label": "medic",
-      "skip_label": "no-medic",
-      "only_authors": "",
-      "max_attempts": "2",
-      "mention_pr": null,
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
-      "prs": [
-        {
-          "number": 5,
-          "state": "OPEN",
-          "isDraft": false,
-          "isCrossRepository": false,
-          "mergeStateStatus": "CLEAN",
-          "author_login": "zaffnet",
-          "labels": [],
-          "latestReviews": [],
-          "unresolved_threads": 0,
-          "failing_checks": 0,
-          "pending_checks": 0,
-          "total_checks": 1,
-          "auto_merge_armed": false,
-          "medic_attempts": 0,
-          "consecutive_medic_commits": 0,
-          "newer_review_than_medic": false
-        }
-      ]
-    }
-  },
-  {
-    "name": "omit the PR that contains @claude this run",
-    "expect": [],
-    "input": {
-      "include_drafts": "false",
-      "include_forks": "false",
-      "only_label": "",
-      "skip_label": "no-medic",
-      "only_authors": "",
-      "max_attempts": "2",
-      "mention_pr": "6",
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
-      "prs": [
-        {
-          "number": 6,
-          "state": "OPEN",
-          "isDraft": false,
-          "isCrossRepository": false,
-          "mergeStateStatus": "CLEAN",
-          "author_login": "zaffnet",
-          "labels": [],
-          "latestReviews": [],
-          "unresolved_threads": 1,
-          "failing_checks": 0,
-          "pending_checks": 0,
-          "total_checks": 1,
-          "auto_merge_armed": false,
-          "medic_attempts": 0,
-          "consecutive_medic_commits": 0,
-          "newer_review_than_medic": false
-        }
-      ]
-    }
-  },
-  {
-    "name": "skip when per-SHA attempts are spent",
-    "expect": [],
-    "input": {
-      "include_drafts": "false",
-      "include_forks": "false",
-      "only_label": "",
-      "skip_label": "no-medic",
-      "only_authors": "",
-      "max_attempts": "2",
-      "mention_pr": null,
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
-      "prs": [
-        {
-          "number": 7,
-          "state": "OPEN",
-          "isDraft": false,
-          "isCrossRepository": false,
-          "mergeStateStatus": "UNSTABLE",
-          "author_login": "zaffnet",
-          "labels": [],
-          "latestReviews": [],
-          "unresolved_threads": 0,
-          "failing_checks": 1,
-          "pending_checks": 0,
-          "total_checks": 1,
-          "auto_merge_armed": false,
-          "medic_attempts": 2,
-          "consecutive_medic_commits": 0,
-          "newer_review_than_medic": false
-        }
-      ]
-    }
-  },
-  {
-    "name": "skip consecutive medic commits at the budget",
-    "expect": [],
-    "input": {
-      "include_drafts": "false",
-      "include_forks": "false",
-      "only_label": "",
-      "skip_label": "no-medic",
-      "only_authors": "",
-      "max_attempts": "2",
-      "mention_pr": null,
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
-      "prs": [
-        {
-          "number": 8,
-          "state": "OPEN",
-          "isDraft": false,
-          "isCrossRepository": false,
-          "mergeStateStatus": "UNSTABLE",
-          "author_login": "zaffnet",
-          "labels": [],
-          "latestReviews": [],
-          "unresolved_threads": 0,
-          "failing_checks": 1,
-          "pending_checks": 0,
-          "total_checks": 1,
-          "auto_merge_armed": false,
-          "medic_attempts": 1,
-          "consecutive_medic_commits": 2,
-          "newer_review_than_medic": false
-        }
-      ]
-    }
-  },
-  {
-    "name": "newer review activity overrides the budget",
+      "approvals_required": 0
+    },
     "expect": [
-      9
-    ],
-    "input": {
-      "include_drafts": "false",
-      "include_forks": "false",
-      "only_label": "",
-      "skip_label": "no-medic",
-      "only_authors": "",
-      "max_attempts": "2",
-      "mention_pr": null,
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
-      "prs": [
-        {
-          "number": 9,
-          "state": "OPEN",
-          "isDraft": false,
-          "isCrossRepository": false,
-          "mergeStateStatus": "UNSTABLE",
-          "author_login": "zaffnet",
-          "labels": [],
-          "latestReviews": [],
-          "unresolved_threads": 0,
-          "failing_checks": 1,
-          "pending_checks": 0,
-          "total_checks": 1,
-          "auto_merge_armed": false,
-          "medic_attempts": 2,
-          "consecutive_medic_commits": 2,
-          "newer_review_than_medic": true
-        }
-      ]
-    }
+      2
+    ]
   },
   {
-    "name": "include unresolved threads",
-    "expect": [
-      10
-    ],
+    "name": "a stale branch is work",
     "input": {
-      "include_drafts": "false",
-      "include_forks": "false",
-      "only_label": "",
-      "skip_label": "no-medic",
-      "only_authors": "",
-      "max_attempts": "2",
-      "mention_pr": null,
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
       "prs": [
         {
-          "number": 10,
-          "state": "OPEN",
-          "isDraft": false,
-          "isCrossRepository": false,
-          "mergeStateStatus": "BLOCKED",
-          "author_login": "zaffnet",
-          "labels": [],
-          "latestReviews": [],
-          "unresolved_threads": 7,
-          "failing_checks": 0,
-          "pending_checks": 0,
-          "total_checks": 1,
-          "auto_merge_armed": false,
-          "medic_attempts": 0,
-          "consecutive_medic_commits": 0,
-          "newer_review_than_medic": false
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "BEHIND",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 3
+          },
+          "unresolved": 0
         }
-      ]
-    }
-  },
-  {
-    "name": "skip already armed with nothing to fix",
-    "expect": [],
-    "input": {
-      "include_drafts": "false",
-      "include_forks": "false",
-      "only_label": "",
+      ],
       "skip_label": "no-medic",
-      "only_authors": "",
-      "max_attempts": "2",
-      "mention_pr": null,
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
-      "prs": [
-        {
-          "number": 11,
-          "state": "OPEN",
-          "isDraft": false,
-          "isCrossRepository": false,
-          "mergeStateStatus": "CLEAN",
-          "author_login": "zaffnet",
-          "labels": [],
-          "latestReviews": [],
-          "unresolved_threads": 0,
-          "failing_checks": 0,
-          "pending_checks": 0,
-          "total_checks": 1,
-          "auto_merge_armed": true,
-          "medic_attempts": 0,
-          "consecutive_medic_commits": 0,
-          "newer_review_than_medic": false
-        }
-      ]
-    }
-  },
-  {
-    "name": "skip ONLY_AUTHORS miss",
-    "expect": [],
-    "input": {
-      "include_drafts": "false",
-      "include_forks": "false",
-      "only_label": "",
-      "skip_label": "no-medic",
-      "only_authors": "alice",
-      "max_attempts": "2",
-      "mention_pr": null,
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
-      "prs": [
-        {
-          "number": 12,
-          "state": "OPEN",
-          "isDraft": false,
-          "isCrossRepository": false,
-          "mergeStateStatus": "CLEAN",
-          "author_login": "zaffnet",
-          "labels": [],
-          "latestReviews": [],
-          "unresolved_threads": 0,
-          "failing_checks": 0,
-          "pending_checks": 0,
-          "total_checks": 1,
-          "auto_merge_armed": false,
-          "medic_attempts": 0,
-          "consecutive_medic_commits": 0,
-          "newer_review_than_medic": false
-        }
-      ]
-    }
-  },
-  {
-    "name": "include a fork when INCLUDE_FORKS is true",
+      "approvals_required": 0
+    },
     "expect": [
       3
-    ],
-    "input": {
-      "include_drafts": "false",
-      "include_forks": "true",
-      "only_label": "",
-      "skip_label": "no-medic",
-      "only_authors": "",
-      "max_attempts": "2",
-      "mention_pr": null,
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
-      "prs": [
-        {
-          "number": 3,
-          "state": "OPEN",
-          "isDraft": false,
-          "isCrossRepository": true,
-          "mergeStateStatus": "CLEAN",
-          "author_login": "outsider",
-          "labels": [],
-          "latestReviews": [],
-          "unresolved_threads": 0,
-          "failing_checks": 0,
-          "pending_checks": 0,
-          "total_checks": 1,
-          "auto_merge_armed": false,
-          "medic_attempts": 0,
-          "consecutive_medic_commits": 0,
-          "newer_review_than_medic": false
-        }
-      ]
-    }
+    ]
   },
   {
-    "name": "skip an armable PR while its checks are still pending",
-    "expect": [],
+    "name": "a conflicted branch is work",
     "input": {
-      "include_drafts": "false",
-      "include_forks": "false",
-      "only_label": "",
-      "skip_label": "no-medic",
-      "only_authors": "",
-      "max_attempts": "2",
-      "mention_pr": null,
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
       "prs": [
         {
-          "number": 20,
-          "state": "OPEN",
-          "isDraft": false,
-          "isCrossRepository": false,
-          "mergeStateStatus": "CLEAN",
-          "author_login": "zaffnet",
-          "labels": [],
-          "latestReviews": [],
-          "unresolved_threads": 0,
-          "failing_checks": 0,
-          "pending_checks": 1,
-          "total_checks": 3,
-          "auto_merge_armed": false,
-          "medic_attempts": 0,
-          "consecutive_medic_commits": 0,
-          "newer_review_than_medic": false
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "DIRTY",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 4
+          },
+          "unresolved": 0
         }
-      ]
-    }
-  },
-  {
-    "name": "skip an armable PR whose head has no checks yet",
-    "expect": [],
-    "input": {
-      "include_drafts": "false",
-      "include_forks": "false",
-      "only_label": "",
+      ],
       "skip_label": "no-medic",
-      "only_authors": "",
-      "max_attempts": "2",
-      "mention_pr": null,
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
-      "prs": [
-        {
-          "number": 21,
-          "state": "OPEN",
-          "isDraft": false,
-          "isCrossRepository": false,
-          "mergeStateStatus": "CLEAN",
-          "author_login": "zaffnet",
-          "labels": [],
-          "latestReviews": [],
-          "unresolved_threads": 0,
-          "failing_checks": 0,
-          "pending_checks": 0,
-          "total_checks": 0,
-          "auto_merge_armed": false,
-          "medic_attempts": 0,
-          "consecutive_medic_commits": 0,
-          "newer_review_than_medic": false
-        }
-      ]
-    }
-  },
-  {
-    "name": "work a failing check even while other checks are pending",
+      "approvals_required": 0
+    },
     "expect": [
-      22
-    ],
+      4
+    ]
+  },
+  {
+    "name": "a clean unarmed PR is armable",
     "input": {
-      "include_drafts": "false",
-      "include_forks": "false",
-      "only_label": "",
-      "skip_label": "no-medic",
-      "only_authors": "",
-      "max_attempts": "2",
-      "mention_pr": null,
-      "approvers": "@humans",
-      "approvals_required": "0",
-      "bypass_actors": "",
-      "collaborators": [],
       "prs": [
         {
-          "number": 22,
-          "state": "OPEN",
-          "isDraft": false,
-          "isCrossRepository": false,
-          "mergeStateStatus": "CLEAN",
-          "author_login": "zaffnet",
-          "labels": [],
-          "latestReviews": [],
-          "unresolved_threads": 0,
-          "failing_checks": 1,
-          "pending_checks": 2,
-          "total_checks": 3,
-          "auto_merge_armed": false,
-          "medic_attempts": 0,
-          "consecutive_medic_commits": 0,
-          "newer_review_than_medic": false
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 5
+          },
+          "unresolved": 0
         }
-      ]
-    }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0
+    },
+    "expect": [
+      5
+    ]
+  },
+  {
+    "name": "a head with no checks yet is still picked",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [],
+            "autoMergeRequest": null,
+            "number": 6
+          },
+          "unresolved": 0
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0
+    },
+    "expect": [
+      6
+    ]
+  },
+  {
+    "name": "an armed PR with nothing to fix is done",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": {
+              "enabledAt": "2026-01-01T00:00:00Z"
+            },
+            "number": 7
+          },
+          "unresolved": 0
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0
+    },
+    "expect": []
+  },
+  {
+    "name": "a draft is skipped",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": true,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 8
+          },
+          "unresolved": 0
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0
+    },
+    "expect": []
+  },
+  {
+    "name": "a fork is skipped",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": true,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 9
+          },
+          "unresolved": 0
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0
+    },
+    "expect": []
+  },
+  {
+    "name": "a closed PR is skipped",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "MERGED",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 10
+          },
+          "unresolved": 0
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0
+    },
+    "expect": []
+  },
+  {
+    "name": "the skip label is honoured",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [
+              {
+                "name": "no-medic"
+              }
+            ],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 11
+          },
+          "unresolved": 1
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0
+    },
+    "expect": []
+  },
+  {
+    "name": "an unrelated label is not the skip label",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [
+              {
+                "name": "chore"
+              }
+            ],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 12
+          },
+          "unresolved": 1
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0
+    },
+    "expect": [
+      12
+    ]
+  },
+  {
+    "name": "an approval short of the bar is not armable, but work still is",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 13
+          },
+          "unresolved": 0
+        },
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 14
+          },
+          "unresolved": 1
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 1
+    },
+    "expect": [
+      14
+    ]
+  },
+  {
+    "name": "several PRs keep their order",
+    "input": {
+      "prs": [
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 20
+          },
+          "unresolved": 1
+        },
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": false,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 21
+          },
+          "unresolved": 0
+        },
+        {
+          "view": {
+            "state": "OPEN",
+            "isDraft": true,
+            "isCrossRepository": false,
+            "mergeStateStatus": "CLEAN",
+            "latestReviews": [],
+            "labels": [],
+            "statusCheckRollup": [
+              {
+                "__typename": "CheckRun",
+                "name": "ci",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS"
+              }
+            ],
+            "autoMergeRequest": null,
+            "number": 22
+          },
+          "unresolved": 0
+        }
+      ],
+      "skip_label": "no-medic",
+      "approvals_required": 0
+    },
+    "expect": [
+      20,
+      21
+    ]
   }
 ]

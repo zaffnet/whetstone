@@ -121,20 +121,6 @@ repos:
         pass_filenames: false
         always_run: true
 
-      # --sync rewrites template/project/.github/workflows/pr-medic.yml from the root copy
-      # and fails when it had to, the way ruff --fix does, so the two cannot drift. --check
-      # alone reads only the root copy, which left one-sided edits to the single-source job
-      # a push later than they need to be caught.
-      #
-      # always_run for the same reason as check-agents-sync: the copies can also drift when
-      # a marker is deleted, and a deletion-only commit matches no `files` filter.
-      - id: check-pr-medic
-        name: pr-medic markers and template copy
-        entry: uv run --no-sync python tools/extract_pr_medic.py --sync
-        language: system
-        pass_filenames: false
-        always_run: true
-
       # commit-msg stage: conventional commits via the user-level commitlint config.
       - id: commitlint
         name: commitlint
