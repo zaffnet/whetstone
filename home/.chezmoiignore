@@ -7,13 +7,17 @@
 {{ if ne .chezmoi.os "darwin" -}}
 Library
 .chezmoiscripts/20-macos-defaults.sh
+.chezmoiscripts/20-macos-managed-defaults.sh
 {{- end }}
 
-{{ if env "CI" -}}
+{{ if and (ne (env "CI") "") (ne (env "CI") "0") (ne (env "CI") "false") -}}
 # CI applies the tree into a throwaway HOME; skip installs that need network or a GUI.
+# Compared, not tested for presence: every non-empty string is true in a template, so
+# `CI=0` in a shell would have skipped these on a real machine.
 .chezmoiscripts/05-oh-my-zsh.sh
 .chezmoiscripts/10-brew-bundle.sh
 .chezmoiscripts/20-macos-defaults.sh
+.chezmoiscripts/20-macos-managed-defaults.sh
 .chezmoiscripts/30-agent-skills.sh
 .chezmoiscripts/40-sync-mcp.sh
 {{- end }}

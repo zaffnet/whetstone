@@ -143,6 +143,217 @@ chezmoi_managed() {
     "$REPO/home/Library/Application Support/iTerm2/DynamicProfiles/whetstone.json.tmpl"
 }
 
+# Comparing the two Macs is what found these; reading one could not, because a value that
+# is set looks identical to one that is defaulted. The script is the only record that they
+# are deliberate, so the test pins that it still writes them rather than that the machine
+# currently has them -- a real home may have been changed by hand since.
+@test "the managed defaults are written, retired, and retried" {
+  script="$BATS_TEST_TMPDIR/managed.sh"
+  HOME="$H" chezmoi --source "$REPO" execute-template \
+    <"$REPO/home/.chezmoiscripts/run_after_20-macos-managed-defaults.sh.tmpl" >"$script"
+  bash -n "$script"
+  # The system bash is 3.2 and this uses arrays under `set -u`; the newer bash on PATH
+  # would not catch an unguarded empty expansion.
+  /bin/bash -n "$script"
+
+  stub="$BATS_TEST_TMPDIR/stub"
+  mkdir -p "$stub"
+  # Matched exactly. A `*iTerm*` pattern answers for `application "iTermBogus" is running`
+  # too, so a script that queried the wrong application would still look guarded.
+  cat >"$stub/osascript" <<'STUB'
+#!/usr/bin/env bash
+if [ "$*" = '-e application "iTerm" is running' ]; then
+  echo "$FAKE_ITERM_RUNNING"
+  exit 0
+fi
+echo "unexpected-query: $*"
+STUB
+  # Distinguishes `defaults read <domain>` from `defaults read <domain> <key>`: a readable
+  # domain says nothing about whether the key is still there.
+  cat >"$stub/defaults" <<'STUB'
+#!/usr/bin/env bash
+echo "$*" >>"$DEFAULTS_LOG"
+case "$1" in
+  write) [ "$3" != "${FAIL_ON_KEY:-}" ] || exit 1 ;;
+  delete) [ -z "${DELETE_FAILS:-}" ] || exit 1 ;;
+  read)
+    if [ "$#" -ge 3 ]; then
+      [ -n "${KEY_PRESENT:-}" ] || exit 1
+    else
+      [ -z "${DOMAIN_UNREADABLE:-}" ] || exit 1
+    fi
+    ;;
+esac
+exit 0
+STUB
+  printf '#!/usr/bin/env bash\nexit 0\n' >"$stub/killall"
+  chmod +x "$stub/osascript" "$stub/defaults" "$stub/killall"
+
+  home1="$BATS_TEST_TMPDIR/h1"
+  mkdir -p "$home1"
+  log="$BATS_TEST_TMPDIR/w-running.log"
+  : >"$log"
+  # iTerm2 up: Finder and Dock still apply, iTerm2 does not, and the apply carries on.
+  run env PATH="$stub:$PATH" HOME="$home1" FAKE_ITERM_RUNNING=true DEFAULTS_LOG="$log" \
+    bash "$script"
+  [ "$status" -eq 0 ]
+  [ "$(grep -c '^write com.apple.finder' "$log")" -eq 5 ]
+  [ "$(grep -c '^write com.apple.dock' "$log")" -eq 8 ]
+  [ "$(grep -c '^write com.googlecode.iterm2' "$log")" -eq 0 ]
+
+  # An osascript that fails must skip too, not fall through to the writes.
+  log="$BATS_TEST_TMPDIR/w-broken.log"
+  : >"$log"
+  cat >"$stub/osascript" <<'STUB'
+#!/usr/bin/env bash
+exit 1
+STUB
+  chmod +x "$stub/osascript"
+  run env PATH="$stub:$PATH" HOME="$home1" DEFAULTS_LOG="$log" bash "$script"
+  [ "$status" -eq 0 ]
+  [ "$(grep -c '^write com.googlecode.iterm2' "$log")" -eq 0 ]
+  cat >"$stub/osascript" <<'STUB'
+#!/usr/bin/env bash
+if [ "$*" = '-e application "iTerm" is running' ]; then
+  echo "$FAKE_ITERM_RUNNING"
+  exit 0
+fi
+echo "unexpected-query: $*"
+STUB
+  chmod +x "$stub/osascript"
+
+  home2="$BATS_TEST_TMPDIR/h2"
+  mkdir -p "$home2"
+  log="$BATS_TEST_TMPDIR/w-quit.log"
+  : >"$log"
+  run env PATH="$stub:$PATH" HOME="$home2" FAKE_ITERM_RUNNING=false DEFAULTS_LOG="$log" \
+    bash "$script"
+  [ "$status" -eq 0 ]
+  [ "$(grep -c '^write com.googlecode.iterm2' "$log")" -eq 14 ]
+  while IFS= read -r written; do
+    [ -n "$written" ] || continue
+    grep -qFx -- "$written" "$log" || {
+      echo "not written: $written"
+      return 1
+    }
+  done <<'WRITES'
+write com.apple.finder FXDefaultSearchScope -string SCcf
+write com.apple.finder NewWindowTarget -string PfAF
+write com.apple.dock wvous-bl-corner -int 5
+write com.apple.dock wvous-br-modifier -int 0
+write com.googlecode.iterm2 FocusFollowsMouse -bool true
+write com.googlecode.iterm2 SplitPaneDimmingAmount -float 0.2518520555218447
+write com.googlecode.iterm2 Selection Respects Soft Boundaries -bool true
+write com.googlecode.iterm2 Default Bookmark Guid -string whetstone-default
+WRITES
+  # A permission, not a look: iTerm2 ships it off and this repository does not turn it on.
+  code="$BATS_TEST_TMPDIR/code.sh"
+  grep -vE '^[[:space:]]*#' "$script" >"$code"
+  run ! grep -q 'AllowClipboardAccess' "$code"
+
+  # Retiring one declaration retires the key. Cutting every line that mentions it would
+  # hide a second copy, and a second copy is what stopped retirement working before.
+  retired="$BATS_TEST_TMPDIR/retired.sh"
+  grep -v '"ShowFullScreenTabBar|-bool|false"' "$script" >"$retired"
+  [ "$(grep -c 'ShowFullScreenTabBar' "$retired")" -eq 0 ]
+  keys="$home2/.local/state/whetstone/macos-iterm2-managed-keys.txt"
+
+  log="$BATS_TEST_TMPDIR/w-retire.log"
+  : >"$log"
+  run env PATH="$stub:$PATH" HOME="$home2" FAKE_ITERM_RUNNING=false DEFAULTS_LOG="$log" \
+    bash "$retired"
+  [ "$status" -eq 0 ]
+  grep -qFx 'delete com.googlecode.iterm2 ShowFullScreenTabBar' "$log"
+  [ "$(grep -c '^delete' "$log")" -eq 1 ]
+  run ! grep -qFx 'ShowFullScreenTabBar' "$keys"
+
+  # Delete fails and the key still reads: carried, whatever the domain says. Forgetting it
+  # here would strand the value, because nothing later would know it had been managed.
+  home3="$BATS_TEST_TMPDIR/h3"
+  mkdir -p "$home3"
+  keys3="$home3/.local/state/whetstone/macos-iterm2-managed-keys.txt"
+  run env PATH="$stub:$PATH" HOME="$home3" FAKE_ITERM_RUNNING=false \
+    DEFAULTS_LOG="$BATS_TEST_TMPDIR/w3a.log" bash "$script"
+  [ "$status" -eq 0 ]
+  run env PATH="$stub:$PATH" HOME="$home3" FAKE_ITERM_RUNNING=false \
+    DEFAULTS_LOG="$BATS_TEST_TMPDIR/w3b.log" DELETE_FAILS=1 KEY_PRESENT=1 bash "$retired"
+  [ "$status" -eq 0 ]
+  grep -qFx 'ShowFullScreenTabBar' "$keys3"
+
+  # Delete fails, the key does not read, and neither does the domain: the failure is about
+  # the domain, so it is carried rather than assumed gone.
+  home4="$BATS_TEST_TMPDIR/h4"
+  mkdir -p "$home4"
+  keys4="$home4/.local/state/whetstone/macos-iterm2-managed-keys.txt"
+  run env PATH="$stub:$PATH" HOME="$home4" FAKE_ITERM_RUNNING=false \
+    DEFAULTS_LOG="$BATS_TEST_TMPDIR/w4a.log" bash "$script"
+  [ "$status" -eq 0 ]
+  run env PATH="$stub:$PATH" HOME="$home4" FAKE_ITERM_RUNNING=false \
+    DEFAULTS_LOG="$BATS_TEST_TMPDIR/w4b.log" DELETE_FAILS=1 DOMAIN_UNREADABLE=1 bash "$retired"
+  [ "$status" -eq 0 ]
+  grep -qFx 'ShowFullScreenTabBar' "$keys4"
+
+  # Copilot on #39: a key is owned from the moment its own write lands. Recording the whole
+  # batch at the end meant a later write failing left every earlier key unowned, so retiring
+  # one of them afterwards would delete nothing. Pruning still waits for the batch, because
+  # a key missing due to a failed write is not a retired key.
+  partial="$BATS_TEST_TMPDIR/h6"
+  mkdir -p "$partial"
+  log="$BATS_TEST_TMPDIR/w-partial.log"
+  : >"$log"
+  run env PATH="$stub:$PATH" HOME="$partial" FAKE_ITERM_RUNNING=false DEFAULTS_LOG="$log" \
+    FAIL_ON_KEY=tilesize bash "$script"
+  [ "$status" -ne 0 ]
+
+  dock_keys="$partial/.local/state/whetstone/macos-dock-managed-keys.txt"
+  # The three written before the failure are owned; the one that failed is not.
+  grep -qFx 'autohide' "$dock_keys"
+  grep -qFx 'show-recents' "$dock_keys"
+  grep -qFx 'expose-group-apps' "$dock_keys"
+  run ! grep -qFx 'tilesize' "$dock_keys"
+  # And nothing was pruned on the way out: an interrupted batch must not delete anything.
+  run ! grep -q '^delete' "$log"
+
+  # Copilot on #39: the key file is replaced, not truncated and rewritten. A rewrite that
+  # dies halfway would forget the carried keys permanently, so a failing rename must leave
+  # the previous list untouched rather than an empty or half-written file.
+  atomic="$BATS_TEST_TMPDIR/h7"
+  mkdir -p "$atomic"
+  # Finder is the first domain, so its rewrite is the one the failing rename catches.
+  keys7="$atomic/.local/state/whetstone/macos-finder-managed-keys.txt"
+  run env PATH="$stub:$PATH" HOME="$atomic" FAKE_ITERM_RUNNING=false \
+    DEFAULTS_LOG="$BATS_TEST_TMPDIR/w7a.log" bash "$script"
+  [ "$status" -eq 0 ]
+  before="$(cat "$keys7")"
+  [ -n "$before" ]
+  printf '#!/usr/bin/env bash\nexit 1\n' >"$stub/mv"
+  chmod +x "$stub/mv"
+  run env PATH="$stub:$PATH" HOME="$atomic" FAKE_ITERM_RUNNING=false \
+    DEFAULTS_LOG="$BATS_TEST_TMPDIR/w7b.log" bash "$script"
+  [ "$status" -ne 0 ]
+  [ "$(cat "$keys7")" = "$before" ]
+  # And no half-written temporary file is left behind for the next apply to trip over.
+  [ "$(find "$(dirname "$keys7")" -name 'macos-finder-managed-keys.txt.*' | wc -l)" -eq 0 ]
+  rm -f "$stub/mv"
+
+  # Retiring the last setting of a domain must not abort: an empty array under `set -u` is
+  # an unbound variable on bash 3.2, which would take the whole apply down.
+  empty="$BATS_TEST_TMPDIR/empty.sh"
+  python3 - "$script" "$empty" <<'PYEOF'
+import re, sys
+src, dst = sys.argv[1], sys.argv[2]
+text = open(src).read()
+text = re.sub(r'managed_dock_settings=\(\n(?:.*?\n)*?\)\n', 'managed_dock_settings=()\n', text)
+open(dst, 'w').write(text)
+PYEOF
+  log="$BATS_TEST_TMPDIR/w-empty.log"
+  : >"$log"
+  run env PATH="$stub:$PATH" HOME="$BATS_TEST_TMPDIR/h5" FAKE_ITERM_RUNNING=false \
+    DEFAULTS_LOG="$log" /bin/bash "$empty"
+  [ "$status" -eq 0 ]
+  [ "$(grep -c '^write com.apple.dock' "$log")" -eq 0 ]
+}
+
 @test "Claude settings carry no env block" {
   jq -e 'has("env") | not' "$H/.claude/settings.json"
 }

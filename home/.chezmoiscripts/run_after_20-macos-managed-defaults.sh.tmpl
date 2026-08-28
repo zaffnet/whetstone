@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+# macOS defaults this repository owns, in one place, run after every apply.
+#
+# Every apply rather than run_onchange_, because retrying is the point. A deletion can fail
+# for reasons that will not hold next time -- the domain locked by a running app, a
+# preferences daemon mid-write -- and under run_onchange_ a successful run records the
+# script as handled, so the retry would never happen and the retired value would sit on the
+# machine until the file was next edited. `defaults write` is idempotent and cheap, so
+# re-running the writes costs nothing.
+#
+# Removing a setting is one step: delete its declaration. The declaration is the only place
+# a key is named -- the writes and the managed-key list are both read from it -- and a key
+# that leaves the list is deleted from the domain on the next apply. Keys this repository
+# never wrote are untouched.
+set -euo pipefail
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/whetstone"
+
+# key|type|value. One declaration per setting, so retiring one really is deleting one line.
+managed_finder_settings=(
+  "ShowPathbar|-bool|true"
+  "AppleShowAllFiles|-bool|true"
+  # Search the current folder rather than the whole Mac; open a new window on Recents
+  # (PfAF -- the home folder would be PfHm); let the Trash empty items after 30 days.
+  # Captured from this machine, not chosen.
+  "FXDefaultSearchScope|-string|SCcf"
+  "NewWindowTarget|-string|PfAF"
+  "FXRemoveOldTrashItems|-bool|true"
+)
+managed_dock_settings=(
+  "autohide|-bool|true"
+  "show-recents|-bool|false"
+  "expose-group-apps|-bool|true"
+  # Tile size, and both bottom hot corners: bottom left starts the screen saver (5), bottom
+  # right is disabled (1 -- Show Desktop would be 4). Modifiers are written too, an unset
+  # modifier is not the same as zero and the corner behaves differently without one.
+  "tilesize|-int|67"
+  "wvous-bl-corner|-int|5"
+  "wvous-bl-modifier|-int|0"
+  "wvous-br-corner|-int|1"
+  "wvous-br-modifier|-int|0"
+)
+# iTerm2 settings that live in the app's own domain rather than in a profile. A Dynamic
+# Profile carries what is inside `New Bookmarks` and nothing else, so focus-follows-mouse,
+# split-pane dimming and the copy behaviour never travelled with it. Comparing two Macs'
+# plists is what surfaced them; reading one machine's could not, because there is no way to
+# tell a value that was set from one that was defaulted.
+managed_iterm2_settings=(
+  "FocusFollowsMouse|-bool|true"
+  "AggressiveFocusFollowsMouse|-bool|true"
+  "FocusNewSplitPaneWithFocusFollowsMouse|-bool|true"
+  "DimInactiveSplitPanes|-bool|true"
+  "SplitPaneDimmingAmount|-float|0.2518520555218447"
+  "DimBackgroundWindows|-bool|false"
+  "Selection Respects Soft Boundaries|-bool|true"
+  "CopySelection|-bool|false"
+  "CopyLastNewline|-bool|true"
+  "ClickToSelectCommand|-bool|false"
+  # Not AllowClipboardAccess. It differs between the two Macs -- true here, unset there --
+  # but it is a permission, not a look: it lets terminal output drive the macOS pasteboard
+  # through OSC 52, including output from a remote or untrusted session, and iTerm2 ships
+  # it off. Left to each machine, so both keep what they have.
+  "EnableAPIServer|-bool|true"
+  "HideActivityIndicator|-bool|false"
+  "ShowFullScreenTabBar|-bool|false"
+  # The managed profile (Library/Application Support/iTerm2/DynamicProfiles) is the
+  # default. Only the pointer lives here: 44 of the plist's 99 keys are window frames and
+  # NoSync* state rewritten on every quit, so managing the file would churn every diff.
+  "Default Bookmark Guid|-string|whetstone-default"
+)
+
+# A key is forgotten only on evidence that it is gone. A failed `defaults delete` does not
+# say why it failed, and neither does a failed read of the key -- a permission problem or a
+# cfprefsd hiccup fails exactly like an absent key. So both are asked:
+#
+#   key reads         -> still there, carry it and retry next apply
+#   key does not read,
+#     domain reads    -> the key really is absent, which is the wanted end state: forget it
+#     domain does not -> the failure is about the domain, not the key: carry it
+#
+# Carrying every failed deletion would also be safe and would never converge: an
+# already-absent key fails `delete` on every apply, so it would sit in the state forever.
+prune_retired_defaults_keys() {
+  local domain="$1"
+  local keys_file="$2"
+  shift 2
+  local current_keys=(${@+"$@"})
+
+  mkdir -p "$(dirname "$keys_file")"
+
+  local carry=()
+  if [ -f "$keys_file" ]; then
+    while IFS= read -r previous_key; do
+      [ -n "$previous_key" ] || continue
+
+      local still_managed=1
+      local key
+      for key in ${current_keys[@]+"${current_keys[@]}"}; do
+        if [ "$key" = "$previous_key" ]; then
+          still_managed=0
+          break
+        fi
+      done
+      [ "$still_managed" -ne 0 ] || continue
+
+      if defaults delete "$domain" "$previous_key" 2>/dev/null; then
+        continue
+      fi
+      if defaults read "$domain" "$previous_key" >/dev/null 2>&1; then
+        carry+=("$previous_key")
+        continue
+      fi
+      if defaults read "$domain" >/dev/null 2>&1; then
+        continue
+      fi
+      carry+=("$previous_key")
+    done <"$keys_file"
+  fi
+
+  # Replaced, never truncated in place. Redirecting onto the file empties it before the new
+  # list is written, and a failure in between -- a full disk, an interrupted apply -- would
+  # lose the carried keys for good: nothing else records that this repository wrote them, so
+  # their values would sit on the machine with no later apply knowing to delete them. The
+  # temporary file is in the same directory so the rename is on one filesystem, hence atomic.
+  #
+  # ${arr[@]+...} throughout: bash 3.2, the system bash here, treats an empty array as
+  # unset under `set -u`, so retiring a domain's last setting would abort the script.
+  local pending_file
+  pending_file="$(mktemp "$keys_file.XXXXXX")"
+  if ! printf '%s\n' ${current_keys[@]+"${current_keys[@]}"} ${carry[@]+"${carry[@]}"} \
+    >"$pending_file"; then
+    rm -f "$pending_file"
+    return 1
+  fi
+  if ! mv "$pending_file" "$keys_file"; then
+    rm -f "$pending_file"
+    return 1
+  fi
+}
+
+apply_managed_defaults() {
+  local domain="$1"
+  local keys_file="$2"
+  shift 2
+  local settings=(${@+"$@"})
+
+  mkdir -p "$(dirname "$keys_file")"
+
+  local keys=()
+  local setting key type value rest
+  for setting in ${settings[@]+"${settings[@]}"}; do
+    key="${setting%%|*}"
+    rest="${setting#*|}"
+    type="${rest%%|*}"
+    value="${rest#*|}"
+    defaults write "$domain" "$key" "$type" "$value"
+    # Owned from the moment its own write lands, not at the end of the batch. `set -e`
+    # stops the script on a failed write, and recording only afterwards would leave every
+    # key written before it unowned -- retire one of those later and nothing would know to
+    # delete it. Recorded one at a time, a half-finished batch still owns what it wrote.
+    # Duplicates cost nothing: pruning only reads the list, and the rewrite below collapses
+    # them on the next complete run.
+    grep -qxF -- "$key" "$keys_file" 2>/dev/null || printf '%s\n' "$key" >>"$keys_file"
+    keys+=("$key")
+  done
+
+  # Pruning waits for the whole batch. A key absent because its write failed is not a
+  # retired key, and deleting it would throw away the value this run was trying to set.
+  prune_retired_defaults_keys "$domain" "$keys_file" ${keys[@]+"${keys[@]}"}
+}
+
+apply_managed_defaults com.apple.finder "$state_dir/macos-finder-managed-keys.txt" \
+  ${managed_finder_settings[@]+"${managed_finder_settings[@]}"}
+apply_managed_defaults com.apple.dock "$state_dir/macos-dock-managed-keys.txt" \
+  ${managed_dock_settings[@]+"${managed_dock_settings[@]}"}
+killall Finder Dock 2>/dev/null || true
+
+# Fails closed. `osascript` erroring -- no Automation permission, a headless session --
+# produces a value that is merely not "false", and treating that as "not running" would
+# write underneath a running iTerm2, whose plist is rewritten from memory on quit and would
+# discard the lot. Only an explicit "false" writes.
+iterm2_running="$(osascript -e 'application "iTerm" is running' 2>/dev/null || echo unknown)"
+if [ "$iterm2_running" != false ]; then
+  printf 'iTerm2 settings skipped (running or undetermined: %s). Quit it and re-apply.\n' \
+    "$iterm2_running" >&2
+  exit 0
+fi
+
+apply_managed_defaults com.googlecode.iterm2 "$state_dir/macos-iterm2-managed-keys.txt" \
+  ${managed_iterm2_settings[@]+"${managed_iterm2_settings[@]}"}
