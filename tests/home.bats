@@ -213,6 +213,17 @@ chezmoi_managed() {
   # onchange script look complete forever.
   run ! grep -q "com.googlecode.iterm2" "$script"
 
+  # Managed defaults converge when a key is retired: each script prunes keys that were
+  # previously managed in these domains but are no longer in the current managed key set.
+  grep -qF 'prune_retired_defaults_keys com.googlecode.iterm2 "$managed_keys_file" "${managed_iterm2_keys[@]}"' \
+    "$iterm_script"
+  grep -qF 'prune_retired_defaults_keys com.apple.finder "$managed_finder_keys_file" "${managed_finder_keys[@]}"' \
+    "$script"
+  grep -qF 'prune_retired_defaults_keys com.apple.dock "$managed_dock_keys_file" "${managed_dock_keys[@]}"' \
+    "$script"
+  grep -qF 'defaults delete "$domain" "$previous_key" 2>/dev/null || true' "$iterm_script"
+  grep -qF 'defaults delete "$domain" "$previous_key" 2>/dev/null || true' "$script"
+
   # Finder's search scope and new-window target, plus the two hot corners with modifiers:
   # an unset modifier is not the same as zero.
   grep -qFx 'defaults write com.apple.finder FXDefaultSearchScope -string "SCcf"' "$script"

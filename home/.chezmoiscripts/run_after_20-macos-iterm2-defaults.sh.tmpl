@@ -4,6 +4,55 @@
 # mark the settings done forever like run_onchange_ scripts do.
 set -euo pipefail
 
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/whetstone"
+managed_keys_file="$state_dir/macos-iterm2-managed-keys.txt"
+managed_iterm2_keys=(
+  "FocusFollowsMouse"
+  "AggressiveFocusFollowsMouse"
+  "FocusNewSplitPaneWithFocusFollowsMouse"
+  "DimInactiveSplitPanes"
+  "SplitPaneDimmingAmount"
+  "DimBackgroundWindows"
+  "Selection Respects Soft Boundaries"
+  "CopySelection"
+  "CopyLastNewline"
+  "ClickToSelectCommand"
+  "EnableAPIServer"
+  "HideActivityIndicator"
+  "ShowFullScreenTabBar"
+  "Default Bookmark Guid"
+)
+
+prune_retired_defaults_keys() {
+  local domain="$1"
+  local keys_file="$2"
+  shift 2
+  local current_keys=("$@")
+
+  mkdir -p "$(dirname "$keys_file")"
+
+  if [ -f "$keys_file" ]; then
+    while IFS= read -r previous_key; do
+      [ -n "$previous_key" ] || continue
+
+      local still_managed=1
+      local key
+      for key in "${current_keys[@]}"; do
+        if [ "$key" = "$previous_key" ]; then
+          still_managed=0
+          break
+        fi
+      done
+
+      if [ "$still_managed" -ne 0 ]; then
+        defaults delete "$domain" "$previous_key" 2>/dev/null || true
+      fi
+    done <"$keys_file"
+  fi
+
+  printf '%s\n' "${current_keys[@]}" >"$keys_file"
+}
+
 # iTerm2 settings that live in the app's own domain rather than in a profile. This is the
 # same trap as the key bindings: a Dynamic Profile carries what is inside `New Bookmarks`
 # and nothing else, so focus-follows-mouse, split-pane dimming and the copy behaviour all
@@ -19,6 +68,8 @@ set -euo pipefail
 if [ "$(osascript -e 'application "iTerm" is running')" = true ]; then
   printf 'iTerm2 is running; leaving its settings alone. Quit it and re-apply to set them.\n' >&2
 else
+  prune_retired_defaults_keys com.googlecode.iterm2 "$managed_keys_file" "${managed_iterm2_keys[@]}"
+
   defaults write com.googlecode.iterm2 FocusFollowsMouse -bool true
   defaults write com.googlecode.iterm2 AggressiveFocusFollowsMouse -bool true
   defaults write com.googlecode.iterm2 FocusNewSplitPaneWithFocusFollowsMouse -bool true

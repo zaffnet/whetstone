@@ -4,18 +4,71 @@
 # macOS build: {{ output "sw_vers" "--buildVersion" | trim }}
 set -euo pipefail
 
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/whetstone"
+managed_finder_keys_file="$state_dir/macos-finder-managed-keys.txt"
+managed_dock_keys_file="$state_dir/macos-dock-managed-keys.txt"
+managed_finder_keys=(
+  "ShowPathbar"
+  "AppleShowAllFiles"
+  "FXDefaultSearchScope"
+  "NewWindowTarget"
+  "FXRemoveOldTrashItems"
+)
+managed_dock_keys=(
+  "autohide"
+  "show-recents"
+  "expose-group-apps"
+  "tilesize"
+  "wvous-bl-corner"
+  "wvous-bl-modifier"
+  "wvous-br-corner"
+  "wvous-br-modifier"
+)
+
+prune_retired_defaults_keys() {
+  local domain="$1"
+  local keys_file="$2"
+  shift 2
+  local current_keys=("$@")
+
+  mkdir -p "$(dirname "$keys_file")"
+
+  if [ -f "$keys_file" ]; then
+    while IFS= read -r previous_key; do
+      [ -n "$previous_key" ] || continue
+
+      local still_managed=1
+      local key
+      for key in "${current_keys[@]}"; do
+        if [ "$key" = "$previous_key" ]; then
+          still_managed=0
+          break
+        fi
+      done
+
+      if [ "$still_managed" -ne 0 ]; then
+        defaults delete "$domain" "$previous_key" 2>/dev/null || true
+      fi
+    done <"$keys_file"
+  fi
+
+  printf '%s\n' "${current_keys[@]}" >"$keys_file"
+}
+
 # Keyboard: fast repeat, no press-and-hold accent popup (matters in editors).
 defaults write NSGlobalDomain KeyRepeat -int 2
 defaults write NSGlobalDomain InitialKeyRepeat -int 15
 defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
 
 # Finder: show extensions, path bar, and hidden files; no .DS_Store on network shares.
+prune_retired_defaults_keys com.apple.finder "$managed_finder_keys_file" "${managed_finder_keys[@]}"
 defaults write NSGlobalDomain AppleShowAllExtensions -bool true
 defaults write com.apple.finder ShowPathbar -bool true
 defaults write com.apple.finder AppleShowAllFiles -bool true
 defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true
 
 # Dock: autohide, no recent apps, group windows in Mission Control.
+prune_retired_defaults_keys com.apple.dock "$managed_dock_keys_file" "${managed_dock_keys[@]}"
 defaults write com.apple.dock autohide -bool true
 defaults write com.apple.dock show-recents -bool false
 defaults write com.apple.dock expose-group-apps -bool true
