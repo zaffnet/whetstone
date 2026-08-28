@@ -21,9 +21,11 @@
         "unresolved_threads": 0,
         "failing_checks": 0,
         "pending_checks": 1,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "gate passed"
   },
   {
     "name": "wait on dry-run",
@@ -47,9 +49,11 @@
         "unresolved_threads": 0,
         "failing_checks": 0,
         "pending_checks": 0,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "dry-run"
   },
   {
     "name": "wait when a human approval is required and missing",
@@ -70,14 +74,20 @@
         "mergeStateStatus": "CLEAN",
         "author_login": "zaffnet",
         "latestReviews": [
-          {"login": "copilot-pull-request-reviewer[bot]", "state": "APPROVED"}
+          {
+            "login": "copilot-pull-request-reviewer[bot]",
+            "state": "APPROVED",
+            "authorAssociation": "NONE"
+          }
         ],
         "unresolved_threads": 0,
         "failing_checks": 0,
         "pending_checks": 0,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "approvals"
   },
   {
     "name": "arm when a human has approved",
@@ -97,13 +107,21 @@
         "isCrossRepository": false,
         "mergeStateStatus": "CLEAN",
         "author_login": "alice",
-        "latestReviews": [{"login": "bob", "state": "APPROVED"}],
+        "latestReviews": [
+          {
+            "login": "bob",
+            "state": "APPROVED",
+            "authorAssociation": "OWNER"
+          }
+        ],
         "unresolved_threads": 0,
         "failing_checks": 0,
         "pending_checks": 0,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "gate passed"
   },
   {
     "name": "arm @anyone on a bot approval",
@@ -124,14 +142,20 @@
         "mergeStateStatus": "CLEAN",
         "author_login": "zaffnet",
         "latestReviews": [
-          {"login": "copilot-pull-request-reviewer[bot]", "state": "APPROVED"}
+          {
+            "login": "copilot-pull-request-reviewer[bot]",
+            "state": "APPROVED",
+            "authorAssociation": "NONE"
+          }
         ],
         "unresolved_threads": 0,
         "failing_checks": 0,
         "pending_checks": 0,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "gate passed"
   },
   {
     "name": "refuse a fork",
@@ -155,12 +179,14 @@
         "unresolved_threads": 0,
         "failing_checks": 0,
         "pending_checks": 0,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "fork"
   },
   {
-    "name": "refuse CONFLICTING",
+    "name": "refuse DIRTY, the value the API actually emits for a conflict",
     "expect": "refuse",
     "input": {
       "approvers": "@humans",
@@ -175,15 +201,17 @@
         "state": "OPEN",
         "isDraft": false,
         "isCrossRepository": false,
-        "mergeStateStatus": "CONFLICTING",
+        "mergeStateStatus": "DIRTY",
         "author_login": "zaffnet",
         "latestReviews": [],
         "unresolved_threads": 0,
         "failing_checks": 0,
         "pending_checks": 0,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "conflicts"
   },
   {
     "name": "refuse unresolved threads",
@@ -207,9 +235,11 @@
         "unresolved_threads": 2,
         "failing_checks": 0,
         "pending_checks": 0,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "unresolved threads"
   },
   {
     "name": "refuse failing checks",
@@ -233,9 +263,11 @@
         "unresolved_threads": 0,
         "failing_checks": 1,
         "pending_checks": 0,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "failing checks"
   },
   {
     "name": "refuse a draft",
@@ -259,9 +291,11 @@
         "unresolved_threads": 0,
         "failing_checks": 0,
         "pending_checks": 0,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "draft"
   },
   {
     "name": "refuse a closed PR",
@@ -285,9 +319,11 @@
         "unresolved_threads": 0,
         "failing_checks": 0,
         "pending_checks": 0,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "closed"
   },
   {
     "name": "noop when already armed",
@@ -311,9 +347,11 @@
         "unresolved_threads": 0,
         "failing_checks": 0,
         "pending_checks": 0,
-        "auto_merge_armed": true
+        "auto_merge_armed": true,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "already armed"
   },
   {
     "name": "merge when auto-merge is off and checks are green",
@@ -337,9 +375,11 @@
         "unresolved_threads": 0,
         "failing_checks": 0,
         "pending_checks": 0,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "gate passed, auto-merge off"
   },
   {
     "name": "wait pending checks when auto-merge is off",
@@ -363,9 +403,11 @@
         "unresolved_threads": 0,
         "failing_checks": 0,
         "pending_checks": 3,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 3
       }
-    }
+    },
+    "expect_reason": "pending checks"
   },
   {
     "name": "bypass_actors skip the approval count",
@@ -389,9 +431,11 @@
         "unresolved_threads": 0,
         "failing_checks": 0,
         "pending_checks": 0,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "gate passed"
   },
   {
     "name": "COMMENTED latestReview does not count as APPROVED",
@@ -411,13 +455,21 @@
         "isCrossRepository": false,
         "mergeStateStatus": "CLEAN",
         "author_login": "alice",
-        "latestReviews": [{"login": "bob", "state": "COMMENTED"}],
+        "latestReviews": [
+          {
+            "login": "bob",
+            "state": "COMMENTED",
+            "authorAssociation": "OWNER"
+          }
+        ],
         "unresolved_threads": 0,
         "failing_checks": 0,
         "pending_checks": 0,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "approvals"
   },
   {
     "name": "@collaborators counts a collaborator approval",
@@ -426,7 +478,10 @@
       "approvers": "@collaborators",
       "approvals_required": "1",
       "bypass_actors": "",
-      "collaborators": ["bob", "carol"],
+      "collaborators": [
+        "bob",
+        "carol"
+      ],
       "include_forks": "false",
       "allow_auto_merge": "true",
       "arm_auto_merge": "true",
@@ -437,12 +492,212 @@
         "isCrossRepository": false,
         "mergeStateStatus": "CLEAN",
         "author_login": "alice",
-        "latestReviews": [{"login": "bob", "state": "APPROVED"}],
+        "latestReviews": [
+          {
+            "login": "bob",
+            "state": "APPROVED",
+            "authorAssociation": "OWNER"
+          }
+        ],
         "unresolved_threads": 0,
         "failing_checks": 0,
         "pending_checks": 0,
-        "auto_merge_armed": false
+        "auto_merge_armed": false,
+        "total_checks": 1
       }
-    }
+    },
+    "expect_reason": "gate passed"
+  },
+  {
+    "name": "wait when ARM_AUTO_MERGE is false",
+    "expect": "wait",
+    "input": {
+      "approvers": "@humans",
+      "approvals_required": "0",
+      "bypass_actors": "",
+      "collaborators": [],
+      "include_forks": "false",
+      "allow_auto_merge": "true",
+      "arm_auto_merge": "false",
+      "dry_run": "false",
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "author_login": "zaffnet",
+        "latestReviews": [],
+        "unresolved_threads": 0,
+        "failing_checks": 0,
+        "pending_checks": 1,
+        "auto_merge_armed": false,
+        "total_checks": 1
+      }
+    },
+    "expect_reason": "ARM_AUTO_MERGE false"
+  },
+  {
+    "name": "refuse a head with no checks registered",
+    "expect": "refuse",
+    "input": {
+      "approvers": "@humans",
+      "approvals_required": "0",
+      "bypass_actors": "",
+      "collaborators": [],
+      "include_forks": "false",
+      "allow_auto_merge": "true",
+      "arm_auto_merge": "true",
+      "dry_run": "false",
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "author_login": "zaffnet",
+        "latestReviews": [],
+        "unresolved_threads": 0,
+        "failing_checks": 0,
+        "pending_checks": 0,
+        "auto_merge_armed": false,
+        "total_checks": 0
+      }
+    },
+    "expect_reason": "no checks on this head"
+  },
+  {
+    "name": "a suffixless bot login does not satisfy @humans",
+    "expect": "wait",
+    "input": {
+      "approvers": "@humans",
+      "approvals_required": "1",
+      "bypass_actors": "",
+      "collaborators": [],
+      "include_forks": "false",
+      "allow_auto_merge": "true",
+      "arm_auto_merge": "true",
+      "dry_run": "false",
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "author_login": "zaffnet",
+        "latestReviews": [
+          {
+            "login": "copilot-pull-request-reviewer",
+            "state": "APPROVED",
+            "authorAssociation": "NONE"
+          }
+        ],
+        "unresolved_threads": 0,
+        "failing_checks": 0,
+        "pending_checks": 1,
+        "auto_merge_armed": false,
+        "total_checks": 1
+      }
+    },
+    "expect_reason": "approvals"
+  },
+  {
+    "name": "an outside human approval does not satisfy @humans",
+    "expect": "wait",
+    "input": {
+      "approvers": "@humans",
+      "approvals_required": "1",
+      "bypass_actors": "",
+      "collaborators": [],
+      "include_forks": "false",
+      "allow_auto_merge": "true",
+      "arm_auto_merge": "true",
+      "dry_run": "false",
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "author_login": "zaffnet",
+        "latestReviews": [
+          {
+            "login": "drive-by",
+            "state": "APPROVED",
+            "authorAssociation": "NONE"
+          }
+        ],
+        "unresolved_threads": 0,
+        "failing_checks": 0,
+        "pending_checks": 1,
+        "auto_merge_armed": false,
+        "total_checks": 1
+      }
+    },
+    "expect_reason": "approvals"
+  },
+  {
+    "name": "a COLLABORATOR approval satisfies @humans",
+    "expect": "arm",
+    "input": {
+      "approvers": "@humans",
+      "approvals_required": "1",
+      "bypass_actors": "",
+      "collaborators": [],
+      "include_forks": "false",
+      "allow_auto_merge": "true",
+      "arm_auto_merge": "true",
+      "dry_run": "false",
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "author_login": "zaffnet",
+        "latestReviews": [
+          {
+            "login": "helper",
+            "state": "APPROVED",
+            "authorAssociation": "COLLABORATOR"
+          }
+        ],
+        "unresolved_threads": 0,
+        "failing_checks": 0,
+        "pending_checks": 1,
+        "auto_merge_armed": false,
+        "total_checks": 1
+      }
+    },
+    "expect_reason": "gate passed"
+  },
+  {
+    "name": "a [bot] suffix in APPROVERS matches a suffixless review login",
+    "expect": "arm",
+    "input": {
+      "approvers": "copilot-pull-request-reviewer[bot]",
+      "approvals_required": "1",
+      "bypass_actors": "",
+      "collaborators": [],
+      "include_forks": "false",
+      "allow_auto_merge": "true",
+      "arm_auto_merge": "true",
+      "dry_run": "false",
+      "pr": {
+        "state": "OPEN",
+        "isDraft": false,
+        "isCrossRepository": false,
+        "mergeStateStatus": "CLEAN",
+        "author_login": "zaffnet",
+        "latestReviews": [
+          {
+            "login": "copilot-pull-request-reviewer",
+            "state": "APPROVED",
+            "authorAssociation": "NONE"
+          }
+        ],
+        "unresolved_threads": 0,
+        "failing_checks": 0,
+        "pending_checks": 1,
+        "auto_merge_armed": false,
+        "total_checks": 1
+      }
+    },
+    "expect_reason": "gate passed"
   }
 ]
