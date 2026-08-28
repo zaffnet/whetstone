@@ -6,6 +6,9 @@ bats_require_minimum_version 1.5.0
 setup() {
   REPO="$(git -C "$BATS_TEST_DIRNAME" rev-parse --show-toplevel)"
   MEDIC="$REPO/.github/pr-medic"
+  # check_counts keys its own-jobs filter on this. CI runs bats inside a workflow, so without
+  # pinning it the fixtures would be filtered against whichever workflow ran them.
+  export GITHUB_WORKFLOW=pr-medic
 }
 
 # gh pr view --json statusCheckRollup returns two shapes. Getting this wrong is what made
@@ -131,6 +134,99 @@ JSON
   }
 }
 
+# threads.sh replaces `gh api graphql` on the tool allowlist: that was the last command left
+# that could approve or merge, and an allowlist cannot separate it from resolving a thread.
+# Keyed on the workflow name, not a literal: renaming the workflow must not silently leave it
+# counting its own jobs as pending forever.
+@test "check_counts follows the workflow name" {
+  local rollup counted
+  rollup='{"statusCheckRollup":[{"__typename":"CheckRun","name":"medic","workflowName":"pr-medic","status":"IN_PROGRESS"}]}'
+  counted=$(GITHUB_WORKFLOW=something-else jq -c -L "$MEDIC" 'include "lib"; check_counts' <<<"$rollup")
+  [ "$counted" = '{"total":1,"failing":0,"pending":1}' ] || {
+    echo "expected the row to count under another workflow name, got $counted" >&2
+    return 1
+  }
+  counted=$(jq -c -L "$MEDIC" 'include "lib"; check_counts' <<<"$rollup")
+  [ "$counted" = '{"total":0,"failing":0,"pending":0}' ]
+}
+
+@test "no gh api reaches the model" {
+  local tools
+  tools=$(grep -o 'allowedTools "[^"]*"' "$REPO/.github/workflows/pr-medic.yml")
+  run ! grep -q 'gh api' <<<"$tools"
+  # And denied outright in both workflows, since deny beats allow.
+  grep -qF 'Bash(gh api:*)' "$REPO/.github/workflows/pr-medic.yml"
+  grep -qF 'Bash(gh api:*)' "$REPO/.github/workflows/claude.yml"
+}
+
+setup_threads() {
+  export PR=7 REPO=o/r RUNNER_TEMP="$BATS_TEST_TMPDIR"
+  export THREADS_FILE="$BATS_TEST_TMPDIR/threads.json"
+  export REPLIES_FILE="$BATS_TEST_TMPDIR/replies.json"
+  export GH_LOG="$BATS_TEST_TMPDIR/gh.log"
+  : >"$GH_LOG"
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  cat >"$BATS_TEST_TMPDIR/bin/gh" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$GH_LOG"
+exit 0
+SH
+  chmod +x "$BATS_TEST_TMPDIR/bin/gh"
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+  export PATH
+  printf '%s\n' '[{"thread_id":"T_known","path":"a.py","line":1,"comments":[]}]' >"$THREADS_FILE"
+}
+
+@test "threads.sh replies and resolves only what it was asked to" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","reply":"fixed in abc1234","resolve":true}]' >"$REPLIES_FILE"
+  "$MEDIC/threads.sh" apply
+  grep -q 'addPullRequestReviewThreadReply' "$GH_LOG"
+  grep -q 'resolveReviewThread' "$GH_LOG"
+}
+
+@test "threads.sh replies without resolving when not asked" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","reply":"left alone because ..."}]' >"$REPLIES_FILE"
+  "$MEDIC/threads.sh" apply
+  grep -q 'addPullRequestReviewThreadReply' "$GH_LOG"
+  run ! grep -q 'resolveReviewThread' "$GH_LOG"
+}
+
+# The model wrote this file, so an id it invented -- or one belonging to another pull request
+# -- must not be acted on.
+@test "threads.sh refuses a thread id it did not capture" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_elsewhere","reply":"x","resolve":true}]' >"$REPLIES_FILE"
+  run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  run ! grep -q 'resolveReviewThread' "$GH_LOG"
+}
+
+@test "threads.sh refuses an entry with no reply" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","resolve":true}]' >"$REPLIES_FILE"
+  run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  run ! grep -q 'resolveReviewThread' "$GH_LOG"
+}
+
+# A malformed file is a failure, not a no-op: the gate is about to read "no unresolved
+# threads" as ready to merge.
+@test "threads.sh refuses a replies file that is not a JSON array" {
+  setup_threads
+  printf 'not json\n' >"$REPLIES_FILE"
+  run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+}
+
+@test "threads.sh apply is a no-op when the model wrote nothing" {
+  setup_threads
+  printf '[]\n' >"$REPLIES_FILE"
+  "$MEDIC/threads.sh" apply
+  run ! grep -q 'addPullRequestReviewThreadReply' "$GH_LOG"
+}
+
 # after.sh against stub git and gh. Remote state alone cannot tell a finished run from one
 # that resolved a thread and never pushed the fix, so the gate checks the runner as well.
 
@@ -176,6 +272,12 @@ SH
 
   STUB_VIEW=${1:-$(default_view)}
   STUB_REMOTE_HEAD=$LOCAL_HEAD
+  # after.sh posts the model's replies before it gates. Nothing to post here.
+  RUNNER_TEMP="$BATS_TEST_TMPDIR"
+  THREADS_FILE="$BATS_TEST_TMPDIR/threads.json"
+  REPLIES_FILE="$BATS_TEST_TMPDIR/replies.json"
+  printf '[]\n' >"$THREADS_FILE"
+  printf '[]\n' >"$REPLIES_FILE"
   HEAD_BEFORE=$LOCAL_HEAD
   PR=7
   REPO=o/r
@@ -185,6 +287,7 @@ SH
   REREQUEST_REVIEWERS=
   GITHUB_STEP_SUMMARY="$BATS_TEST_TMPDIR/summary.md"
   export GH_LOG PATH STUB_VIEW STUB_REMOTE_HEAD HEAD_BEFORE PR REPO
+  export RUNNER_TEMP THREADS_FILE REPLIES_FILE
   export APPROVALS_REQUIRED ARM_AUTO_MERGE MERGE_METHOD REREQUEST_REVIEWERS GITHUB_STEP_SUMMARY
 }
 

@@ -22,8 +22,9 @@ def check_counts:
     end;
   # Drop this workflow's own jobs. On a pull_request_review wake github.sha is the PR head,
   # so `medic` itself lands in the rollup, and counting it makes every such wake read as
-  # pending and never arm. A commit status carries no workflowName, so it is kept.
-  [(.statusCheckRollup // [])[] | select(.workflowName != "pr-medic")]
+  # pending and never arm. A commit status carries no workflowName, so it is kept. Keyed on
+  # GITHUB_WORKFLOW rather than a literal, so renaming the workflow cannot silently stop it.
+  [(.statusCheckRollup // [])[] | select(.workflowName != ($ENV.GITHUB_WORKFLOW // "pr-medic"))]
   # One head can carry several runs of the same workflow -- a `gh run rerun`, or a burst of
   # triggers. The rollup keeps every one: on this repo `medic (42)` appeared as both FAILURE
   # and CANCELLED at once. Keep the newest row per check, or a stale failed attempt holds

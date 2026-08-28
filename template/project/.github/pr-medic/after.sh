@@ -8,6 +8,10 @@ here=$(dirname "$0")
 # shellcheck source=.github/pr-medic/lib.sh
 . "$here/lib.sh"
 
+# First: the model answered the review threads into a file, and this posts them. It has to
+# happen before the gate counts unresolved threads below.
+"$here/threads.sh" apply
+
 repo=$(gh api "repos/$REPO" --jq '{default_branch, allow_auto_merge}')
 default_branch=$(jq -r .default_branch <<<"$repo")
 # From the checkout step, not from here: this script runs after Claude, so its own

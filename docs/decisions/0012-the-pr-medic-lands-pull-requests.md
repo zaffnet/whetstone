@@ -83,17 +83,31 @@ Claude runs behind an explicit `--allowedTools` allowlist, not only the deny blo
 `claude-code-action` agent mode sets neither `--permission-mode` nor `--allowedTools`, so
 without them the model has Read, Grep and Glob and cannot do the work at all. `gh pr merge`
 and `gh pr review` are off the list, and `git push` is allowed only bare or with
-`--force-with-lease`. The list is not a security boundary: resolving a review thread needs
-`gh api graphql`, and the same command can approve or merge. What actually stops an
-injected instruction from landing a change is the ruleset — required status checks and
-`required_review_thread_resolution` — not the tool list.
+`--force-with-lease`.
 
-The honest fix is a narrow helper: `.github/pr-medic/` scripts that list, reply to and
-resolve review threads, with `gh api graphql` off the allowlist entirely. Review twice
-asked for it, and twice the answer was that a second file breaks the one-file drop-in.
-That reason is gone. It is now a small follow-up, and it is deliberately not in the change
-that withdrew the rule: it moves the trust surface, and a refactor is the wrong place to do
-that.
+`gh api` is off the list too, and denied outright. It used to be on it, because resolving a
+review thread needs `gh api graphql` and there is no narrower form of that command — and the
+same command approves and merges. So the model no longer touches the threads directly:
+`.github/pr-medic/threads.sh dump` writes the unresolved threads to a file, the model writes
+`[{thread_id, reply, resolve}]` to another, and `apply` performs the replies in bash. It
+accepts only thread IDs that `dump` captured, requires a reply on every entry, and treats a
+malformed file as a failure rather than as nothing to do. Both files live under `RUNNER_TEMP`
+and the model reaches them through `--add-dir`, because a file written inside the worktree
+would trip the clean-worktree check in `after.sh`.
+
+That leaves the model with no command that can approve or merge, rather than an allowlist that
+could not separate the two. The ruleset — required status checks and
+`required_review_thread_resolution` — is still the control that holds; this removes the
+standing hole above it. Two review rounds asked for this and were told a second file would
+break the one-file drop-in; withdrawing that rule is what made it available.
+
+`.github/pr-medic/` is itself restored from the default branch after `gh pr checkout`, before
+anything in it runs. Moving the logic out of the YAML put `after.sh` — the gate — in the
+checkout, where the pull request controls it. On `schedule`, `workflow_dispatch` and
+`workflow_run` the workflow file is trusted and the restore closes that. On an entity event
+the workflow file is the pull request's as well, so nothing in the file can help; that is a
+property of `pull_request_review` running the head's workflow, and it means write access to
+this repository is already full control.
 
 The `@claude` mention path is `.github/workflows/claude.yml`, with `contents: read`. It
 answers; it does not push, and it has nothing to do with landing pull requests. `allowed_bots`
