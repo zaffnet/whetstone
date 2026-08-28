@@ -93,3 +93,96 @@ JSON
     i=$((i + 1))
   done
 }
+
+# The gate's blocked flag, run as a script against stub git and gh. The Claude step is
+# continue-on-error, so a failure part-way through -- a thread resolved, the fix not pushed --
+# reaches the gate as remote state that looks finished. These cases pin that it refuses.
+setup_after() {
+  AFTER="$BATS_TEST_TMPDIR/after.sh"
+  python3 "$EXTRACT" pr-medic-after.sh >"$AFTER"
+  export GATE_JQ CHECKS_JQ
+  GATE_JQ=$(cat "$BATS_TEST_TMPDIR/gate.jq")
+  CHECKS_JQ=$(cat "$BATS_TEST_TMPDIR/checks.jq")
+
+  WORK="$BATS_TEST_TMPDIR/work"
+  mkdir -p "$WORK"
+  git -C "$WORK" init -q -b main
+  git -C "$WORK" config user.email bot@example.com
+  git -C "$WORK" config user.name bot
+  echo one >"$WORK/file"
+  git -C "$WORK" add file
+  git -C "$WORK" commit -q -m one
+  LOCAL_HEAD=$(git -C "$WORK" rev-parse HEAD)
+
+  export GH_LOG="$BATS_TEST_TMPDIR/gh.log"
+  : >"$GH_LOG"
+  export STUB_VIEW="$BATS_TEST_TMPDIR/view.json"
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  cat >"$BATS_TEST_TMPDIR/bin/gh" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$GH_LOG"
+case "$*" in
+  *"--json headRefOid --jq"*) printf '%s\n' "$STUB_REMOTE_HEAD" ;;
+  *"api graphql"*) printf '%s\n' '{"total":0,"unresolved":0}' ;;
+  *"pr view"*"--json number"*) cat "$STUB_VIEW" ;;
+esac
+exit 0
+SH
+  chmod +x "$BATS_TEST_TMPDIR/bin/gh"
+  PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+  export PATH
+
+  export PR=7 REPO=o/r GITHUB_STEP_SUMMARY="$BATS_TEST_TMPDIR/summary.md"
+  export GITHUB_OUTPUT=/dev/null
+  # The gate reaches `merge` on this state: open, clean, no unresolved threads, one green
+  # check, auto-merge unavailable. So a run that does nothing must show `pr merge` in the log,
+  # which is what makes its absence in the cases below meaningful.
+  export UPDATE_STALE_BRANCH=false ALLOW_AUTO_MERGE=false ARM_AUTO_MERGE=true
+  export APPROVALS_REQUIRED=0 DRY_RUN=false CLAUDE_OUTCOME=success
+  export STUB_REMOTE_HEAD="$LOCAL_HEAD" HEAD_BEFORE="$LOCAL_HEAD"
+}
+
+write_view() {
+  cat >"$STUB_VIEW" <<JSON
+{"number": 7, "state": "OPEN", "isDraft": false, "isCrossRepository": false,
+ "author": {"login": "human"}, "mergeStateStatus": "CLEAN", "latestReviews": [],
+ "statusCheckRollup": [{"__typename": "CheckRun", "name": "ci", "status": "COMPLETED", "conclusion": "SUCCESS"}],
+ "autoMergeRequest": null, "headRefOid": "$STUB_REMOTE_HEAD"}
+JSON
+}
+
+run_after() {
+  write_view
+  (cd "$WORK" && bash "$AFTER")
+}
+
+@test "gate merges when the checkout is clean and matches the PR head" {
+  setup_after
+  run_after
+  grep -q 'pr merge' "$GH_LOG"
+}
+
+@test "gate refuses to merge when the Claude step failed" {
+  setup_after
+  CLAUDE_OUTCOME=failure
+  run_after
+  run ! grep -q 'pr merge' "$GH_LOG"
+  grep -q 'did not finish' "$GITHUB_STEP_SUMMARY"
+}
+
+@test "gate refuses to merge when an edit was never committed" {
+  setup_after
+  echo two >"$WORK/uncommitted"
+  run_after
+  run ! grep -q 'pr merge' "$GH_LOG"
+  grep -q 'worktree is not clean' "$GITHUB_STEP_SUMMARY"
+}
+
+@test "gate refuses to merge when a commit was never pushed" {
+  setup_after
+  echo two >>"$WORK/file"
+  git -C "$WORK" commit -q -am two
+  run_after
+  run ! grep -q 'pr merge' "$GH_LOG"
+  grep -q 'never pushed' "$GITHUB_STEP_SUMMARY"
+}

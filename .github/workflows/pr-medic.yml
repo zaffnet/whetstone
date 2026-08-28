@@ -812,6 +812,7 @@ jobs:
           BOT_EMAIL: ${{ steps.bot.outputs.email }}
           CHECKOUT_OK: ${{ steps.checkout-pr.outputs.ok }}
           HEAD_BEFORE: ${{ steps.checkout-pr.outputs.head_before }}
+          CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
         run: |
           read -r -d '' CHECKS_JQ <<'JQ' || true
           # BEGIN pr-medic-checks.jq
@@ -957,6 +958,8 @@ jobs:
           : "${MAX_ATTEMPTS_PER_HEAD_SHA:=2}"
           : "${CHECKOUT_OK:=true}"
           : "${HEAD_BEFORE:=}"
+          # skipped is the no-Claude case: HAS_CLAUDE false or a dry run. Those still gate.
+          : "${CLAUDE_OUTCOME:=skipped}"
 
           notice() { printf '::notice::%s\n' "$1"; }
           summary() { printf '%s\n' "$1" >>"$GITHUB_STEP_SUMMARY"; }
@@ -972,6 +975,17 @@ jobs:
             blocked=true
             summary "- checkout or fetch failed; not arming"
           fi
+          # The Claude step is continue-on-error, so its failure reaches here as an outcome and
+          # nothing else. It can die after resolving a thread and before pushing the fix, which
+          # leaves the remote with no unresolved threads and green checks on a head the fix is
+          # missing from -- the one state the gate below reads as ready to merge.
+          case "$CLAUDE_OUTCOME" in
+            success | skipped) ;;
+            *)
+              blocked=true
+              summary "- Claude Code did not finish (outcome \`$CLAUDE_OUTCOME\`); not arming"
+              ;;
+          esac
 
           if [ "$blocked" != true ] && [ "$EFFECTIVE_DRY_RUN" != true ] && [ "$UPDATE_STALE_BRANCH" = true ]; then
             status=$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq .mergeStateStatus 2>/dev/null)
@@ -1013,6 +1027,22 @@ jobs:
           head_changed=false
           if [ -n "$HEAD_BEFORE" ] && [ -n "$head_after" ] && [ "$HEAD_BEFORE" != "$head_after" ]; then
             head_changed=true
+          fi
+
+          # head_changed says the checkout moved, not that anything reached the remote. An
+          # uncommitted edit or an unpushed commit means the fix exists only on this runner, so
+          # the head the gate is about to judge is not the code that answers the review.
+          if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+            blocked=true
+            summary "- the worktree is not clean, so a change here was never committed; not arming"
+          fi
+          remote_head=$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid 2>/dev/null)
+          if [ -z "$head_after" ] || [ -z "$remote_head" ]; then
+            blocked=true
+            summary "- could not compare the checkout with the PR head; not arming"
+          elif [ "$head_after" != "$remote_head" ]; then
+            blocked=true
+            summary "- the checkout is at ${head_after:0:7} but the PR head is ${remote_head:0:7}, so a commit here was never pushed; not arming"
           fi
 
           if [ "$head_changed" = true ] && [ -n "$BOT_EMAIL" ]; then

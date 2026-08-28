@@ -40,6 +40,13 @@ Claude implements review threads and failing checks. A bash step after Claude re
 re-requests reviewers, evaluates the gate, and runs `gh pr merge --auto` (or a direct merge
 when the host repo has auto-merge off). The medic never approves.
 
+The gate arms or merges only when this run finished cleanly: the Claude step reported
+success or was skipped, the worktree is clean, and the checkout is at the PR head the API
+reports. Claude runs `continue-on-error`, so a failure between resolving a thread and
+pushing the fix leaves the remote with no unresolved threads and green checks on a head the
+fix is missing from. From remote state alone that is indistinguishable from a finished run,
+so the gate checks the runner as well.
+
 Claude runs behind an explicit `--allowedTools` allowlist, not only the deny block:
 `claude-code-action` agent mode sets neither `--permission-mode` nor `--allowedTools`, so
 without them the model has Read, Grep and Glob and cannot do the work at all. `gh pr merge`
