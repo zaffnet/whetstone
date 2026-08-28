@@ -13,6 +13,9 @@ set -euo pipefail
 # check in after.sh. Claude is told the same path, and reaches it via --add-dir.
 : "${THREADS_FILE:=${RUNNER_TEMP:?}/pr-medic/threads.json}"
 : "${REPLIES_FILE:=${RUNNER_TEMP:?}/pr-medic/replies.json}"
+# Outside pr-medic/, so outside --add-dir: what the threads looked like when the model was
+# given them, which is the only thing its `resolve: true` can honestly refer to.
+: "${THREAD_SNAPSHOT:=${RUNNER_TEMP:?}/pr-medic-state/threads.json}"
 
 # The unresolved threads, as they are right now.
 fetch_threads() {
@@ -37,11 +40,14 @@ fetch_threads() {
 }
 
 dump() {
-  mkdir -p "$(dirname "$THREADS_FILE")" "$(dirname "$REPLIES_FILE")"
-  fetch_threads >"$THREADS_FILE"
+  mkdir -p "$(dirname "$THREADS_FILE")" "$(dirname "$REPLIES_FILE")" "$(dirname "$THREAD_SNAPSHOT")"
+  fetch_threads >"$THREAD_SNAPSHOT"
+  cp "$THREAD_SNAPSHOT" "$THREADS_FILE"
   printf '[]\n' >"$REPLIES_FILE"
   printf 'Wrote %s unresolved thread(s) to %s\n' "$(jq length "$THREADS_FILE")" "$THREADS_FILE"
 }
+
+comments_of() { jq -c --arg i "$1" '[.[] | select(.thread_id == $i) | .comments] | first'; }
 
 apply() {
   # Claude wrote this file, so nothing in it is trusted. A malformed file is a failure rather
@@ -88,6 +94,12 @@ apply() {
       # beginning is missing. Replying to it is fine; recording it as satisfied is not.
       if [ "$(jq -r --arg i "$id" '[.[] | select(.thread_id == $i) | .truncated] | first' <<<"$threads")" = true ]; then
         echo "::error::thread $id has more than 100 comments; it cannot be resolved from a partial read"
+        exit 1
+      fi
+      # A reviewer can add a comment while the model works. Resolving then would mark that new
+      # comment satisfied as well, and the gate would go on to see no unresolved threads.
+      if [ "$(comments_of "$id" <<<"$threads")" != "$(comments_of "$id" <"$THREAD_SNAPSHOT")" ]; then
+        echo "::error::thread $id changed while this run was in progress; not resolving it"
         exit 1
       fi
       # shellcheck disable=SC2016  # $threadId is a GraphQL variable.

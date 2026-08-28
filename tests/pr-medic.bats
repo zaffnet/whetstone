@@ -188,12 +188,18 @@ JSON
   # so the model has no use for it.
   run ! grep -q 'gh pr comment' <<<"$tools"
   run ! grep -qE 'Bash\(git push\)' <<<"$tools"
+  # The immutable copies under RUNNER_TEMP, not the ones in the checkout: the model has
+  # Edit/Write there, so it could rewrite a helper and then invoke the allowlisted path.
+  run ! grep -q 'Bash(.github/pr-medic/' <<<"$tools"
   for helper in rebase.sh 'commit.sh:*'; do
-    grep -qF "Bash(.github/pr-medic/$helper)" <<<"$tools" || {
+    grep -qF "medic/$helper)" <<<"$tools" || {
       echo "helper missing from the allowlist: $helper" >&2
       return 1
     }
   done
+  # And the prompt comes from the immutable copy too, or a PR could rewrite its own orders.
+  # shellcheck disable=SC2016  # a literal grep pattern.
+  grep -qF 'cat "$RUNNER_TEMP/medic/prompt.md"' "$REPO/.github/workflows/pr-medic.yml"
   # Not even push.sh. Claude commits; after.sh pushes, in a step with no model in it, so the
   # Claude step holds no credential that can write and there is nothing there to misuse.
   run ! grep -q 'push.sh' <<<"$tools"
@@ -366,6 +372,9 @@ SH
   export STUB_THREADS="$BATS_TEST_TMPDIR/stub-threads.json"
   printf '%s\n' '[{"thread_id":"T_known","path":"a.py","line":1,"comments":[]}]' >"$STUB_THREADS"
   cp "$STUB_THREADS" "$THREADS_FILE"
+  # The trusted snapshot dump took, outside the directory the model can write.
+  export THREAD_SNAPSHOT="$BATS_TEST_TMPDIR/snapshot-threads.json"
+  cp "$STUB_THREADS" "$THREAD_SNAPSHOT"
 }
 
 @test "threads.sh replies and resolves only what it was asked to" {
@@ -410,6 +419,7 @@ SH
 @test "threads.sh does not trust a cleared truncation flag" {
   setup_threads
   printf '%s\n' '[{"thread_id":"T_long","path":"a.py","line":1,"truncated":true,"comments":[]}]' >"$STUB_THREADS"
+  cp "$STUB_THREADS" "$THREAD_SNAPSHOT"
   printf '%s\n' '[{"thread_id":"T_long","path":"a.py","line":1,"truncated":false,"comments":[]}]' >"$THREADS_FILE"
   printf '%s\n' '[{"thread_id":"T_long","reply":"x","resolve":true}]' >"$REPLIES_FILE"
   run "$MEDIC/threads.sh" apply
@@ -449,6 +459,7 @@ SH
 @test "threads.sh will not resolve a thread it could only read in part" {
   setup_threads
   printf '%s\n' '[{"thread_id":"T_long","path":"a.py","line":1,"truncated":true,"comments":[]}]' >"$STUB_THREADS"
+  cp "$STUB_THREADS" "$THREAD_SNAPSHOT"
   printf '%s\n' '[{"thread_id":"T_long","reply":"x","resolve":true}]' >"$REPLIES_FILE"
   run "$MEDIC/threads.sh" apply
   [ "$status" -ne 0 ]
@@ -458,7 +469,30 @@ SH
 @test "threads.sh still replies to a thread it could only read in part" {
   setup_threads
   printf '%s\n' '[{"thread_id":"T_long","path":"a.py","line":1,"truncated":true,"comments":[]}]' >"$STUB_THREADS"
+  cp "$STUB_THREADS" "$THREAD_SNAPSHOT"
   printf '%s\n' '[{"thread_id":"T_long","reply":"partial read, leaving open"}]' >"$REPLIES_FILE"
+  "$MEDIC/threads.sh" apply
+  grep -q 'addPullRequestReviewThreadReply' "$GH_LOG"
+}
+
+# A reviewer can add a comment while the model works. A stale `resolve: true` would mark that
+# new comment satisfied as well, and the gate would then see no unresolved threads at all.
+@test "threads.sh will not resolve a thread that changed mid-run" {
+  setup_threads
+  # The snapshot is what the model was shown; the API now returns an extra comment.
+  printf '%s\n' '[{"thread_id":"T_known","path":"a.py","line":1,"comments":[{"author":"r","body":"first"}]}]' >"$THREAD_SNAPSHOT"
+  printf '%s\n' '[{"thread_id":"T_known","path":"a.py","line":1,"comments":[{"author":"r","body":"first"},{"author":"r","body":"and another thing"}]}]' >"$STUB_THREADS"
+  printf '%s\n' '[{"thread_id":"T_known","reply":"done","resolve":true}]' >"$REPLIES_FILE"
+  run "$MEDIC/threads.sh" apply
+  [ "$status" -ne 0 ]
+  run ! grep -q 'resolveReviewThread' "$GH_LOG"
+}
+
+@test "threads.sh still replies to a thread that changed mid-run" {
+  setup_threads
+  printf '%s\n' '[{"thread_id":"T_known","path":"a.py","line":1,"comments":[{"author":"r","body":"first"}]}]' >"$THREAD_SNAPSHOT"
+  printf '%s\n' '[{"thread_id":"T_known","path":"a.py","line":1,"comments":[{"author":"r","body":"first"},{"author":"r","body":"more"}]}]' >"$STUB_THREADS"
+  printf '%s\n' '[{"thread_id":"T_known","reply":"noted, leaving open"}]' >"$REPLIES_FILE"
   "$MEDIC/threads.sh" apply
   grep -q 'addPullRequestReviewThreadReply' "$GH_LOG"
 }

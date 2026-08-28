@@ -158,7 +158,7 @@ jobs:
           "$RUNNER_TEMP/medic/threads.sh" dump # threads in as a file, replies out as a file
           {
             echo "prompt<<PROMPT"
-            cat .github/pr-medic/prompt.md
+            cat "$RUNNER_TEMP/medic/prompt.md"
             echo PROMPT
           } >>"$GITHUB_OUTPUT"
           # $login leads the bot allowlist: after a medic push, github.actor is this bot.
@@ -187,7 +187,7 @@ jobs:
             --max-turns ${{ env.MAX_TURNS }}
             --permission-mode acceptEdits
             --add-dir ${{ runner.temp }}/pr-medic
-            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff),Bash(git diff --stat),Bash(git diff --cached),Bash(git diff HEAD),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git checkout --ours:*),Bash(git checkout --theirs:*),Bash(git rebase --continue),Bash(git rebase --abort),Bash(.github/pr-medic/rebase.sh),Bash(.github/pr-medic/commit.sh:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh run rerun:*)"
+            --allowedTools "Read,Grep,Glob,Edit,Write,TodoWrite,Bash(git status:*),Bash(git diff),Bash(git diff --stat),Bash(git diff --cached),Bash(git diff HEAD),Bash(git log:*),Bash(git show:*),Bash(git add:*),Bash(git checkout --ours:*),Bash(git checkout --theirs:*),Bash(git rebase --continue),Bash(git rebase --abort),Bash(${{ runner.temp }}/medic/rebase.sh),Bash(${{ runner.temp }}/medic/commit.sh:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh run view:*),Bash(gh run list:*),Bash(gh run rerun:*)"
           prompt: ${{ steps.bot.outputs.prompt }}
 
       - if: failure()

@@ -158,10 +158,21 @@ restore and the gate step that executes it. Copying it out of reach also avoids 
 problem -- a pull request that legitimately edits these scripts, as the one introducing them
 does, would look dirty to `after.sh`'s own clean-worktree check.
 
+The helpers on the tool allowlist are the copies under `RUNNER_TEMP`, not the ones in the
+checkout, and `prompt.md` is read from there too. Otherwise a pull request could rewrite
+`commit.sh` and have the model invoke the allowlisted path -- arbitrary shell, past every deny
+rule -- or rewrite the instructions the model is given.
+
 Nothing the model writes is treated as evidence. `threads.sh apply` re-queries the open
 threads instead of reading back the file it handed over, because `--add-dir` makes that file
 writable; and `trusted-state` lives outside that directory, because only `after.sh` reads it
 and a state file the model could rewrite would certify whatever it liked.
+
+`apply` also refuses to resolve a thread whose comments have changed since `dump` took its
+snapshot. A reviewer can add a comment while the model is working, and a `resolve: true`
+written before that arrived would mark the new comment satisfied too -- after which the gate
+sees no unresolved threads and merges. Replying to such a thread is still allowed; only the
+claim that the code now satisfies it is refused.
 
 On `schedule`, `workflow_dispatch` and `workflow_run` the workflow file itself is trusted, so
 the copy in `RUNNER_TEMP` is what the gate runs and the chain holds. On an entity event the

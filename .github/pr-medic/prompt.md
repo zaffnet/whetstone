@@ -24,10 +24,10 @@ unresolved review threads, and `replies.json`, which you write.
 4. `git add` the files you changed -- never `git add -A`, because `.claude/`, `CLAUDE.md`,
    `.mcp.json` and `.husky` here have been reset to the default branch's copies for safety and
    staging them would commit that reset onto the author's branch. Then
-   `.github/pr-medic/commit.sh "your message"`, which is the only way to commit here. Do not
+   `$RUNNER_TEMP/medic/commit.sh "your message"`, which is the only way to commit here. Do not
    push: you hold no credential that can, and a later step pushes what you commit.
 5. Last, because a push dismisses approvals: if the branch conflicts with the default branch,
-   run `.github/pr-medic/rebase.sh` (it takes no arguments and finds the default branch
+   run `$RUNNER_TEMP/medic/rebase.sh` (it takes no arguments and finds the default branch
    itself), resolve the conflicts (`git checkout --ours`/`--theirs` are available), `git add`
    them, then `git rebase --continue`. A later step pushes the result. If you cannot resolve
    the conflicts, `git rebase --abort` and say so in a reply.
