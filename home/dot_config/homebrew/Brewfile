@@ -48,6 +48,10 @@ brew "ffmpeg"
 # ~/Library/Spelling and /Library/Spelling, and macOS puts none there, so until a dictionary
 # is installed `hunspell -D` lists no dictionary and every word reads as a miss.
 brew "hunspell"                # Spell checker and morphological analyzer
+# Grammar, which hunspell does not do at all: hunspell and cSpell both answer only
+# "is this a word". harper-ls is the editor half and needs an extension installed by
+# hand, the way Cursor itself does; harper-cli works from the shell with neither.
+brew "harper"                  # Grammar checker (harper-ls, harper-cli)
 
 # Cloud
 brew "azure-cli"
