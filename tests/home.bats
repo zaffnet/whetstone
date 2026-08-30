@@ -94,7 +94,10 @@ chezmoi_managed() {
 @test "every external is pinned to a commit and checksummed" {
   ext="$REPO/home/.chezmoiexternal.toml"
   [ -f "$ext" ]
-  run python3 -c '
+  # tomllib needs 3.11+; the system python3 on macOS is 3.9. Bare `python3` passed on CI and
+  # on a checkout with the venv on PATH, and failed everywhere else -- `just test` on a Mac
+  # that has not activated it resolves /usr/bin/python3 and stops here.
+  run uv run --no-project --python 3.12 python -c '
 import re, sys, tomllib, pathlib
 
 externals = tomllib.loads(pathlib.Path(sys.argv[1]).read_text())
