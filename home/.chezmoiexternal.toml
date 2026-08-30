@@ -1,0 +1,35 @@
+# Files fetched from outside the repo. The first entries here, so the rule they set matters:
+# pinned to a commit and checksummed, never a moving branch. `master` would let the content
+# under a passing checksum change without a commit here, and a dictionary that silently
+# gained or lost words is worse than one that is a year stale.
+#
+# Homebrew ships hunspell with no dictionaries (see dot_config/homebrew/Brewfile), and macOS
+# puts none in either search path, so without these `hunspell -D` lists nothing and every
+# word reads as a miss.
+#
+# en_US from the LibreOffice dictionaries repo, which is SCOWL (Kevin Atkinson's Spell
+# Checker Oriented Word Lists) run through SCOWL's own make-hunspell-dict. The same source
+# Debian's hunspell-en-us, LibreOffice, and Firefox use, which is what makes it the one to
+# have rather than a hand-rolled list.
+#
+# Chosen over en_US-large: large is SCOWL size 70 against 60 and its own README says it has
+# not been checked for errors as carefully, so it trades false positives for false negatives.
+# Swap the paths below if that is the better trade later.
+#
+# The pin is the commit that last touched either file: the .aff in 2024-02, the .dic back in
+# 2021-05. Refreshed yearly only because the content cannot move under a pinned SHA -- the
+# period keeps an apply off the network, it is not a staleness window.
+
+["Library/Spelling/en_US.aff"]
+type = "file"
+url = "https://raw.githubusercontent.com/LibreOffice/dictionaries/208a9fd80b2a182fe20f224cd615119c6323ae2e/en/en_US.aff"
+refreshPeriod = "8760h"
+["Library/Spelling/en_US.aff".checksum]
+sha256 = "e746c882dd6f303c2c46e7452804b9201115a6942cfeb15f18f8edf774d2e24e"
+
+["Library/Spelling/en_US.dic"]
+type = "file"
+url = "https://raw.githubusercontent.com/LibreOffice/dictionaries/208a9fd80b2a182fe20f224cd615119c6323ae2e/en/en_US.dic"
+refreshPeriod = "8760h"
+["Library/Spelling/en_US.dic".checksum]
+sha256 = "f0b1a234bd178bdd01875b2a392a9647f888b8fe879f79c52aae62c2759b3647"
