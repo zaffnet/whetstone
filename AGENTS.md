@@ -41,4 +41,7 @@ Check `~/.agents/skills` at the start of a task and load the ones that match.
 Projects generated from whetstone and files managed by chezmoi are never patched in place.
 A template fix goes into whetstone, ships with `just release vX.Y.Z`, and reaches a project
 when its owner runs `uvx copier update` and commits. A dotfile fix goes into `home/` and
-`just apply`. Published tags are never moved. Detail: `~/.agents/handbook/working-with-agents.md`.
+`just apply`. Managed here, so never edited in place: `~/.claude/settings.json`,
+`~/.claude/CLAUDE.md`, `~/.codex/`, `~/.cursor/`, `~/.agents/`. For anything else,
+`chezmoi source-path <file>` names the file to edit instead, or fails if it is unmanaged.
+Published tags are never moved. Detail: `~/.agents/handbook/working-with-agents.md`.

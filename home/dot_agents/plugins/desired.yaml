@@ -5,16 +5,18 @@
 # Not plugins on purpose: chrome-devtools and context7 are raw servers in ../mcp.json.
 # The chrome-devtools plugin cannot pass --autoConnect; context7 needs no plugin.
 # playwright is disabled in both products because it launches its own Chrome profile.
+# typescript-lsp is off in Claude Code only: nothing on this machine is TypeScript and the
+# plugin had no recorded usage. Left on in Codex, which has not been checked the same way.
 
 claude_code:
   enabled:
     - github@claude-plugins-official
     - pyright-lsp@claude-plugins-official
-    - typescript-lsp@claude-plugins-official
     - claude-md-management@claude-plugins-official
   disabled:
     - chrome-devtools-mcp@claude-plugins-official
     - playwright@claude-plugins-official
+    - typescript-lsp@claude-plugins-official
 
 codex:
   enabled:

@@ -83,6 +83,7 @@ chezmoi_managed() {
 @test "agent instruction files resolve to the repo AGENTS.md and handbook" {
   resolves_to "$H/.codex/AGENTS.md" "$REPO/AGENTS.md"
   resolves_to "$H/.claude/CLAUDE.md" "$REPO/AGENTS.md"
+  resolves_to "$H/.cursor/AGENTS.md" "$REPO/AGENTS.md"
   resolves_to "$H/.agents/handbook" "$REPO/docs/handbook"
 }
 
