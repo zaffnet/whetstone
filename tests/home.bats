@@ -87,6 +87,33 @@ chezmoi_managed() {
   resolves_to "$H/.agents/handbook" "$REPO/docs/handbook"
 }
 
+# Asserts the declaration, not the files: the externals are CI-ignored, and a case that
+# skipped in CI would have to be added to the set macos.yml pins. Both properties are the
+# point of fetching at all -- a moving branch lets content change under a passing checksum,
+# and no checksum lets it change silently.
+@test "every external is pinned to a commit and checksummed" {
+  ext="$REPO/home/.chezmoiexternal.toml"
+  [ -f "$ext" ]
+  # tomllib needs 3.11+; the system python3 on macOS is 3.9. Bare `python3` passed on CI and
+  # on a checkout with the venv on PATH, and failed everywhere else -- `just test` on a Mac
+  # that has not activated it resolves /usr/bin/python3 and stops here.
+  run uv run --no-project --python 3.12 python -c '
+import re, sys, tomllib, pathlib
+
+externals = tomllib.loads(pathlib.Path(sys.argv[1]).read_text())
+assert externals, "no externals declared"
+for path, spec in externals.items():
+    url = spec["url"]
+    sha = spec.get("checksum", {}).get("sha256", "")
+    assert re.search(r"/[0-9a-f]{40}/", url), f"{path}: url is not pinned to a commit: {url}"
+    assert re.fullmatch(r"[0-9a-f]{64}", sha), f"{path}: missing or malformed sha256"
+' "$ext"
+  [ "$status" -eq 0 ] || {
+    echo "$output"
+    false
+  }
+}
+
 @test "reviewer subagents are linked for Claude Code and Codex" {
   resolves_to "$H/.claude/agents" "$REPO/agents"
   resolves_to "$H/.codex/agents" "$REPO/codex/agents"

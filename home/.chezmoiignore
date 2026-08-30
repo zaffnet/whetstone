@@ -20,6 +20,12 @@ Library
 .chezmoiscripts/20-macos-managed-defaults.sh
 .chezmoiscripts/30-agent-skills.sh
 .chezmoiscripts/40-sync-mcp.sh
+# Externals, for the same reason: a CI apply is timed in macos.yml and should not wait on
+# raw.githubusercontent. The declaration is asserted in tests/home.bats instead of the files.
+Library/Spelling/en_US.aff
+Library/Spelling/en_US.dic
+Library/Spelling/en_CA.aff
+Library/Spelling/en_CA.dic
 {{- end }}
 
 {{ if eq .role "work" -}}
