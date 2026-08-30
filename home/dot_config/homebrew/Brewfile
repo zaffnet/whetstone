@@ -44,6 +44,10 @@ brew "pandoc"
 brew "poppler"                 # pdftotext, pdftoppm
 brew "tesseract"               # OCR
 brew "ffmpeg"
+# Homebrew ships hunspell with no dictionaries. It reads *.aff and *.dic from
+# ~/Library/Spelling and /Library/Spelling, and macOS puts none there, so until a dictionary
+# is installed `hunspell -D` lists no dictionary and every word reads as a miss.
+brew "hunspell"                # Spell checker and morphological analyzer
 
 # Cloud
 brew "azure-cli"
