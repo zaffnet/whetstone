@@ -24,6 +24,8 @@ Library
 # raw.githubusercontent. The declaration is asserted in tests/home.bats instead of the files.
 Library/Spelling/en_US.aff
 Library/Spelling/en_US.dic
+Library/Spelling/en_CA.aff
+Library/Spelling/en_CA.dic
 {{- end }}
 
 {{ if eq .role "work" -}}

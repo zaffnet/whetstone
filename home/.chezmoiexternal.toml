@@ -16,6 +16,12 @@
 # not been checked for errors as carefully, so it trades false positives for false negatives.
 # Swap the paths below if that is the better trade later.
 #
+# en_CA as well, because it is the locale /etc/zprofile sets: without it a bare `hunspell
+# file.txt` fails outright rather than falling back, since hunspell resolves its default
+# dictionary from LANG and has none to find. The two .aff files are byte-identical -- SCOWL
+# shares the affix rules across the English variants and only the word list differs -- so the
+# duplicated sha256 below is correct, not a copy-paste slip.
+#
 # The pin is the commit that last touched either file: the .aff in 2024-02, the .dic back in
 # 2021-05. Refreshed yearly only because the content cannot move under a pinned SHA -- the
 # period keeps an apply off the network, it is not a staleness window.
@@ -33,3 +39,17 @@ url = "https://raw.githubusercontent.com/LibreOffice/dictionaries/208a9fd80b2a18
 refreshPeriod = "8760h"
 ["Library/Spelling/en_US.dic".checksum]
 sha256 = "f0b1a234bd178bdd01875b2a392a9647f888b8fe879f79c52aae62c2759b3647"
+
+["Library/Spelling/en_CA.aff"]
+type = "file"
+url = "https://raw.githubusercontent.com/LibreOffice/dictionaries/208a9fd80b2a182fe20f224cd615119c6323ae2e/en/en_CA.aff"
+refreshPeriod = "8760h"
+["Library/Spelling/en_CA.aff".checksum]
+sha256 = "e746c882dd6f303c2c46e7452804b9201115a6942cfeb15f18f8edf774d2e24e"
+
+["Library/Spelling/en_CA.dic"]
+type = "file"
+url = "https://raw.githubusercontent.com/LibreOffice/dictionaries/208a9fd80b2a182fe20f224cd615119c6323ae2e/en/en_CA.dic"
+refreshPeriod = "8760h"
+["Library/Spelling/en_CA.dic".checksum]
+sha256 = "53096689870246a78fa408b1e7a8c49bc140bd466a84a384cfb509445fff7173"
