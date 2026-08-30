@@ -53,6 +53,7 @@ for key in RUNTIME:
 TOMBSTONES = ("alwaysThinkingEnabled", "env")
 for key in TOMBSTONES:
     current.pop(key, None)
+    managed.pop(key, None)
 # Kept after the declared keys, so `chezmoi diff` shows what the product added rather than
 # interleaving it. Named on stderr because JSON has no comment to label a block with, which
 # is what the Cursor script uses its marker for.
