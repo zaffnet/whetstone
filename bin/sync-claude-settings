@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""Report, and on request pull, in-product edits to ~/.claude/settings.json declared keys.
+
+`chezmoi re-add` -- and so `just sync` -- skips modify-script targets, and
+~/.claude/settings.json is one (home/dot_claude/modify_settings.json.tmpl). So a setting
+changed in Claude Code is reverted by the next `just apply` with nothing said. Reporting the
+drift is this script's job in `just sync`; pulling it is `--adopt`, run deliberately.
+
+Reporting, not adopting, is the default because a declared key that differs does not say
+why it differs. It reads the same whether the product setting is the one worth keeping or
+the template's is and this machine is simply behind. Both live cases on the machine this was
+written for wanted the template: `pyright-lsp` was false here and true everywhere on
+purpose, and `claude-md-management` was absent here and enabled in the repo. Auto-adopting
+would have committed the wrong value twice.
+
+`--adopt` merges dict values a level down rather than replacing them, so a nested key the
+live file lacks survives. Absent is not a deletion: it reads identically to a machine that
+has not applied since the template gained the key, and taking it as intent would propagate
+one stale machine to every other. Removing a setting stays the deliberate two-step the
+modify script's header describes.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+REPO = Path(__file__).resolve().parent.parent
+TEMPLATE = REPO / "home" / ".chezmoitemplates" / "claude-settings.json"
+LIVE = Path.home() / ".claude" / "settings.json"
+
+# Byte for byte the RUNTIME tuple in home/dot_claude/modify_settings.json.tmpl, and it has
+# to stay that way: that script hands these keys back to the product on every apply, so a
+# value pulled here would be committed and then lose to the next apply regardless.
+# tests/sync-claude-settings.bats asserts the two agree.
+RUNTIME = ("model",)
+
+
+def merged(template_value: Any, live_value: Any) -> Any:  # noqa: ANN401 -- arbitrary JSON
+    """Live value, except that dict keys only in the template survive."""
+    if isinstance(template_value, dict) and isinstance(live_value, dict):
+        return {**template_value, **live_value}
+    return live_value
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--adopt", action="store_true", help="write the drift into the template")
+    adopt = parser.parse_args().adopt
+
+    if not LIVE.exists():
+        print(f"sync-claude-settings: no {LIVE}; nothing to report")  # noqa: T201 -- CLI report
+        return
+
+    template = json.loads(TEMPLATE.read_text())
+    try:
+        live = json.loads(LIVE.read_text())
+    except json.JSONDecodeError as exc:
+        sys.exit(f"sync-claude-settings: {LIVE} did not parse ({exc})")
+
+    # Against the merge, not against live: a nested key live lacks always compares
+    # unequal, so testing live directly would report drift forever and rewrite the file
+    # byte-identically on every run.
+    drift = [
+        k
+        for k in template
+        if k not in RUNTIME and k in live and merged(template[k], live[k]) != template[k]
+    ]
+    if not drift:
+        print("sync-claude-settings: no declared key differs from the template")  # noqa: T201 -- CLI report
+        return
+
+    for key in drift:
+        print(f"  {key}:")  # noqa: T201 -- CLI report
+        new = merged(template[key], live[key])
+        if isinstance(new, dict):
+            for nested in sorted(k for k in new if new[k] != template[key].get(k)):
+                print(f"    {nested}: {template[key].get(nested)!r} -> {new[nested]!r}")  # noqa: T201 -- CLI report
+            for nested in sorted(k for k in template[key] if k not in live[key]):
+                print(f"    {nested}: kept {template[key][nested]!r} (absent here)")  # noqa: T201 -- CLI report
+        else:
+            print(f"    {template[key]!r} -> {new!r}")  # noqa: T201 -- CLI report
+        template[key] = new
+
+    if not adopt:
+        print(  # noqa: T201 -- CLI report
+            f"\n{len(drift)} declared key(s) differ; nothing written.\n"
+            "The template's value may be the right one -- check before running "
+            "`bin/sync-claude-settings --adopt`.",
+        )
+        return
+
+    TEMPLATE.write_text(json.dumps(template, indent=2) + "\n")
+    print(f"\nadopted {len(drift)} key(s) into {TEMPLATE}")  # noqa: T201 -- CLI report
+
+
+if __name__ == "__main__":
+    main()

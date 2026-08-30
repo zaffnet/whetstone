@@ -41,6 +41,10 @@ bootstrap:
 # Pull non-template edits made in $HOME back into home/; diff the Brewfile against brew.
 sync:
     chezmoi --source . re-add
+    # re-add skips modify-script targets, so ~/.claude/settings.json needs its own pass.
+    # Reports only: a declared key that differs does not say whether the product's value or
+    # the template's is the right one. `bin/sync-claude-settings --adopt` pulls it.
+    python3 bin/sync-claude-settings
     brew bundle dump --force --file=/tmp/whetstone-brewfile
     @echo "lines with > are installed but not in the Brewfile; add them by hand:"
     -diff <(grep -E '^(brew|cask|tap|uv|npm|go) ' home/dot_config/homebrew/Brewfile | sed -E 's/[[:space:]]+#.*$//' | sort) <(grep -E '^(brew|cask|tap|uv|npm|go) ' /tmp/whetstone-brewfile | sort)
