@@ -1,0 +1,11 @@
+{
+  "recommendations": [
+    "timonwong.shellcheck",
+    "mkhl.shfmt",
+    "davidanson.vscode-markdownlint",
+    "tamasfe.even-better-toml",
+    "charliermarsh.ruff",
+    "editorconfig.editorconfig",
+    "github.vscode-github-actions"
+  ]
+}

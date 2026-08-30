@@ -21,7 +21,12 @@ uv.lock.bak
 /.claude/
 /.codex/
 /.cursor/
-/.vscode/
+# Contents, not the directory: git does not descend into an excluded directory, so an
+# ignored `/.vscode/` cannot have a file re-included beneath it. extensions.json is shared
+# project metadata -- which extensions this repo's own shell, bats, TOML and Markdown need --
+# while settings.json stays personal runtime state like the rest of this block.
+/.vscode/*
+!/.vscode/extensions.json
 /CLAUDE.local.md
 /AGENTS.override.md
 /.reference-repos
