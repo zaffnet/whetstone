@@ -2,7 +2,12 @@
   "recommendations": [
     "detachhead.basedpyright",
     "charliermarsh.ruff",
-    "meta.pyrefly"
+    "meta.pyrefly",
+    "ms-python.mypy-type-checker",
+    "tamasfe.even-better-toml",
+    "editorconfig.editorconfig",
+    "davidanson.vscode-markdownlint",
+    "timonwong.shellcheck"
   ],
   "unwantedRecommendations": [
     "anysphere.cursorpyright"
