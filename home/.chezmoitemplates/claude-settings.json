@@ -124,6 +124,7 @@
   },
   "outputStyle": "Concise",
   "spinnerTipsEnabled": true,
+  "alwaysThinkingEnabled": false,
   "effortLevel": "xhigh",
   "plansDirectory": "./claude/plans",
   "showClearContextOnPlanAccept": false,
