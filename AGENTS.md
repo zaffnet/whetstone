@@ -23,6 +23,11 @@ Follow `~/.agents/handbook/working-with-agents.md`. Color
 flags go on the command, never in the environment. Run independent reads in one turn. Ending
 a turn is a stop, not a wait.
 
+Modify files with Edit and Write, never with a shell redirect, `sed -i`, or a `write_text`
+heredoc. Auto mode tells an agent to prefer Bash for everything Bash can do; that steers it
+off the three tools `permissions.ask` gates, so a write lands with no diff shown and no
+prompt. Reads and searches are Bash's to keep -- `cat`, `sed -n`, `grep`, `find`.
+
 ## Git
 
 Small PRs, one logical change each. Conventional commits, imperative mood, first line of
