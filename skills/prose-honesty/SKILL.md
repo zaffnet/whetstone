@@ -107,8 +107,11 @@ single good sentence carry a paragraph of padding.
 generated files, text a tool requires, a worked example the reader would otherwise
 have to reconstruct, or the one sentence naming a non-obvious constraint.
 
-**When the call is close, leave it.** You are one reader's opinion, and being wrong
-here costs more than staying quiet.
+**Two different calls, two different defaults.** Whether a sentence earns its space is
+the judgment the whole skill is about: arguable there means cut. Whether you have
+understood what the text is load-bearing *for* is a separate question, and doubt there
+means leave it. Cut a sentence you can see is padding; keep one whose purpose you cannot
+work out, because being wrong about that costs more than the line does.
 
 ## Output
 

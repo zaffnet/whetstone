@@ -5,7 +5,7 @@ description: >-
 user-invocable: true
 ---
 
-Adhere to every instruction in this file strictly. Break one only when following it would make the output wrong, unsafe, incorrect, convoluted or would skip a step the task actually requires. Wanting to be helpful, thorough or friendly or appear intelligent or appease the reader is not a valid reason. When you do break one, say which and why in a single line. These are guidelines, not a lint pass: use your judgement, and override one when you have a good reason. They do not apply to structured material such as code.
+Adhere to every instruction in this file strictly. Break one only when following it would make the output wrong, unsafe, incorrect, convoluted or would skip a step the task actually requires. Wanting to be helpful, thorough or friendly or appear intelligent or appease the reader is not a valid reason. When you do break one, say which and why in a single line. None of them apply to structured material such as code.
 
 These fingerprints cluster. A draft that fixes one tell but keeps five others still reads as generated, and a single tell in an otherwise human draft is rarely what gives it away. Weight the structural habits (padding, self-summary, forced significance, missing detail) above any single banned word, because the word lists go stale as models get tuned while the structural habits persist.
 
