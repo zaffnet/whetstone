@@ -51,36 +51,33 @@ block by printing `{"decision": "block"}` with the findings, and both stand down
 than eight.
 
 - `hooks/typecheck.sh` runs the repository's `./run-typecheck.sh`, or whetstone's
-  `bin/run-typecheck.sh` when the repository has none, and blocks while it fails. It also
-  runs `tools/find-suppressions.py` over the lines the working-tree diff adds and blocks on
-  any suppression among them: `# noqa`, `# type: ignore`, the file-level `# mypy:
-  ignore-errors`, `# pyright: reportFoo=false`, and the pyrefly, pylint, and coverage
-  equivalents. Every new suppression blocks, documented or not, because a suppression hides
-  the finding rather than answering it. A missing virtualenv or `uvx` is reported on stderr
-  without blocking; a suppression found alongside it still blocks.
-- `hooks/audit_comments.sh` runs `tools/audit-comments.py` over the same lines and blocks on
-  comments and docstrings that record the session rather than the code: section banners,
-  changelog entries, docstrings that re-spell the function name, `Args:`/`Returns:` over a
-  one-line body, end-of-block markers, category labels, vague TODOs, emoji, unverifiable
-  praise, and prose several times longer than the code it documents. It reports; it never
-  rewrites, so the fix lands in the diff with the tests still to run.
+  `bin/run-typecheck.sh` when the repository has none, and blocks while the checkers fail.
+  The fallback runs mypy and basedpyright from the target project's environment, so it is
+  used only where both resolve: a repository that has neither would otherwise fail on the
+  missing executables rather than on its code. A missing virtualenv or `uvx` is reported on
+  stderr without blocking.
+- `hooks/audit_comments.sh` pipes the diff to a headless `claude -p` carrying
+  `agents/code-honesty-auditor.md`, and blocks on what it reports: comments and docstrings
+  that record the session rather than the code, and every checker suppression the diff adds.
+  It reports; it never rewrites, so the fix lands in the diff with the tests still to run.
 
-Both call the system `python3`, so neither tool uses syntax newer than 3.11, and both
-hooks tell the three exit statuses apart: 0 is clean, 1 is findings, and anything else is
-the tool failing to run, which is reported on stderr without blocking. Passing a failure
-off as clean would retire the check the first time the interpreter could not run it.
+The audit is a judgment, not a pattern match. An earlier version scored comments with a few
+hundred lines of regexes -- a word list that decided whether a comment "stated a reason" --
+which was brittle in both directions: it passed a changelog entry that happened to contain
+"because" and flagged `# pyright: strict`, a directive that makes the checkers stricter. The
+prompt in `agents/code-honesty-auditor.md` is now the whole of the rule, and its most
+important line is to leave a comment alone when unsure, since a false positive is what gets
+a check switched off.
 
-Both read the added lines of the diff, not whole files, so editing one line of a file does
-not put its committed comments on the session's account. A docstring counts as touched when
-any line of it changed, since rewriting the middle of one makes the whole its author's.
-Suppressions are read as comment tokens rather than as raw line text, so the same words
-inside a string literal are not a suppression.
+The call is deliberately cheap and confined: `--max-turns 1`, no tools, and
+`--setting-sources ""` with `--strict-mcp-config` so this machine's settings, MCP servers,
+and CLAUDE.md stay out of the subprocess. None of them bear on the question, and loading
+them tripled the measured cost. A diff over 4000 lines is left alone. A `claude` that is
+absent, fails, or answers in prose is reported on stderr and does not block: a checker that
+cannot run must not hold a turn hostage, and must not pass as a clean audit either.
 
-A comment containing a reason is never reported. `because`, `so that`, `otherwise`,
-`workaround`, `assumes`, `breaks when`, `by design`, a bug number, a URL, and the rest of
-`_WHY_MARKER` exempt a comment from every shape-based rule, and a lone finding in a long
-file stays under a density gate. Shrink a docstring rather than deleting it: pre-commit
-fails on a public interface without one.
+Shrink a docstring rather than deleting it: pre-commit fails on a public interface without
+one.
 
 ## Generated projects and managed files
 

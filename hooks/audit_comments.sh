@@ -1,18 +1,32 @@
 #!/usr/bin/env bash
-# Stop hook. Reports comments and docstrings in this session's diff that record
-# the session instead of the code, and blocks the turn until they are rewritten.
+# Stop hook. Asks a headless Claude whether the comments, docstrings, and checker
+# suppressions in this session's diff are honest about the code, and blocks the
+# turn while they are not.
+#
+# The judgment is the model's. This replaced a few hundred lines of regexes that
+# tried to decide by wording whether a comment carried a reason, which is not a
+# question wording answers: the rules were brittle in both directions and the
+# word list was never going to be finished.
 #
 # It never edits a file. Claude makes the edit, so it lands in the diff, in view,
-# with the tests still to run -- a hook that rewrote the source after the work was
-# reported done would change code nobody reviewed.
-#
-# Scope is the lines the working-tree diff adds, so a comment that was already
-# committed is not reported when an unrelated line of the same file changes.
+# with the tests still to run.
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
 
+# The agent file's body, without the YAML frontmatter. awk, not sed: the BSD sed
+# on macOS rejects the address form this needs.
+strip_frontmatter() {
+  awk '
+    NR == 1 && $0 == "---" { in_fm = 1; next }
+    in_fm && $0 == "---" { in_fm = 0; next }
+    !in_fm { print }
+  ' "$1"
+}
+
 # Already continuing from a Stop hook: report nothing and let the turn end.
 [[ "$(hook_field '.stop_hook_active // false')" == true ]] && exit 0
+
+command -v claude >/dev/null 2>&1 || exit 0
 
 cwd="$(hook_field '.cwd // empty')"
 [[ -n $cwd ]] || cwd="$PWD"
@@ -20,94 +34,105 @@ cwd="$(hook_field '.cwd // empty')"
 root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || exit 0
 cd "$root" || exit 0
 
-# The plugin copy when the plugin is installed, the project's own copy in a
-# generated project, where CLAUDE_PLUGIN_ROOT is unset.
 for candidate in \
-  "${CLAUDE_PLUGIN_ROOT:-}/tools/audit-comments.py" \
-  "$root/tools/audit-comments.py" \
-  "${BASH_SOURCE[0]%/*}/../../tools/audit-comments.py"; do
-  [[ -f $candidate ]] && auditor="$candidate" && break
+  "${CLAUDE_PLUGIN_ROOT:-}/agents/code-honesty-auditor.md" \
+  "$root/.claude/agents/code-honesty-auditor.md" \
+  "${BASH_SOURCE[0]%/*}/../agents/code-honesty-auditor.md"; do
+  [[ -f $candidate ]] && brief="$candidate" && break
 done
-[[ -n ${auditor:-} ]] || exit 0
+[[ -n ${brief:-} ]] || exit 0
 
-# The added lines (^+) of the working-tree diff, as FILE:LINE,LINE for the
-# auditor, so a comment that was already committed is not reported when an
-# unrelated line of the same file changes. Untracked files have no diff, so they
-# are read whole through --no-index against /dev/null, which exits non-zero
-# whenever it prints anything; `|| true` keeps that from ending the hook.
-#
-# NUL-delimited file lists throughout, read with `while read -d` rather than
-# `mapfile -d`: macOS ships bash 3.2, where mapfile has no -d.
-targets="$(
+# Tracked changes plus untracked files, as one patch. --no-color and no pager so
+# the model reads the diff and not terminal escapes. Untracked files have no
+# diff, so they go through --no-index against /dev/null, which exits non-zero
+# whenever it prints anything.
+diff_text="$(
   {
-    git diff HEAD -U0 --diff-filter=d -- '*.py' '*.pyi' 2>/dev/null || true
+    git --no-pager diff HEAD --no-color -U3 -- '*.py' '*.pyi' 2>/dev/null || true
     while IFS= read -r -d '' f; do
-      git diff --no-index -U0 -- /dev/null "$f" 2>/dev/null || true
+      git --no-pager diff --no-index --no-color -U3 -- /dev/null "$f" 2>/dev/null || true
     done < <(git ls-files -z --others --exclude-standard -- '*.py' '*.pyi' 2>/dev/null)
-  } | awk '
-    /^\+\+\+ / {
-      file = substr($0, 7)
-      sub(/^b\//, "", file)
-      # `git diff --no-index` pads the path with a tab, which would otherwise
-      # become part of the filename.
-      sub(/[ \t]+$/, "", file)
-      next
-    }
-    /^@@/ {
-      match($0, /\+[0-9]+/)
-      line = substr($0, RSTART + 1, RLENGTH - 1) + 0
-      next
-    }
-    /^\+/ {
-      if (file != "") added[file] = (file in added ? added[file] "," line : line)
-      line++
-    }
-    END { for (f in added) printf "%s:%s\n", f, added[f] }
-  '
+  }
 )"
-[[ -n $targets ]] || exit 0
+[[ -n $diff_text ]] || exit 0
 
-# A path is kept only if it is still a regular file, since a file can be deleted
-# or replaced by a broken symlink between the diff and this read.
+# A diff far past what the question needs is not worth the tokens, and a rewrite
+# that large is reviewed by a person rather than by this.
+if (($(wc -l <<<"$diff_text") > 4000)); then
+  printf 'audit_comments: diff over 4000 lines; not audited\n' >&2
+  exit 0
+fi
+
+# --setting-sources "" and --strict-mcp-config keep this machine's settings, MCP
+# servers, and CLAUDE.md out of the subprocess: none of them bear on the
+# question, and loading them tripled the cost of the call in measurement.
+# --max-turns 1 because the answer is one message; the diff is on stdin, so the
+# model needs no tools to read it.
 errfile="$(mktemp)"
 trap 'rm -f "$errfile"' EXIT
 
-present=()
-while IFS= read -r target; do
-  [[ -f ${target%%:*} ]] && present+=("$target")
-done <<<"$targets"
-((${#present[@]})) || exit 0
-
-# Exit 0 is clean, 1 is findings, anything else is the auditor failing to run.
-# A failure is reported on stderr and does not block: a broken checker must not
-# hold a turn hostage. It must not pass silently either, which is what
-# discarding stderr and treating an empty report as clean used to do.
-# Declared first, then assigned: `set -e` would abort on the assignment's own
-# nonzero status before it could be read, and exit 1 is the reporting case.
-report=""
 status=0
-report="$(python3 "$auditor" "${present[@]}" 2>"$errfile")" || status=$?
-case "$status" in
-  0) exit 0 ;;
-  1) ;;
-  *)
-    {
-      printf 'audit_comments: the auditor failed (exit %s); comments were not checked\n' "$status"
-      cat "$errfile"
-    } >&2
-    exit 0
-    ;;
-esac
-[[ -n $report ]] || exit 0
+envelope="$(
+  printf 'Audit this diff and reply with the JSON described in your instructions.\n\n%s\n' "$diff_text" \
+    | claude -p \
+      --model sonnet \
+      --output-format json \
+      --max-turns 1 \
+      --strict-mcp-config \
+      --setting-sources "" \
+      --disallowed-tools Bash Edit Write NotebookEdit WebFetch WebSearch \
+      --append-system-prompt "$(strip_frontmatter "$brief")" \
+      2>"$errfile"
+)" || status=$?
 
-reason="These comments record the session that wrote them rather than the code.
-Rewrite each to state what the code cannot -- why a constraint exists, which
-bug a workaround answers, what a caller must hold -- or delete it. A comment
-that states a reason is never reported here, so adding one is a real fix and
-deleting the comment is the other.
+# Exit 0 is an answer; anything else is the call failing to complete. A failure
+# is reported and does not block, since a checker that cannot run must not hold a
+# turn hostage -- but it must not pass as a clean audit either.
+if ((status != 0)); then
+  {
+    printf 'audit_comments: the auditor did not run (exit %s); comments were not checked\n' "$status"
+    head -c 2000 "$errfile"
+  } >&2
+  exit 0
+fi
 
-Docstrings stay: shrink them, do not remove them, or pre-commit will fail on a
-public interface with none.
-"
-jq -n --arg reason "$reason$report" '{decision: "block", reason: $reason}'
+# The envelope reports its own failures in is_error, with the text in result.
+if [[ "$(jq -r '.is_error // false' <<<"$envelope" 2>/dev/null)" != false ]]; then
+  {
+    printf 'audit_comments: the auditor reported an error; comments were not checked\n'
+    jq -r '.result // empty' <<<"$envelope" 2>/dev/null | head -c 2000
+  } >&2
+  exit 0
+fi
+
+# The model was told to answer in JSON, so a reply that is not JSON is a failure
+# to follow the format rather than a clean audit. Fenced output is tolerated
+# because it is the one deviation worth expecting.
+findings="$(
+  jq -r '.result // empty' <<<"$envelope" \
+    | sed -e '/^[[:space:]]*```/d' \
+    | jq -c '.findings // empty' 2>/dev/null
+)" || findings=""
+
+if [[ -z $findings ]]; then
+  printf 'audit_comments: the auditor did not answer in JSON; comments were not checked\n' >&2
+  exit 0
+fi
+
+count="$(jq -r 'length' <<<"$findings")"
+((count > 0)) || exit 0
+
+report="$(jq -r '.[] | "  \(.file):\(.line)  \(.why)"' <<<"$findings")"
+
+reason="These comments, docstrings, or suppressions record the session that wrote
+them rather than the code. Fix each one: state what the code cannot -- why a
+constraint exists, which bug a workaround answers, what a caller must hold -- or
+delete it. For a suppression, remove it and fix what the checker reported.
+
+Shrink a docstring rather than deleting it, or pre-commit will fail on a public
+interface with none.
+
+$report"
+
+jq -n --arg reason "$reason" '{decision: "block", reason: $reason}'
 exit 0

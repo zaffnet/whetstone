@@ -4,8 +4,15 @@ bats_require_minimum_version 1.5.0
 # turn by printing {"decision": "block"} and are silent otherwise, so every case
 # asserts one or the other.
 #
+# audit_comments.sh asks a headless Claude for the judgment. These cases stub
+# `claude` on PATH: the hook's job is to build the diff, hand it over, and turn
+# whatever comes back into a decision, and that is what is asserted here. Whether
+# the model judges a given comment well is not something a test can pin down, and
+# a suite that called the API would be slow, costly, and differently wrong each
+# run.
+#
 # Each case builds a throwaway git repository, because both hooks read the working
-# tree diff and would otherwise report on whetstone's own files.
+# tree and would otherwise report on whetstone's own files.
 
 setup() {
   REPO="$(git -C "$BATS_TEST_DIRNAME" rev-parse --show-toplevel)"
@@ -18,13 +25,21 @@ setup() {
   export REPO WORK CLAUDE_PLUGIN_ROOT="$REPO"
 }
 
-# Run a hook with a payload naming the throwaway repo. Only stdout is returned:
-# the block decision is JSON on stdout, while stderr carries notes that are not
-# part of the contract, such as a missing virtualenv on the machine running this.
+# Run a hook with a payload naming a directory, the throwaway repo by default.
+# Only stdout is returned: the block decision is JSON on stdout, while stderr
+# carries notes that are not part of the contract, such as a missing virtualenv
+# on the machine running this.
 run_hook() {
   local hook=$1 active=${2:-false} dir=${3:-$WORK}
   printf '{"cwd": "%s", "stop_hook_active": %s}' "$dir" "$active" \
     | bash "$REPO/hooks/$hook" 2>/dev/null
+}
+
+# Same, keeping stderr and dropping stdout, for the cases about reporting.
+run_hook_stderr() {
+  local hook=$1 dir=${2:-$WORK}
+  printf '{"cwd": "%s", "stop_hook_active": false}' "$dir" \
+    | { bash "$REPO/hooks/$hook" >/dev/null; } 2>&1
 }
 
 # "none" for a silent hook, so a case can assert the absence of a block without
@@ -37,43 +52,146 @@ decision() {
   jq -r '.decision // "none"' <<<"$1"
 }
 
-@test "typecheck: a new type: ignore blocks the turn" {
-  printf 'x = 1  # type: ignore\n' >"$WORK/a.py"
-  run -0 run_hook typecheck.sh
-  [ "$(decision "$output")" = block ]
-  [[ $output == *"type: ignore"* ]]
+# A stub `claude` earlier on PATH than the real one. $1 is the envelope it prints;
+# $2 is its exit status. Writing the invocation to $WORK/claude-argv lets a case
+# assert how the hook called it.
+stub_claude() {
+  local envelope=$1 code=${2:-0}
+  mkdir -p "$BATS_TEST_TMPDIR/bin"
+  {
+    printf '#!/bin/sh\n'
+    printf 'cat >"%s/claude-stdin"\n' "$WORK"
+    printf 'printf "%%s\\n" "$*" >"%s/claude-argv"\n' "$WORK"
+    printf 'cat <<'"'"'ENVELOPE'"'"'\n%s\nENVELOPE\n' "$envelope"
+    printf 'exit %s\n' "$code"
+  } >"$BATS_TEST_TMPDIR/bin/claude"
+  chmod +x "$BATS_TEST_TMPDIR/bin/claude"
+  printf '%s' "$BATS_TEST_TMPDIR/bin"
 }
 
-@test "typecheck: a documented noqa blocks too" {
-  # The rule is every new suppression, not only the bare ones: a reason explains
-  # the silence without removing it.
-  printf 'import os  # noqa: F401  -- re-exported\n' >"$WORK/a.py"
-  run -0 run_hook typecheck.sh
-  [ "$(decision "$output")" = block ]
+# An envelope carrying $1 as the model's reply.
+envelope() {
+  jq -nc --arg result "$1" '{is_error: false, subtype: "success", result: $result}'
 }
 
-@test "typecheck: a suppression already committed is not reported" {
-  printf 'x = 1  # type: ignore\n' >"$WORK/a.py"
-  git -C "$WORK" add -A
-  git -C "$WORK" -c user.email=t@example.com -c user.name=t commit -qm add
-  run -0 run_hook typecheck.sh
+# Run audit_comments.sh with `claude` stubbed to reply $1.
+run_audit() {
+  local bin
+  bin="$(stub_claude "$(envelope "$1")")"
+  printf '{"cwd": "%s", "stop_hook_active": false}' "$WORK" \
+    | PATH="$bin:$PATH" bash "$REPO/hooks/audit_comments.sh" 2>/dev/null
+}
+
+@test "audit: findings become a block, one line each" {
+  printf '# ==== BANNER ====\nx = 1\n' >"$WORK/a.py"
+  run -0 run_audit '{"findings": [{"file": "a.py", "line": 1, "why": "Remove the banner."}]}'
+  [ "$(decision "$output")" = block ]
+  [[ $output == *"a.py:1"* ]]
+  [[ $output == *"Remove the banner."* ]]
+}
+
+@test "audit: an empty findings list ends the turn" {
+  printf '# Two, because the vendor rejects a third attempt.\nx = 1\n' >"$WORK/a.py"
+  run -0 run_audit '{"findings": []}'
   [ "$(decision "$output")" = none ]
 }
 
-@test "typecheck: reports the file and line of each suppression" {
-  printf 'a = 1\nb = 2  # noqa\n' >"$WORK/a.py"
-  run -0 run_hook typecheck.sh
-  [[ $output == *"a.py:2"* ]]
+@test "audit: a fenced reply is still read" {
+  # The one deviation from "JSON and nothing else" worth expecting.
+  printf '# ==== BANNER ====\nx = 1\n' >"$WORK/a.py"
+  run -0 run_audit '```json
+{"findings": [{"file": "a.py", "line": 1, "why": "Remove the banner."}]}
+```'
+  [ "$(decision "$output")" = block ]
+}
+
+@test "audit: a reply that is not JSON is reported, not treated as clean" {
+  # Silently passing would retire the check the first time the model answered in
+  # prose, which is exactly when it needs saying.
+  printf '# ==== BANNER ====\nx = 1\n' >"$WORK/a.py"
+  local bin
+  bin="$(stub_claude "$(envelope 'I could not audit this diff.')")"
+  run -0 env "PATH=$bin:$PATH" bash -c \
+    "bash '$REPO/hooks/audit_comments.sh' 2>&1 >/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'"
+  [[ $output == *"did not answer in JSON"* ]]
+}
+
+@test "audit: an envelope reporting an error does not block" {
+  printf '# ==== BANNER ====\nx = 1\n' >"$WORK/a.py"
+  local bin
+  bin="$(stub_claude '{"is_error": true, "subtype": "error_max_turns", "result": "turn limit"}')"
+  run -0 env "PATH=$bin:$PATH" bash -c \
+    "bash '$REPO/hooks/audit_comments.sh' 2>/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'"
+  [ -z "$output" ]
+}
+
+@test "audit: a claude that exits non-zero is reported on stderr" {
+  printf '# ==== BANNER ====\nx = 1\n' >"$WORK/a.py"
+  local bin
+  bin="$(stub_claude '' 1)"
+  run -0 env "PATH=$bin:$PATH" bash -c \
+    "bash '$REPO/hooks/audit_comments.sh' 2>&1 >/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'"
+  [[ $output == *"did not run"* ]]
+}
+
+@test "audit: the diff reaches the model, and committed lines do not" {
+  printf '# ==== COMMITTED BANNER ====\ncommitted = 1\n' >"$WORK/a.py"
+  git -C "$WORK" add -A
+  git -C "$WORK" -c user.email=t@example.com -c user.name=t commit -qm add
+  printf '# ==== ADDED BANNER ====\nadded = 2\n' >>"$WORK/a.py"
+  run -0 run_audit '{"findings": []}'
+  [[ "$(cat "$WORK/claude-stdin")" == *"ADDED BANNER"* ]]
+  # The committed line is context in a -U3 diff, but it is not an added line.
+  [[ "$(grep '^+' "$WORK/claude-stdin")" != *"COMMITTED BANNER"* ]]
+}
+
+@test "audit: an untracked file is audited" {
+  printf '# ==== BANNER ====\nx = 1\n' >"$WORK/fresh.py"
+  run -0 run_audit '{"findings": []}'
+  [[ "$(cat "$WORK/claude-stdin")" == *"fresh.py"* ]]
+}
+
+@test "audit: this machine's settings and MCP servers stay out of the call" {
+  # None of them bear on the question, and loading them tripled the cost.
+  printf '# ==== BANNER ====\nx = 1\n' >"$WORK/a.py"
+  run -0 run_audit '{"findings": []}'
+  local argv
+  argv="$(cat "$WORK/claude-argv")"
+  [[ $argv == *"--strict-mcp-config"* ]]
+  [[ $argv == *"--setting-sources"* ]]
+  [[ $argv == *"--max-turns 1"* ]]
+}
+
+@test "audit: no diff means no call" {
+  run -0 run_audit '{"findings": []}'
+  [ ! -f "$WORK/claude-argv" ]
+}
+
+@test "audit: stands down while already continuing from a Stop hook" {
+  printf '# ==== BANNER ====\nx = 1\n' >"$WORK/a.py"
+  local bin
+  bin="$(stub_claude "$(envelope '{"findings": [{"file": "a.py", "line": 1, "why": "x"}]}')")"
+  run -0 env "PATH=$bin:$PATH" bash -c \
+    "bash '$REPO/hooks/audit_comments.sh' 2>/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": true}'"
+  [ -z "$output" ]
+  [ ! -f "$WORK/claude-argv" ]
+}
+
+@test "audit: silent outside a git repository" {
+  local plain="$BATS_TEST_TMPDIR/plain"
+  mkdir -p "$plain"
+  run -0 run_hook audit_comments.sh false "$plain"
+  [ -z "$output" ]
 }
 
 @test "typecheck: stands down while already continuing from a Stop hook" {
-  printf 'x = 1  # type: ignore\n' >"$WORK/a.py"
+  printf 'x: str = 1\n' >"$WORK/a.py"
   run -0 run_hook typecheck.sh true
   [ -z "$output" ]
 }
 
 @test "typecheck: silent outside a git repository" {
-  plain="$BATS_TEST_TMPDIR/plain"
+  local plain="$BATS_TEST_TMPDIR/plain"
   mkdir -p "$plain"
   run -0 run_hook typecheck.sh false "$plain"
   [ -z "$output" ]
@@ -81,183 +199,59 @@ decision() {
 
 @test "typecheck: silent in a repository with no pyproject.toml" {
   rm "$WORK/pyproject.toml"
-  printf 'x = 1  # type: ignore\n' >"$WORK/a.py"
+  printf 'x: str = 1\n' >"$WORK/a.py"
   run -0 run_hook typecheck.sh
   [ -z "$output" ]
 }
 
-@test "audit: a narrated file blocks the turn" {
-  cat >"$WORK/a.py" <<'PY'
-# ==================== HELPERS ====================
-def get_user(uid: int) -> str:
-    """Get the user."""
-    # Changed: we now return a string
-    value = 0
-    value += 1  # increment value
-    return str(uid)
-PY
-  run -0 run_hook audit_comments.sh
-  [ "$(decision "$output")" = block ]
-  [[ $output == *banner* ]]
-  [[ $output == *session-narration* ]]
-}
-
-@test "audit: a comment that states a reason is left alone" {
-  cat >"$WORK/a.py" <<'PY'
-# The upstream gateway drops idle connections at 35s, so stay under that.
-TIMEOUT = 30
-# Two, because the vendor rejects a third attempt in the same minute.
-RETRIES = 2
-# Capped: the vendor bans a client that backs off past 60s.
-BACKOFF = 60
-# Required by the spec, which orders the header before the body.
-ORDERED = True
-PY
-  run -0 run_hook audit_comments.sh
-  [ "$(decision "$output")" = none ]
-}
-
-@test "audit: a few findings in a long file stay under the density gate" {
-  {
-    printf '# ==== BANNER ====\n'
-    for i in $(seq 1 200); do printf 'x%s = %s\n' "$i" "$i"; done
-  } >"$WORK/a.py"
-  run -0 run_hook audit_comments.sh
-  [ "$(decision "$output")" = none ]
-}
-
-@test "audit: stands down while already continuing from a Stop hook" {
-  printf '# ==== BANNER ====\n# ==== OTHER ====\n# ==== MORE ====\n# ==== AGAIN ====\n' >"$WORK/a.py"
-  run -0 run_hook audit_comments.sh true
+@test "typecheck: silent when no Python changed" {
+  printf 'notes\n' >"$WORK/README.md"
+  run -0 run_hook typecheck.sh
   [ -z "$output" ]
 }
 
-@test "audit: a path containing a space is still audited" {
-  cat >"$WORK/has space.py" <<'PY'
-# ==================== HELPERS ====================
-# Fixed: the loop now breaks early
-# Note that this is important
-# End of function
-PY
-  run -0 run_hook audit_comments.sh
-  [ "$(decision "$output")" = block ]
-  [[ $output == *"has space.py"* ]]
-}
-
-@test "audit: a licence header is not a finding" {
-  cat >"$WORK/a.py" <<'PY'
-# Copyright 2026 Example
-# SPDX-License-Identifier: MIT
-PY
-  run -0 run_hook audit_comments.sh
-  [ "$(decision "$output")" = none ]
-}
-
-@test "typecheck: a file-level directive is a suppression" {
-  # `# mypy: ignore-errors` silences the whole module, so missing it would let
-  # every error in the file through.
-  printf '# mypy: ignore-errors\nimport os\n' >"$WORK/a.py"
-  run -0 run_hook typecheck.sh
-  [ "$(decision "$output")" = block ]
-  [[ $output == *"ignore-errors"* ]]
-}
-
-@test "typecheck: a pyright rule directive is a suppression" {
-  printf '# pyright: reportAssignmentType=false\nx = 1\n' >"$WORK/a.py"
-  run -0 run_hook typecheck.sh
-  [ "$(decision "$output")" = block ]
-}
-
-@test "typecheck: the same words inside a string are not a suppression" {
-  # Suppressions are read as comment tokens, not as raw line text.
-  printf 'MSG = "# type: ignore is a suppression"\n' >"$WORK/a.py"
+@test "typecheck: the fallback stands down when its checkers are absent" {
+  # bin/run-typecheck.sh runs mypy and basedpyright from the target project's
+  # environment. A repository without them must fail on its code, not on the
+  # missing executables.
+  printf 'x: str = 1\n' >"$WORK/a.py"
   run -0 run_hook typecheck.sh
   [ "$(decision "$output")" = none ]
 }
 
-@test "audit: a committed comment is not reported when another line changes" {
-  # The scope is the lines the diff adds, so editing one line does not put the
-  # rest of the file on this session's account.
-  cat >"$WORK/a.py" <<'PY'
-# ==================== HELPERS ====================
-# Fixed: an old committed comment
-# Note that this is old
-value = 1
-PY
-  git -C "$WORK" add -A
-  git -C "$WORK" -c user.email=t@example.com -c user.name=t commit -qm add
-  printf 'other = 2\n' >>"$WORK/a.py"
-  run -0 run_hook audit_comments.sh
-  [ "$(decision "$output")" = none ]
-}
-
-@test "audit: an edited docstring is in scope for all of its lines" {
-  # A docstring spans lines, so rewriting the middle of one puts the whole in
-  # scope rather than only the line that changed.
-  cat >"$WORK/a.py" <<'PY'
-def add(a: int, b: int) -> int:
-    """Add two numbers.
-
-    Args:
-        a: The first number.
-        b: The second.
-
-    Returns:
-        The sum.
-    """
-    return a + b
-PY
-  git -C "$WORK" add -A
-  git -C "$WORK" -c user.email=t@example.com -c user.name=t commit -qm add
-  sed -i '' 's/a: The first number./a: The first addend./' "$WORK/a.py"
-  run -0 run_hook audit_comments.sh
-  [ "$(decision "$output")" = block ]
-  [[ $output == *oversized-docstring* ]]
-}
-
-# A stub `python3` earlier on PATH than the real one, exiting with $1.
-fake_python3() {
-  local code=$1
-  mkdir -p "$BATS_TEST_TMPDIR/bin"
+@test "typecheck: the repository's own script is preferred and its output blocks" {
+  printf 'x = 1\n' >"$WORK/a.py"
   {
     printf '#!/bin/sh\n'
-    printf 'echo "SyntaxError: invalid syntax" >&2\n'
-    printf 'exit %s\n' "$code"
-  } >"$BATS_TEST_TMPDIR/bin/python3"
-  chmod +x "$BATS_TEST_TMPDIR/bin/python3"
-  printf '%s' "$BATS_TEST_TMPDIR/bin"
+    printf 'echo "a.py:1: error: something is wrong"\n'
+    printf 'exit 1\n'
+  } >"$WORK/run-typecheck.sh"
+  chmod +x "$WORK/run-typecheck.sh"
+  run -0 run_hook typecheck.sh
+  [ "$(decision "$output")" = block ]
+  [[ $output == *"something is wrong"* ]]
 }
 
-@test "audit: an auditor that cannot run is reported, not treated as clean" {
-  # Exit 0 is clean and 1 is findings, so anything else has to be told apart from
-  # both: silently passing would retire the check the first time the interpreter
-  # on PATH could not run the tool.
-  printf '# ==== BANNER ====\n' >"$WORK/a.py"
-  local bin
-  bin="$(fake_python3 2)"
-  # stdout only: the warning goes to stderr, and what matters here is that no
-  # block decision is printed.
-  run -0 env "PATH=$bin:$PATH" bash -c \
-    "bash '$REPO/hooks/audit_comments.sh' 2>/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'"
+@test "typecheck: a passing script ends the turn" {
+  printf 'x = 1\n' >"$WORK/a.py"
+  printf '#!/bin/sh\nexit 0\n' >"$WORK/run-typecheck.sh"
+  chmod +x "$WORK/run-typecheck.sh"
+  run -0 run_hook typecheck.sh
+  [ "$(decision "$output")" = none ]
+}
+
+@test "typecheck: a missing virtualenv is reported without blocking" {
+  # The machine's problem, not the code's: blocking would burn the turn on
+  # something Claude cannot fix.
+  printf 'x = 1\n' >"$WORK/a.py"
+  {
+    printf '#!/bin/sh\n'
+    printf 'echo "run-typecheck.sh: missing .venv/bin/python. Run: uv sync --all-groups" >&2\n'
+    printf 'exit 127\n'
+  } >"$WORK/run-typecheck.sh"
+  chmod +x "$WORK/run-typecheck.sh"
+  run -0 run_hook typecheck.sh
   [ -z "$output" ]
-}
-
-@test "audit: the auditor's own error reaches stderr" {
-  printf '# ==== BANNER ====\n' >"$WORK/a.py"
-  local bin
-  bin="$(fake_python3 2)"
-  run -0 env "PATH=$bin:$PATH" bash -c \
-    "bash '$REPO/hooks/audit_comments.sh' >/dev/null 2>&1 <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'; \
-     bash '$REPO/hooks/audit_comments.sh' 2>&1 >/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'"
-  [[ $output == *"auditor failed"* ]]
-  [[ $output == *SyntaxError* ]]
-}
-
-@test "typecheck: a finder that cannot run is reported, not treated as clean" {
-  printf 'x = 1  # noqa\n' >"$WORK/a.py"
-  local bin
-  bin="$(fake_python3 2)"
-  run -0 env "PATH=$bin:$PATH" bash -c \
-    "bash '$REPO/hooks/typecheck.sh' 2>&1 >/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'"
-  [[ $output == *"finder failed"* ]]
+  run -0 run_hook_stderr typecheck.sh
+  [[ $output == *"uv sync"* ]]
 }

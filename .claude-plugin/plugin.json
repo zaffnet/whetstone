@@ -26,7 +26,8 @@
     "./agents/async-safety-reviewer.md",
     "./agents/deceptive-test-hunter.md",
     "./agents/consumer-agnostic-client-reviewer.md",
-    "./agents/variant-extensibility-reviewer.md"
+    "./agents/variant-extensibility-reviewer.md",
+    "./agents/code-honesty-auditor.md"
   ],
   "hooks": "./hooks/hooks.json"
 }

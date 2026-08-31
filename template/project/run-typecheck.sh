@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Format with ruff, then type-check with mypy --strict, basedpyright, and Pyrefly.
+# Check formatting with ruff, then types with mypy --strict, basedpyright, and Pyrefly.
+# Read-only: nothing here rewrites a file.
 # Every tool runs even after one fails, so a single pass reports every complaint;
 # the exit status is 1 if any tool failed.
 #
@@ -40,9 +41,12 @@ run() {
   "$@" || status=1
 }
 
-# skip-magic-trailing-comma lives in pyproject.toml so pre-commit collapses too.
-# --preview is script-only: unstable formatter styles, not on every commit.
-run uv run --no-sync ruff format --color always --preview "${targets[@]}"
+# --check, so this reports rather than rewrites: it runs as a Stop hook, after
+# the work has been reported done, and a gate that edited the tree there would
+# change code nobody reviewed. Stable mode, not --preview, so a pass here is a
+# pass at pre-commit; skip-magic-trailing-comma lives in pyproject.toml, so both
+# collapse the same way.
+run uv run --no-sync ruff format --check --color always "${targets[@]}"
 
 run uv run --no-sync mypy --strict --num-workers "$workers" "${targets[@]}"
 
