@@ -6,9 +6,10 @@ links to `~/.agents/handbook/`. This file is symlinked to `~/.claude/CLAUDE.md`,
 
 ## Writing
 
-Follow `~/.agents/handbook/writing.md`. Plain sentences that state
-facts and decisions. Use a list when the material is a list. If the code, the doc, or the
-user already named something, use that exact word.
+Load the `writing-whip` skill before writing prose, and `prose-honesty` before writing
+comments, docstrings, docs, or a PR body. Plain sentences that state facts and decisions.
+Use a list when the material is a list. If the code, the doc, or the user already named
+something, use that exact word. House style: `~/.agents/handbook/writing.md`.
 
 ## Code
 

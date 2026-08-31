@@ -13,16 +13,16 @@ I don't currently expect this to be useful to anyone but me. Maybe eventually it
 
 ## Requirements
 
-| What | Why | Install |
-| --- | --- | --- |
-| macOS on Apple silicon | The Brewfile, the `defaults write` script, and the paths assume it | |
-| Xcode Command Line Tools | git, which Homebrew and chezmoi need | `xcode-select --install` |
-| Homebrew | Installs everything in `home/dot_config/homebrew/Brewfile` | [brew.sh](https://brew.sh); the bootstrap installs it if missing |
-| chezmoi | Copies `home/` into `$HOME`, fills in templates, runs the install scripts | `brew install chezmoi` |
-| uv | Python and project management; also runs Copier | `brew install uv` |
-| just | Runs the recipes in `justfile` | `brew install just` |
-| Node | `npx skills` installs the skills into an agent | `brew install node` |
-| Claude Code CLI | `claude plugin` installs the plugins | [code.claude.com](https://code.claude.com) |
+| What | Install |
+| --- | --- |
+| macOS on Apple silicon (the Brewfile, the `defaults write` script, and the paths assume it) | |
+| Xcode Command Line Tools | `xcode-select --install` |
+| Homebrew | [brew.sh](https://brew.sh); the bootstrap installs it if missing |
+| chezmoi | `brew install chezmoi` |
+| uv | `brew install uv` |
+| just | `brew install just` |
+| Node | `brew install node` |
+| Claude Code CLI | [code.claude.com](https://code.claude.com) |
 
 The template needs Python 3.12 or newer; uv downloads it.
 
@@ -59,7 +59,7 @@ versions to the working tree; you review the diff and commit it.
 npx skills add zaffnet/whetstone
 ```
 
-Installs the eight skills in `skills/` into Claude Code, Codex, Cursor, or another agent
+Installs the skills in `skills/` into Claude Code, Codex, Cursor, or another agent
 that reads `SKILL.md` files. `docs/skills.md` lists the skills this repo writes or
 installs, and where each one comes from.
 
@@ -91,16 +91,11 @@ subagents, and the hooks.
 ## How I keep it honest
 
 - Agent configuration has one copy, in `~/.agents`. Claude Code, Cursor, and Kiro link
-  their skills directories at it and Codex reads it in place; the instruction files are
-  symlinks to this repo's `AGENTS.md`; `~/.cursor/mcp.json` is a symlink to the shared
-  `mcp.json`, and `bin/sync-mcp` copies the servers into `~/.claude.json` and
-  `~/.codex/config.toml`, which each insist on a file of their own.
-- Secrets stay in the environment. No settings file in this repo holds a key, and gitleaks,
-  a local denylist hook, and GitHub push protection check that (`docs/redaction.md`).
-- Each disabled lint rule, unusual flag, or pinned version has a comment next to it that
-  says why.
-- Projects made from the template take later template versions with `uvx copier update`,
-  then a normal commit.
+  their skills directories at it and Codex reads it in place; `bin/sync-mcp` copies the
+  servers into `~/.claude.json` and `~/.codex/config.toml`, which each insist on a file of
+  their own.
+- Secrets stay in the environment, checked by gitleaks, a local denylist hook, and GitHub
+  push protection (`docs/redaction.md`).
 - CI renders the template in all four `use_docker` and `use_fastapi` combinations and runs
   each result's own pre-commit hooks and tests, builds the Docker variants and hits
   `/health`, and applies the `home/` tree into a clean macOS runner for both roles.
@@ -121,10 +116,8 @@ home/                 chezmoi source state for $HOME (.chezmoiroot points here)
 skills/               Agent Skills (SKILL.md), installable with npx skills (see docs/skills.md)
 agents/               Claude Code reviewer subagents
 codex/agents/         The same reviewers as Codex TOML (linked to ~/.codex/agents)
-hooks/                Claude Code hooks: ruff on edit, worktree setup, typecheck and
-                      AI comment audit before a turn ends
-bin/                  Scripts: AI commit messages, PR descriptions, worktree cleanup,
-                      sync-mcp, run-typecheck
+hooks/                ruff on edit, worktree setup, typecheck and comment audit on turn end
+bin/                  AI commit messages, PR descriptions, worktree cleanup, sync-mcp
 template/             Copier template for a Python project (copier.yml is at the root)
 docs/                 Handbook, decisions, runbooks
 .github/workflows/    lint, secrets, template, macos, claude
@@ -132,43 +125,13 @@ docs/                 Handbook, decisions, runbooks
 
 ## Keeping it current
 
-- `just sync` pulls edited files back from `$HOME` with `chezmoi re-add` and shows what
-  Homebrew has that the Brewfile does not.
+- `just sync` pulls edited files back from `$HOME` with `chezmoi re-add`, reports which
+  `~/.claude/settings.json` keys drifted, and shows what Homebrew has that the Brewfile
+  does not. It cannot pull back a template or a modify script, which is where the agent
+  configs live; `docs/new-machine.md` covers what to do then.
 - Dependabot bumps GitHub Actions, pre-commit hooks, and the tooling lockfile weekly.
 - `macos.yml` and `secrets.yml` also run weekly, so a renamed cask or a leaked string is
   caught when nothing was pushed.
-
-### When a config changes locally
-
-`chezmoi re-add`, and so `just sync`, only rewrites plain managed files. It skips templates
-and modify scripts, which is where the agent configs live: edit a setting inside Claude
-Code and `re-add` reports nothing, then the next `just apply` reverts it.
-
-`~/.claude/settings.json` has a pass of its own for that reason. `just sync` runs
-`bin/sync-claude-settings`, which lists every declared key whose live value differs:
-
-```console
-$ just sync
-  plansDirectory:
-    './claude/plans' -> './.claude/plans'
-
-1 declared key(s) differ; nothing written.
-```
-
-Read the arrow as template value on the left, live value on the right. Reporting is the
-default because a difference does not say which side is right -- the setting may be worth
-keeping, or this machine may simply be behind an applied template. Decide, then:
-
-- Keep the local value: `bin/sync-claude-settings --adopt` writes it into
-  `home/.chezmoitemplates/claude-settings.json`, and you commit that.
-- Keep the template value: change nothing and run `just apply`.
-
-`model` is exempt -- it is picked per machine, so the template only seeds a machine that has
-none. Deleting a setting is two steps: remove it from the template, then remove it once from
-the live file, because an undeclared key is carried over as Claude Code's own.
-
-The Codex and Cursor configs are modify scripts too, but have no reporting pass yet. Edit
-those in `home/`, or with `chezmoi edit`, rather than in `$HOME`.
 
 ## Docs
 

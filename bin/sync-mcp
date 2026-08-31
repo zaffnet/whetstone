@@ -31,12 +31,11 @@ CODEX_PRIVATE = frozenset({"node_repl", "computer-use", "event-stream"})
 # into the chunk above it, and when that chunk is an unmanaged [mcp_servers.*] table being
 # dropped, it goes with it.
 #
-# So it is read off TOML's own ABNF rather than approximated, which four rounds of patching
-# a `[^]]+` key were not. Each round fixed the shape that had been reported and shipped the
-# next one: [[array.of.tables]], then a trailing comment, then a ] inside a quoted key, then
-# a leading indent. The grammar is `ws table ws [ comment ]`, where a key part is an
-# unquoted run or a whole quoted string -- so leading tabs and spaces are allowed, and a ]
-# or a # inside quotes is content.
+# So it is read off TOML's own ABNF rather than approximated. The grammar is
+# `ws table ws [ comment ]`, where a key part is an unquoted run or a whole quoted string --
+# so leading tabs and spaces are allowed, and a ] or a # inside quotes is content. The
+# shapes an approximation misses: [[array.of.tables]], a trailing comment, a ] inside a
+# quoted key, a leading indent.
 TABLE_HEADER = re.compile(
     r"^[ \t]*\[\[?((?:[^]\"']|\"(?:[^\"\\]|\\.)*\"|'[^']*')+)\]\]?\s*(?:#.*)?$"
 )

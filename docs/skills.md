@@ -29,6 +29,7 @@ Source: `skills/<name>/SKILL.md`.
 | `deep-pr-review` | Multi-model deep review: one reviewer per model you can reach, findings merged by agreement. |
 | `deslop` | Strips AI slop and off-style code from the branch diff. |
 | `fix-design-implementation-discrepancies` | Checks a PR against the design and schema docs, then makes the chosen fixes. |
+| `prose-honesty` | Judges every sentence an agent writes against what a later reader needs. |
 | `simplify-english` | Rewrites Markdown prose into plain English, structure intact. |
 | `teach-me` | Teaches a topic one chunk at a time, quizzing between chunks. |
 | `writing-whip` | Kills AI writing tropes at generation time. |
