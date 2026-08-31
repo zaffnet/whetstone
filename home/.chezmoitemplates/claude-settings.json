@@ -66,6 +66,16 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash \"$HOME/.agents/hooks/typecheck.sh\"",
+            "timeout": 600
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.agents/hooks/audit_comments.sh\"",
+            "timeout": 120
+          },
+          {
+            "type": "command",
             "command": "afplay /System/Library/Sounds/Funk.aiff",
             "async": true
           }

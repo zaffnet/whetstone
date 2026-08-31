@@ -10,30 +10,6 @@
         ],
         "matcher": "Edit|Write"
       }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/typecheck.sh\"",
-            "timeout": 600,
-            "type": "command"
-          },
-          {
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/audit_comments.sh\"",
-            "timeout": 120,
-            "type": "command"
-          }
-        ]
-      }
-    ]
-  },
-  "permissions": {
-    "allow": [
-      "Bash(uv run *)",
-      "Bash(cd *)",
-      "Bash(python3 -)",
-      "Bash(cat)"
     ]
   },
   "plansDirectory": ".claude/plans"
