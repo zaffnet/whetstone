@@ -83,7 +83,7 @@ subagents, and the hooks.
 | Terminal | iTerm2 | Shell integration, split panes, the `it2` CLI |
 | Editor | Cursor | Settings and keybindings are managed; ruff formats on save |
 | Packages | Homebrew with a Brewfile | `brew bundle` installs what is missing and skips what is there |
-| Python | uv, ruff, mypy, basedpyright, pyrefly | uv replaces pip, venv, and pyenv; ruff owns style; `docs/decisions/0004` explains the three checkers |
+| Python | uv, ruff, mypy, basedpyright, pyrefly | uv replaces pip, venv, and pyenv; ruff owns style |
 | Task runner | just | A file of recipes, readable without knowing make |
 | Agent config | `~/.agents` | One copy of skills, MCP servers, and instructions; every agent reads it or links to it |
 | Secrets | `~/.zsh_secrets` and `*.local` files | Exported by the shell, read by every tool, never written into a tool's own config |
@@ -140,7 +140,6 @@ docs/                 Handbook, decisions, runbooks
 - [Redaction and secrets](docs/redaction.md)
 - [Review instructions](REVIEW.md): what a reviewer flags here, and what to leave alone
 - [Handbook](AGENTS.md): the conventions agents and humans both read
-- [Decisions](docs/decisions/)
 - [Uses](docs/uses.md)
 
 ## License
