@@ -45,10 +45,10 @@ a full-screen TUI and block. Pass explicit flags instead of relying on that dete
 
 ## Stop hooks
 
-Two hooks run when a turn ends. One blocks and does not take no for an answer: it reports
-again on every stop for as long as the problem is there, and the only way past it is to fix
-the code. Claude Code ends the turn itself after 8 consecutive blocks, which is the
-harness's ceiling, not the hook's. The other only reports.
+Two hooks check the code when a turn ends. One blocks and does not take no for an answer:
+it reports again on every stop for as long as the problem is there, and the only way past
+it is to fix the code. Claude Code ends the turn itself after 8 consecutive blocks, which
+is the harness's ceiling, not the hook's. The other only reports.
 
 - `hooks/typecheck.sh` runs the repository's own `./run-typecheck.sh` where there is one,
   which is what a generated project has, and `bin/run-typecheck.sh` otherwise. Whatever
