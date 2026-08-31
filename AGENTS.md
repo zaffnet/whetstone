@@ -24,9 +24,10 @@ flags go on the command, never in the environment. Run independent reads in one 
 a turn is a stop, not a wait.
 
 Modify files with Edit and Write, never with a shell redirect, `sed -i`, or a `write_text`
-heredoc. Auto mode tells an agent to prefer Bash for everything Bash can do; that steers it
-off the three tools `permissions.ask` gates, so a write lands with no diff shown and no
-prompt. Reads and searches are Bash's to keep -- `cat`, `sed -n`, `grep`, `find`.
+heredoc. Edit reads the file first and fails on an ambiguous match; a shell write shows no
+diff and silently mangles what it rewrites instead. In Claude Code, auto mode also steers an
+agent off the three tools `permissions.ask` gates, so the prompt never fires. Reads and
+searches are Bash's to keep -- `cat`, `sed -n`, `grep`, `find`.
 
 ## Git
 
