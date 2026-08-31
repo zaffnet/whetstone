@@ -39,7 +39,9 @@ def section(text: str, start: str, end: str | None) -> str:
 
 
 def row_names(block: str) -> set[str]:
-    return {match.group(1) for line in block.splitlines() if (match := ROW_NAME.match(line))}
+    return {
+        match.group(1) for line in block.splitlines() if (match := ROW_NAME.match(line)) is not None
+    }
 
 
 def txt_skills(path: Path) -> tuple[set[str], list[str]]:
@@ -55,10 +57,10 @@ def txt_skills(path: Path) -> tuple[set[str], list[str]]:
     problems: list[str] = []
     for number, line in enumerate(path.read_text().splitlines(), start=1):
         stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
+        if stripped == "" or stripped.startswith("#"):
             continue
         repo, *skills = stripped.split()
-        if not skills:
+        if len(skills) == 0:
             problems.append(
                 f"{path}:{number}: {repo} names no skills, so it means every skill in the "
                 f"repo and this check cannot tell what those are; name them here"
@@ -91,7 +93,7 @@ def main() -> int:
         print(problem, file=sys.stderr)  # noqa: T201  -- CLI report
     counted = len(on_disk) + len(in_txt)
     print(f"check-skills-doc: {counted} skills checked, {len(problems)} problems")  # noqa: T201  -- CLI report
-    return 1 if problems else 0
+    return 1 if len(problems) > 0 else 0
 
 
 if __name__ == "__main__":
