@@ -181,5 +181,5 @@
   "useAutoModeDuringPlan": true,
   "externalEditorContext": true,
   "permissionExplainerEnabled": false,
-  "diffTool": "auto"
+  "diffTool": "terminal"
 }
