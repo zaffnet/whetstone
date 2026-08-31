@@ -48,6 +48,27 @@ run() {
 # collapse the same way.
 run uv run --no-sync ruff format --check --color always "${targets[@]}"
 
+# No ruff.toml required. explicit-preview-rules keeps --preview + ALL from
+# enabling every preview rule; E266 is the one preview rule we opt into.
+ruff_check=(
+  uv run --no-sync ruff check
+  --target-version py312
+  --config "line-length = 100"
+  --select ALL
+  --extend-select E266
+  --ignore "D100,D101,D102,D103,D104,D105,D203,D213,COM812,FIX,TD,TRY003,CPY001"
+  --per-file-ignores "*_test.py:S101"
+  --per-file-ignores "*_test.py:S105"
+  --per-file-ignores "*_test.py:S404"
+  --per-file-ignores "*_test.py:S603"
+  --per-file-ignores "*_test.py:PLR2004"
+  --per-file-ignores "*.pyi:ANN401"
+  --config "lint.explicit-preview-rules = true"
+  --preview
+  --color always
+)
+run "${ruff_check[@]}" "${targets[@]}"
+
 run uv run --no-sync mypy --strict --num-workers "$workers" "${targets[@]}"
 
 # --threads takes an optional count. A bare `--threads <path>` treats the path as
