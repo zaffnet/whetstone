@@ -96,10 +96,8 @@ echo ""
 
 if [ "$AGENT" = "claude" ]; then
   exec claude \
-    --permission-mode bypassPermissions \
     --effort "$EFFORT" \
     --model "$CLAUDE_MODEL" \
-    --chrome \
     ${ADD_DIRS[@]+"${ADD_DIRS[@]}"} \
     "$@"
 else
