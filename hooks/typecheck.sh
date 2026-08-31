@@ -5,15 +5,13 @@
 # diff and reports every `# noqa` and `# type: ignore` it adds, which is the same
 # question it already answers about comments.
 #
-# Blocking is `{"decision": "block", "reason": ...}` on stdout. Claude Code sets
-# stop_hook_active once it is already continuing because of a Stop hook, and gives
-# up after 8 consecutive blocks; this hook checks the flag and stands down, so a
-# problem Claude cannot fix costs one extra turn rather than eight.
+# Blocking is `{"decision": "block", "reason": ...}` on stdout. The checkers
+# failing is not a matter of opinion, so this reports it again on every stop for
+# as long as it is true: there is no way out but to fix the code. Claude Code
+# ends the turn itself after 8 consecutive blocks, which is the only ceiling
+# here, and it is the harness's, not this hook's.
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
-
-# Already continuing from a Stop hook: report nothing and let the turn end.
-[[ "$(hook_field '.stop_hook_active // false')" == true ]] && exit 0
 
 cwd="$(hook_field '.cwd // empty')"
 [[ -n $cwd ]] || cwd="$PWD"
@@ -29,27 +27,24 @@ git diff --quiet HEAD -- '*.py' '*.pyi' 2>/dev/null \
   && [[ -z "$(git ls-files --others --exclude-standard -- '*.py' '*.pyi' 2>/dev/null)" ]] \
   && exit 0
 
-checker=()
-if [[ -x ./run-typecheck.sh ]]; then
-  # The repository's own script defines its tools, so it is run as it stands.
-  checker=(./run-typecheck.sh)
-elif [[ -x "${CLAUDE_PLUGIN_ROOT:-}/bin/run-typecheck.sh" ]]; then
-  # The fallback runs mypy and basedpyright out of the target project's
-  # environment. A repository that does not have them (whetstone itself declares
-  # only ruff) would fail on the missing executables rather than on its code, so
-  # the fallback is used only where both resolve. A repository that wants them
-  # gated differently ships its own ./run-typecheck.sh.
-  if uv run --no-sync python -c 'import mypy, basedpyright' >/dev/null 2>&1; then
-    checker=("${CLAUDE_PLUGIN_ROOT}/bin/run-typecheck.sh")
-  fi
+# A repository's own script overrides the one shipped here, which is how it
+# chooses different tools or flags.
+checker="./run-typecheck.sh"
+if [[ ! -x $checker ]]; then
+  checker="${CLAUDE_PLUGIN_ROOT:-}/bin/run-typecheck.sh"
+  # The shipped script runs mypy and basedpyright from the target project's
+  # environment, so a repository without them would fail on the missing
+  # executables rather than on its code.
+  [[ -x $checker ]] \
+    && uv run --no-sync python -c 'import mypy, basedpyright' >/dev/null 2>&1 \
+    || exit 0
 fi
-((${#checker[@]})) || exit 0
 
 # Interleaved into one stream: a checker's complaint is on stdout or stderr
 # depending on the tool, and the report needs both.
 output=""
 status=0
-output="$("${checker[@]}" 2>&1)" || status=$?
+output="$("$checker" 2>&1)" || status=$?
 ((status != 0)) || exit 0
 
 # A missing virtualenv or uvx is the machine's problem, not the code's, so it is

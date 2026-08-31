@@ -167,14 +167,16 @@ run_audit() {
   [ ! -f "$WORK/claude-argv" ]
 }
 
-@test "audit: stands down while already continuing from a Stop hook" {
+@test "audit: blocks again on a re-entered stop" {
+  # stop_hook_active is not consulted: the findings hold for as long as the
+  # comments do, and standing down on the second pass would make the block a
+  # formality that waiting out is cheaper than answering.
   printf '# ==== BANNER ====\nx = 1\n' >"$WORK/a.py"
   local bin
-  bin="$(stub_claude "$(envelope '{"findings": [{"file": "a.py", "line": 1, "why": "x"}]}')")"
+  bin="$(stub_claude "$(envelope '{"findings": [{"file": "a.py", "line": 1, "why": "Delete the banner."}]}')")"
   run -0 env "PATH=$bin:$PATH" bash -c \
     "bash '$REPO/hooks/audit_comments.sh' 2>/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": true}'"
-  [ -z "$output" ]
-  [ ! -f "$WORK/claude-argv" ]
+  [ "$(decision "$output")" = block ]
 }
 
 @test "audit: silent outside a git repository" {
@@ -184,10 +186,18 @@ run_audit() {
   [ -z "$output" ]
 }
 
-@test "typecheck: stands down while already continuing from a Stop hook" {
-  printf 'x: str = 1\n' >"$WORK/a.py"
+@test "typecheck: blocks again on a re-entered stop" {
+  # The checkers failing is not a matter of opinion, so it is reported for as
+  # long as it is true.
+  printf 'x = 1\n' >"$WORK/a.py"
+  {
+    printf '#!/bin/sh\n'
+    printf 'echo "a.py:1: error: still broken"\n'
+    printf 'exit 1\n'
+  } >"$WORK/run-typecheck.sh"
+  chmod +x "$WORK/run-typecheck.sh"
   run -0 run_hook typecheck.sh true
-  [ -z "$output" ]
+  [ "$(decision "$output")" = block ]
 }
 
 @test "typecheck: silent outside a git repository" {

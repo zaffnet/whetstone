@@ -32,6 +32,14 @@ sourceDir = {{ .chezmoi.workingTree | quote }}
 #     code_scan_command = "/opt/vendor/bin/code-scan"             # MCP server only this machine has
 [data.work]
 
+# `chezmoi update` pulls and then applies whatever the source directory's working tree
+# holds. A checkout that branches is therefore a hazard as a source: a template edit still
+# under review is applied as though it were released. sourceDir names a worktree kept on
+# main, and this pull keeps it there; the branch checkout stays free for work.
+[update]
+  command = "git"
+  args = ["pull", "--ff-only", "origin", "main"]
+
 [edit]
   command = "cursor"
   args = ["--wait"]

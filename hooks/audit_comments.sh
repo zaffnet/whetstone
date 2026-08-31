@@ -23,8 +23,10 @@ strip_frontmatter() {
   ' "$1"
 }
 
-# Already continuing from a Stop hook: report nothing and let the turn end.
-[[ "$(hook_field '.stop_hook_active // false')" == true ]] && exit 0
+# stop_hook_active is deliberately not consulted: the findings are reported again
+# on every stop for as long as the comments are still there. Standing down on the
+# second pass would make the block a formality that waiting out is cheaper than
+# answering.
 
 command -v claude >/dev/null 2>&1 || exit 0
 
@@ -66,8 +68,9 @@ fi
 # --setting-sources "" and --strict-mcp-config keep this machine's settings, MCP
 # servers, and CLAUDE.md out of the subprocess: none of them bear on the
 # question, and loading them tripled the cost of the call in measurement.
-# --max-turns 1 because the answer is one message; the diff is on stdin, so the
-# model needs no tools to read it.
+# --allowed-tools "" with --max-turns 1: the diff is on stdin, so the answer is
+# one message and no tool is needed. Leaving any tool enabled means the model can
+# reach for one, spend the single turn on it, and return nothing.
 errfile="$(mktemp)"
 trap 'rm -f "$errfile"' EXIT
 
@@ -80,7 +83,7 @@ envelope="$(
       --max-turns 1 \
       --strict-mcp-config \
       --setting-sources "" \
-      --disallowed-tools Bash Edit Write NotebookEdit WebFetch WebSearch \
+      --allowed-tools "" \
       --append-system-prompt "$(strip_frontmatter "$brief")" \
       2>"$errfile"
 )" || status=$?
@@ -124,10 +127,10 @@ count="$(jq -r 'length' <<<"$findings")"
 
 report="$(jq -r '.[] | "  \(.file):\(.line)  \(.why)"' <<<"$findings")"
 
-reason="These comments, docstrings, or suppressions record the session that wrote
-them rather than the code. Fix each one: state what the code cannot -- why a
-constraint exists, which bug a workaround answers, what a caller must hold -- or
-delete it. For a suppression, remove it and fix what the checker reported.
+reason="Comment text that a later reader cannot use. Cut it. Where a finding
+names one clause worth keeping, keep that clause and delete the rest; where it
+names none, delete the whole comment. For a suppression, remove it and fix what
+the checker reported.
 
 Shrink a docstring rather than deleting it, or pre-commit will fail on a public
 interface with none.
