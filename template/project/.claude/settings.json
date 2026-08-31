@@ -28,12 +28,5 @@
       }
     ]
   },
-  "permissions": {
-    "allow": [
-      "Bash(uv run *)",
-      "Bash(cd *)",
-      "Bash(cat)"
-    ]
-  },
   "plansDirectory": ".claude/plans"
 }
