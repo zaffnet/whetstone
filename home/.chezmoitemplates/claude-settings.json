@@ -8,7 +8,10 @@
   },
   "includeGitInstructions": false,
   "permissions": {
-    "defaultMode": "dontAsk"
+    "defaultMode": "auto",
+    "ask": [
+      "Edit"
+    ]
   },
   "model": "opus[1m]",
   "hooks": {
