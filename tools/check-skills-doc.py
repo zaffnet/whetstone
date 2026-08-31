@@ -29,6 +29,7 @@ FROM_PLUGINS = "## From plugins"
 # A row's first cell, when it holds a single backticked name. Rows whose first cell is prose
 # (the `superpowers` row says its set is not enumerated) yield no name and are ignored.
 ROW_NAME = re.compile(r"^\|\s*`([^`]+)`\s*\|")
+UNNAMED_REPO = "names no skills, so it means every skill in the repo; name them here"
 
 
 def section(text: str, start: str, end: str | None) -> str:
@@ -61,10 +62,7 @@ def txt_skills(path: Path) -> tuple[set[str], list[str]]:
             continue
         repo, *skills = stripped.split()
         if len(skills) == 0:
-            problems.append(
-                f"{path}:{number}: {repo} names no skills, so it means every skill in the "
-                f"repo and this check cannot tell what those are; name them here"
-            )
+            problems.append(f"{path}:{number}: {repo} {UNNAMED_REPO}")
         names.update(skills)
     return names, problems
 
