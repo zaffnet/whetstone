@@ -21,6 +21,22 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/typecheck.sh\"",
+            "timeout": 600
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/audit_comments.sh\"",
+            "timeout": 120
+          }
+        ]
+      }
     ]
   }
 }
