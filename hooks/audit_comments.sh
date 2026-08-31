@@ -122,17 +122,19 @@ if [[ "$(jq -r '.is_error // false' <<<"$envelope" 2>/dev/null)" != false ]]; th
   exit 0
 fi
 
-# The model was told to answer in JSON, so a reply that is not JSON is a failure
-# to follow the format rather than a clean audit. Fenced output is tolerated
-# because it is the one deviation worth expecting.
+# The model was told to answer with a findings array, so anything else -- prose, or
+# JSON carrying some other shape -- is a failure to follow the format rather than a
+# clean audit. Fenced output is tolerated because it is the one deviation worth
+# expecting. The type is checked because `length` is defined on an object and a
+# string too: {"findings": {}} would otherwise read as nothing to report.
 findings="$(
   jq -r '.result // empty' <<<"$envelope" \
     | sed -e '/^[[:space:]]*```/d' \
-    | jq -c '.findings // empty' 2>/dev/null
+    | jq -c 'if (.findings | type) == "array" then .findings else empty end' 2>/dev/null
 )" || findings=""
 
 if [[ -z $findings ]]; then
-  printf 'audit_comments: the auditor did not answer in JSON; comments were not checked\n' >&2
+  printf 'audit_comments: the auditor did not answer with a findings array; comments were not checked\n' >&2
   exit 0
 fi
 

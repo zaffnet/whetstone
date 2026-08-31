@@ -118,7 +118,19 @@ run_audit() {
   bin="$(stub_claude "$(envelope 'I could not audit this diff.')")"
   run -0 env "PATH=$bin:$PATH" bash -c \
     "bash '$REPO/hooks/audit_comments.sh' 2>&1 >/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'"
-  [[ $output == *"did not answer in JSON"* ]]
+  [[ $output == *"did not answer with a findings array"* ]]
+}
+
+@test "audit: findings that are not an array are reported, not treated as clean" {
+  # `length` is defined on an object and a string as well as an array, so a reply
+  # carrying some other shape under .findings would otherwise read as a clean
+  # audit, or reach `.[]` and fail there.
+  printf '# ==== BANNER ====\nx = 1\n' >"$WORK/a.py"
+  local bin
+  bin="$(stub_claude "$(envelope '{"findings": {}}')")"
+  run -0 env "PATH=$bin:$PATH" bash -c \
+    "bash '$REPO/hooks/audit_comments.sh' 2>&1 >/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'"
+  [[ $output == *"did not answer with a findings array"* ]]
 }
 
 @test "audit: an envelope reporting an error does not block" {
