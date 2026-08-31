@@ -29,7 +29,10 @@ strip_frontmatter() {
 # second pass would make the block a formality that waiting out is cheaper than
 # answering.
 
-command -v claude >/dev/null 2>&1 || exit 0
+if ! command -v claude >/dev/null 2>&1; then
+  printf 'audit_comments: claude was not found; comments were not checked\n' >&2
+  exit 0
+fi
 
 cwd="$(hook_field '.cwd // empty')"
 [[ -n $cwd ]] || cwd="$PWD"

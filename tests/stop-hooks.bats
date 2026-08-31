@@ -139,6 +139,16 @@ run_audit() {
   [[ $output == *"did not run"* ]]
 }
 
+@test "audit: a missing claude is reported on stderr" {
+  local no_claude="$BATS_TEST_TMPDIR/no-claude"
+  mkdir -p "$no_claude"
+  ln -s "$(command -v cat)" "$no_claude/cat"
+  ln -s "$(command -v jq)" "$no_claude/jq"
+  run -0 env "PATH=$no_claude" bash -c \
+    "bash '$REPO/hooks/audit_comments.sh' 2>&1 >/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'"
+  [[ $output == *"claude was not found"* ]]
+}
+
 @test "audit: the diff reaches the model, and committed lines do not" {
   printf '# ==== COMMITTED BANNER ====\ncommitted = 1\n' >"$WORK/a.py"
   git -C "$WORK" add -A
