@@ -3,16 +3,6 @@
 These rules apply to Claude Code, Codex, Cursor, and any other coding agent that reads
 `AGENTS.md`.
 
-## Writing style
-
-- Write for humans, not agents.
-- If the code, the doc, or the user already named it, use that exact word. Do not paraphrase
-  a technical term, and do not coin a near-synonym or near-homophone of one.
-
-## Skills
-
-Check `~/.agents/skills` at the beginning of a task and load the skills that match it.
-
 ## Terminal color
 
 Color flags per command, never via env:
@@ -78,10 +68,6 @@ one.
 
 ## Generated projects and managed files
 
-- A project created with Copier records its template version in `.copier-answers.yml`. When a
-  template bug shows up there, fix the template, release a new version, and let the project
-  owner run `uvx copier update`. Do not edit, stage, or commit inside someone else's project
-  to deliver a template fix.
-- A file under `$HOME` that chezmoi manages is edited in `home/` and applied, or edited in
-  place and pulled back with `just sync`. Patching it directly is overwritten by the next apply.
-- A published `v*` tag is immutable. A bad release is followed by the next version.
+`AGENTS.md` carries the rule. The detail it leaves out: a project records its template
+version in `.copier-answers.yml`, and you never edit, stage, or commit inside someone
+else's project to deliver a template fix.

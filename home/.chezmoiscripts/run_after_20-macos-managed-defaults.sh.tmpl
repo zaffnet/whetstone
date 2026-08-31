@@ -56,10 +56,9 @@ managed_iterm2_settings=(
   "CopySelection|-bool|false"
   "CopyLastNewline|-bool|true"
   "ClickToSelectCommand|-bool|false"
-  # Not AllowClipboardAccess. It differs between the two Macs -- true here, unset there --
-  # but it is a permission, not a look: it lets terminal output drive the macOS pasteboard
-  # through OSC 52, including output from a remote or untrusted session, and iTerm2 ships
-  # it off. Left to each machine, so both keep what they have.
+  # Not AllowClipboardAccess. It is a permission, not a look: it lets terminal output drive
+  # the macOS pasteboard through OSC 52, including output from a remote or untrusted
+  # session, and iTerm2 ships it off. Left to each machine.
   "EnableAPIServer|-bool|true"
   "HideActivityIndicator|-bool|false"
   "ShowFullScreenTabBar|-bool|false"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# WorktreeCreate hook. Replaces Claude Code's default worktree logic entirely.
-# Instead of `git worktree add` into .claude/worktrees/<name>/, worktrees are
-# placed as siblings of the repository (or under WORKTREE_ROOT) and set up in full.
+# WorktreeCreate hook. Replaces Claude Code's default `git worktree add` into
+# .claude/worktrees/<name>/: worktrees are placed as siblings of the repository
+# (or under WORKTREE_ROOT) and set up in full.
 #
 # WorktreeCreate does not support matchers; it fires on every worktree creation
 # (--worktree, EnterWorktree, agent isolation: "worktree", background sessions).

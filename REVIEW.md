@@ -51,7 +51,8 @@ Deliberate, with the reason in the file. Do not re-raise:
 - `home/.chezmoiremove` deliberately omits the yabai and VS Code files; it runs on every
   apply, so listing a path there deletes it repeatedly.
 - `agents/*.md` deliberately differ from their `template/project/` copies: generic versus
-  parameterised.
+  parameterised. `code-honesty-auditor.md` is the exception: the template copy is a symlink
+  to it, so the two are identical by construction.
 - Unpinned upstream installers in `run_once_before_05-oh-my-zsh.sh` are a documented
   exception.
 
@@ -62,8 +63,6 @@ Known and tracked. Do not re-report:
   `extraKnownMarketplaces` (#20).
 - `bin/sync-mcp` has no behavioural test coverage (#21) and keeps one backup name that
   every run overwrites (#22).
-- `tools/check-agents-sync.py` compares two fields, so `name` and effort drift between an
-  agent's `.md` and `.toml` are invisible (#23).
 - `macos.yml`'s `bootstrap (personal|work)` are matrix-named required contexts with no
   aggregator job (#24).
 - No test renders the `modify_*` scripts and checks they parse (#25).

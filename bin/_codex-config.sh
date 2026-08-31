@@ -5,12 +5,10 @@
 # finds it next to itself whether it was reached through the repo or through the symlink.
 #
 # Those scripts pass --ignore-user-config so a run cannot pick up hooks, plugins, skills or
-# rules. That flag also drops the model and the proxy, which are not isolation concerns and
-# which every script then had to restate -- three copies of `gpt-5.5` that went stale the
-# day the machine moved on, and a proxy taken from $OPENAI_BASE_URL while interactive Codex
-# used ~/.codex/config.toml. The two disagreed: the env var was the bare host, the config
-# carried the /v1 suffix. Reading the config here means a script cannot reach an endpoint
-# or a model that interactive Codex is not already using.
+# rules. That flag also drops the model and the proxy, which are not isolation concerns, so
+# they are read back from the config here: a script cannot then reach an endpoint or a model
+# that interactive Codex is not already using. Do not substitute $OPENAI_BASE_URL for the
+# config value -- the env var is the bare host, the config carries the /v1 suffix.
 
 # Top-level keys only. Everything from the first [table] header on belongs to a table, and
 # `model` appears inside tables too. awk rather than a TOML parser on purpose: tomllib needs

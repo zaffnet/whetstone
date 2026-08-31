@@ -4,10 +4,8 @@
 # the turn while they are not. Python only: the auditor's brief is written around
 # `# noqa` and `# type: ignore`.
 #
-# The judgment is the model's. This replaced a few hundred lines of regexes that
-# tried to decide by wording whether a comment carried a reason, which is not a
-# question wording answers: the rules were brittle in both directions and the
-# word list was never going to be finished.
+# The judgment is the model's: whether a comment carries a reason is not a question
+# wording answers, so there is no word list to match against.
 #
 # It never edits a file. Claude makes the edit, so it lands in the diff, in view,
 # with the tests still to run.

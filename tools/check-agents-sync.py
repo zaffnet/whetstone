@@ -7,12 +7,9 @@ keep their Jinja as literal text; a TOML file whose body still contains the plac
 compared after rendering ``{{ package_name }}`` to a fixed token, so unescaped quotes or
 backslashes in the TOML string are caught too.
 
-Every key on both sides is accounted for, not just the two that used to be compared. The
-pair in ``SAME`` must be identical; ``MD_ONLY`` and ``TOML_ONLY`` name what each side owns
-alone. A key on none of the three is reported rather than ignored, so adding one to a
-single side cannot pass unnoticed --
-``name`` addresses the subagent, and the two halves used to be free to disagree about who
-they are.
+Every key on both sides is accounted for. The pair in ``SAME`` must be identical;
+``MD_ONLY`` and ``TOML_ONLY`` name what each side owns alone. A key on none of the three is
+reported rather than ignored, so adding one to a single side cannot pass unnoticed.
 """
 
 from __future__ import annotations

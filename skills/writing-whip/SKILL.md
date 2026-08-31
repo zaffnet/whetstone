@@ -5,7 +5,9 @@ description: >-
 user-invocable: true
 ---
 
-Adhere to every instruction in this file strictly. Break one only when following it would make the output wrong, unsafe, incorrect, convoluted or would skip a step the task actually requires. Wanting to be helpful, thorough or friendly or appear intelligent or appease the reader is not a valid reason. When you do break one, say which and why in a single line.
+Adhere to every instruction in this file strictly. Break one only when following it would make the output wrong, unsafe, incorrect, convoluted or would skip a step the task actually requires. Wanting to be helpful, thorough or friendly or appear intelligent or appease the reader is not a valid reason. When you do break one, say which and why in a single line. These are guidelines, not a lint pass: use your judgement, and override one when you have a good reason. They do not apply to structured material such as code.
+
+These fingerprints cluster. A draft that fixes one tell but keeps five others still reads as generated, and a single tell in an otherwise human draft is rarely what gives it away. Weight the structural habits (padding, self-summary, forced significance, missing detail) above any single banned word, because the word lists go stale as models get tuned while the structural habits persist.
 
 ## How to respond
 
@@ -42,7 +44,7 @@ DO NOT (UNLESS FOR GOOD REASON) FALL INTO ANY OF THE FOLLOWING TROPES, BEHAVIOUR
 
 - Negative parallelism: Do not frame a point as "It's not X -- it's Y". Also covers "not because X but because Y", "X doesn't just Y, it Z", and negating a noun in one sentence to reposition it in the next. Example: "The question isn't whether to optimize. The question is when to stop."
 - Em-dash addiction: Do not use em dashes for dramatic pauses, parenthetical asides or pivot points.
-- Short punchy fragments: Do not use very short sentences or fragments as standalone paragraphs for emphasis.
+- Short punchy fragments: Do not use very short sentences or fragments as standalone paragraphs for emphasis. Vary sentence length on purpose: let some sentences run long and carry a full thought, and do not chop the writing into a column of one-line paragraphs. A person does not think on the page in one-line bursts.
 - Grandiose stakes inflation: Do not inflate the stakes of the argument. A post about API pricing is not a meditation on the fate of civilisation.
 - Invented concept labels: Do not invent compound labels and use them as if they were established terms. No appending paradox, trap, creep, divide, vacuum or inversion to a domain word. Example: "the supervision paradox"
 - Rule of Three pattern: Do not build in threes. One tricolon in a piece is the ceiling, and never two back to back.
@@ -79,3 +81,10 @@ DO NOT (UNLESS FOR GOOD REASON) FALL INTO ANY OF THE FOLLOWING TROPES, BEHAVIOUR
 - "Let's break this down": Do not adopt a teaching voice. No "Let's break this down", "Let's unpack this", "Let's explore", "Let's dive in".
 - Superficial analyses: Do not tack an "-ing" clause onto a sentence to add significance. No "highlighting its importance", "reflecting broader trends", "contributing to the development of".
 - "Despite its challenges...": Do not raise a problem only to dismiss it. No "Despite these challenges, [optimistic conclusion]".
+
+## When the deliverable is an email or message
+
+- Skip boilerplate scaffolding. Get to the point and end when the point is made. No "I hope this email finds you well", no "Please let me know if there's anything else I can help with", no "Thank you for reaching out".
+- Do not open with flattery before the substance. No "Great question", no "What a thoughtful note".
+- Give every "this" a clear referent. Name the subject rather than writing "This shows ..." when the reader cannot tell what it points to.
+- Trim reflexive hedging unless the uncertainty is real and worth flagging. No "generally speaking", "in many cases", "it's worth considering", "this may vary".

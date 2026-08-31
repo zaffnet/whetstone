@@ -24,6 +24,7 @@ When the user gives no PR URL, review the current branch against `origin/main` (
 ## Post
 
 - Inline review comments only after showing them to the user and asking for confirmation. Show comments one by one, i.e., show a comment, ask for confirmation, show the next comment, and so on.
+- If you are afraid the comment shown will be blocked by the question asked using AskUserQuestion, then you should make the comment part of the question so the user can read it. Along with the comment you want to post, also mention its severity, the reviewers that flagged it, and any other relevant metadata.
 - Do not edit the PR branch, commit, or fix the code.
 - Prefix each comment with "`deep-pr-review` (AI) on behalf of @<handle>:", where `<handle>` is the output of `gh api user --jq .login`.
 - Based on the comments approved by the user, submit your review. The overall review should be a concise summary of the findings (only on the approved comments).
