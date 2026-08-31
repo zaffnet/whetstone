@@ -72,10 +72,17 @@ From a fresh macOS install to a working shell, editor, and agents.
 5. Codex rewrites its runtime sections (`[projects.*]`, `[marketplaces.*]`) on next launch
    and asks again to trust each project directory. The apply already ran `sync-mcp`, so the
    MCP server lists in `~/.codex/config.toml` and `~/.claude.json` match `~/.agents/mcp.json`.
-6. Run `just test` to confirm the symlinks resolve.
+6. Confirm the apply landed. `just diff` prints nothing, and every managed symlink resolves
+   (scoping this to the managed set matters: Codex and Claude both keep churning broken
+   links under `~/.codex/tmp/` and `~/.claude/debug/` that a bare `find` would flag):
+
+   ```bash
+   chezmoi --source ~/Desktop/src/whetstone managed --include=symlinks \
+     | while IFS= read -r f; do [ -e ~/"$f" ] || printf 'broken: %s\n' "$f"; done
+   ```
 
 ## CI mode
 
 With `CI=1` set, `.chezmoiignore` skips the Oh My Zsh, Homebrew, macOS defaults, third-party
 skill, and MCP sync scripts so the tree can be applied into a throwaway `HOME` in seconds.
-`just test-home` does that locally and runs the bats suite against the result.
+`macos.yml` uses it to apply the tree on a clean runner for both roles.

@@ -16,11 +16,10 @@ explicitly in its `pyproject.toml` so the convention is recorded.
 - The module and its tests sit next to each other in every listing and every editor.
 - Coverage omits `**/*_test.py` and `**/_test_helpers.py`.
 - Ruff `per-file-ignores` relaxes `S101`, `S105`, `S404`, `S603`, and `PLR2004` for `*_test.py`
-  only in generated projects; this repo's own config relaxes `S101` and `PLR2004`.
+  in generated projects. This repo's own config carries no such entry: it has no test files.
 - In a generated project, contributors used to `tests/test_*.py` get a pre-commit failure
   from the `forbid-test-prefix` hook; without it pytest would silently never collect the
-  file. whetstone itself configures neither, because it runs no pytest suite; its own
-  tests are Bats (`tests/home.bats`), which this decision does not cover.
+  file. whetstone itself configures neither, because it runs no test suite of its own.
 
 ## Alternatives considered
 

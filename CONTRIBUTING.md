@@ -9,7 +9,7 @@ stale pin) are welcome.
 ```bash
 just install   # uv sync, pre-commit install
 just lint      # everything pre-commit runs, on all files
-just test-home # apply the chezmoi tree into a throwaway HOME and run the bats suite
+just diff      # what applying the chezmoi tree would change in $HOME
 ```
 
 ## Rules
