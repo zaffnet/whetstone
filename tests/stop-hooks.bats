@@ -140,10 +140,14 @@ run_audit() {
 }
 
 @test "audit: a missing claude is reported on stderr" {
-  local no_claude="$BATS_TEST_TMPDIR/no-claude"
+  # A PATH holding what the hook reaches for and nothing named claude. bash is on
+  # it because `env` resolves the interpreter through PATH too, and without it the
+  # case fails on a missing shell rather than on the hook.
+  local no_claude="$BATS_TEST_TMPDIR/no-claude" t
   mkdir -p "$no_claude"
-  ln -s "$(command -v cat)" "$no_claude/cat"
-  ln -s "$(command -v jq)" "$no_claude/jq"
+  for t in bash cat jq; do
+    ln -sf "$(command -v "$t")" "$no_claude/$t"
+  done
   run -0 env "PATH=$no_claude" bash -c \
     "bash '$REPO/hooks/audit_comments.sh' 2>&1 >/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'"
   [[ $output == *"claude was not found"* ]]
