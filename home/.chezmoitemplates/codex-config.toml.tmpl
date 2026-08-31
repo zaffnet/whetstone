@@ -5,14 +5,15 @@
 # [projects.*] and [marketplaces.*] tables are carried over unchanged.
 
 model = "gpt-5.6-sol"
-approval_policy = "never"
+approval_policy = "on-request"
+approvals_reviewer = "auto_reviewer"
 sandbox_mode = "workspace-write"
-model_reasoning_effort = "high"
+model_reasoning_effort = "minimal"
 personality = "pragmatic"
-show_raw_agent_reasoning = true
-hide_agent_reasoning = false
-model_reasoning_summary = "detailed"
-model_verbosity = "high"
+show_raw_agent_reasoning = false
+hide_agent_reasoning = true
+model_reasoning_summary = "concise"
+model_verbosity = "low"
 file_opener = "cursor"
 {{- if hasKey $work "openai_base_url" }}
 openai_base_url = {{ get $work "openai_base_url" | quote }}
