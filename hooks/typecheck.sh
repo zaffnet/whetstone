@@ -1,15 +1,10 @@
 #!/usr/bin/env bash
-# Stop hook. The turn does not end while the type checkers fail.
+# Stop hook. It reports what the type checkers found on stderr and lets the turn
+# end; the checkers also run in pre-commit and CI, so nothing here blocks.
 #
 # Suppressions are not this hook's business: the code-honesty auditor reads the
 # diff and reports every `# noqa` and `# type: ignore` it adds, which is the same
 # question it already answers about comments.
-#
-# Blocking is `{"decision": "block", "reason": ...}` on stdout. The checkers
-# failing is not a matter of opinion, so this reports it again on every stop for
-# as long as it is true: there is no way out but to fix the code. Claude Code
-# ends the turn itself after 8 consecutive blocks, which is the only ceiling
-# here, and it is the harness's, not this hook's.
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
 
@@ -65,17 +60,8 @@ status=0
 output="$(bash "$checker" 2>&1)" || status=$?
 ((status != 0)) || exit 0
 
-# A missing virtualenv or uvx is the machine's problem, not the code's, so it is
-# reported without blocking.
-if [[ $output == *"Run: uv sync"* || $output == *"uvx not found"* ]]; then
-  printf '%s\n' "$output" >&2
-  exit 0
-fi
-
-reason="The type checkers failed. The work is not done until they pass.
+printf '%s\n' "The type checkers failed. The work is not done until they pass.
 Fix the root cause of every finding; do not silence a checker.
 
-$output"
-
-jq -n --arg reason "$reason" '{decision: "block", reason: $reason}'
+$output" >&2
 exit 0
