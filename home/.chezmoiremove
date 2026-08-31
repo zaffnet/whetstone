@@ -12,3 +12,7 @@
 
 # Superseded by ~/.agents/plugins/desired.yaml. Dropped from home/ in 309bee5.
 .agents/plugins/marketplace.json
+
+# bin/run_claude_code.sh was deleted in 07701ad, but this link to it was left behind, so
+# every apply recreated a dead link. Source dropped from home/ in f56aecf.
+.local/bin/run_claude_code.sh
