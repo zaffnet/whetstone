@@ -2,8 +2,6 @@
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
-ci_home := "/tmp/whetstone-home"
-
 default:
     @just --list
 
@@ -50,18 +48,6 @@ sync:
     -diff <(grep -E '^(brew|cask|tap|uv|npm|go) ' home/dot_config/homebrew/Brewfile | sed -E 's/[[:space:]]+#.*$//' | sort) <(grep -E '^(brew|cask|tap|uv|npm|go) ' /tmp/whetstone-brewfile | sort)
     git status --short
 
-# bats suite against $HOME (or WHETSTONE_HOME).
-test:
-    bats tests/
-
-# Apply into a throwaway HOME with CI=1 (no installs), then run the bats suite against it.
-test-home:
-    rm -rf {{ci_home}} && mkdir -p {{ci_home}}
-    CI=1 HOME={{ci_home}} chezmoi --source . init --apply \
-        --promptString name=T,email=t@example.com,src_dir=Desktop/src \
-        --promptChoice role=personal
-    WHETSTONE_HOME={{ci_home}} bats tests/
-
 # Renders the committed tree (HEAD), so commit template edits first.
 #
 # copier writes the source to .copier-answers.yml verbatim. A relative one resolves to the
@@ -80,9 +66,9 @@ validate:
     claude plugin validate .claude-plugin/plugin.json
     gitleaks dir --no-banner --config .gitleaks.dir.toml .
 
-# Remove caches and the throwaway HOME.
+# Remove caches.
 clean:
-    rm -rf {{ci_home}} .ruff_cache .pytest_cache
+    rm -rf .ruff_cache
 
 # Release the template from a clean, pushed main. One gh call creates the tag and the GitHub
 # Release together, so a failure leaves nothing half-done. Tags are immutable on GitHub

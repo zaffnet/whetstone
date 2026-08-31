@@ -25,7 +25,6 @@ junk_dirs=(
   '__pycache__'
   '.mypy_cache'
   '.ruff_cache'
-  '.pytest_cache'
   '.pyrefly_cache'
   '.hypothesis'
   '.tox'
