@@ -3,9 +3,9 @@
 ## Context
 
 Claude Code, Codex, and Cursor each ask for confirmation before shell commands, file
-writes, and network access unless told otherwise. The user-level settings in this repo turn
-those prompts off: Claude Code `permissions.defaultMode = "auto"` with `ask = ["Edit"]`
-(`dontAsk` until the edit guard below), Codex
+writes, and network access unless told otherwise. The user-level settings in this repo leave
+Codex and Cursor unattended, and leave Claude Code unattended except for edits: Claude Code
+`permissions.defaultMode = "auto"` with `ask = ["Edit"]`, Codex
 `approval_policy = "never"` inside a `workspace-write` sandbox with network access, Cursor
 `claudeCode.initialPermissionMode = "bypassPermissions"`. The two launchers in `bin/` start
 Claude with `--permission-mode bypassPermissions` and Codex with
@@ -26,9 +26,10 @@ tool where the prompt was wanted, not a principle applied everywhere.
 ## Consequences
 
 - Any repository opened on a machine with this config gets an agent that can run commands
-  and edit files without asking. Code from someone else is reviewed in a VM or a sandbox,
-  or with a project-level `.claude/settings.json` that sets `permissions.defaultMode`
-  back to `default`.
+  without asking. File edits ask only in a plain `claude` session; the unattended launchers,
+  Codex, and Cursor still edit without asking. Code from someone else is reviewed in a VM or
+  a sandbox, or with a project-level `.claude/settings.json` that sets
+  `permissions.defaultMode` back to `default`.
 - `bin/run_claude_code.sh:26` and `bin/run-coding-agent.sh:99` pass
   `--permission-mode bypassPermissions`, which overrides the setting. So the edit prompt
   reaches a plain `claude` session and neither launcher, and the guard is narrower than the
