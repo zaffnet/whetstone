@@ -40,9 +40,16 @@ git diff --quiet "$base" -- '*.py' '*.pyi' 2>/dev/null \
 # bit, and a generated project has no other checker.
 checker="./run-typecheck.sh"
 if [[ ! -r $checker ]]; then
-  # Only when the plugin set it: unset, "$var/bin/run-typecheck.sh" is the
-  # absolute path /bin/run-typecheck.sh, which is not this repository's script.
+  # The plugin sets CLAUDE_PLUGIN_ROOT; a Stop hook configured in settings.json does
+  # not, so fall back to this script's own directory. `pwd -P` resolves the
+  # ~/.agents/hooks symlink to the checkout, which is what puts bin/ one level up.
+  # Guarded with :+ because unset, "$var/bin/run-typecheck.sh" is the absolute path
+  # /bin/run-typecheck.sh, which is not this repository's script.
   checker="${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/bin/run-typecheck.sh}"
+  if [[ ! -r $checker ]]; then
+    here="$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)" || exit 0
+    checker="$here/../bin/run-typecheck.sh"
+  fi
   # The shipped script runs mypy and basedpyright from the target project's
   # environment, so a repository without them would fail on the missing
   # executables rather than on its code.

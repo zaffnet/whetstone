@@ -273,6 +273,37 @@ run_audit() {
   [ "$(decision "$output")" = none ]
 }
 
+@test "typecheck: the shared checker runs without CLAUDE_PLUGIN_ROOT" {
+  # A Stop hook configured in settings.json runs without CLAUDE_PLUGIN_ROOT. Before
+  # the script resolved the shared checker from its own directory, that left `checker`
+  # empty and the hook exited 0, so every repository outside the template ended a turn
+  # unchecked and said nothing.
+  #
+  # $WORK gets the two things bin/run-typecheck.sh requires of a project -- a python in
+  # .venv/bin and the import guard satisfied -- through a stubbed `uv` that reports a
+  # type error. The block text is the assertion: it comes from the shared checker, so
+  # it cannot appear unless the fallback resolved and ran.
+  mkdir -p "$WORK/.venv/bin" "$BATS_TEST_TMPDIR/bin"
+  printf '#!/bin/sh\necho 4\n' >"$WORK/.venv/bin/python"
+  chmod +x "$WORK/.venv/bin/python"
+  {
+    printf '#!/bin/sh\n'
+    printf 'case "$*" in\n'
+    printf '  *"import mypy"*) exit 0 ;;\n'
+    printf '  *mypy*) echo "a.py:1: error: found by the shared checker"; exit 1 ;;\n'
+    printf '  *) exit 0 ;;\n'
+    printf 'esac\n'
+  } >"$BATS_TEST_TMPDIR/bin/uv"
+  printf '#!/bin/sh\nexit 0\n' >"$BATS_TEST_TMPDIR/bin/uvx"
+  chmod +x "$BATS_TEST_TMPDIR/bin/uv" "$BATS_TEST_TMPDIR/bin/uvx"
+  printf 'x: str = 1\n' >"$WORK/a.py"
+
+  run -0 env -u CLAUDE_PLUGIN_ROOT "PATH=$BATS_TEST_TMPDIR/bin:$PATH" bash -c \
+    "bash '$REPO/hooks/typecheck.sh' 2>/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'"
+  [ "$(decision "$output")" = block ]
+  [[ $output == *"found by the shared checker"* ]]
+}
+
 @test "typecheck: the repository's own script is preferred and its output blocks" {
   # Also the shape a generated project has, since CLAUDE_PLUGIN_ROOT is unset
   # here: ./run-typecheck.sh is the only checker such a project has.
