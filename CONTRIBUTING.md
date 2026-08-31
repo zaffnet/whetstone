@@ -1,8 +1,7 @@
 # Contributing
 
-This is a personal configuration repo. The intended way to use it is to fork it and make
-it yours. Pull requests for generic fixes (a broken script, a wrong path in a template, a
-stale pin) are welcome.
+Fork it and make it yours. Pull requests for generic fixes (a broken script, a wrong path
+in a template, a stale pin) are welcome.
 
 ## Setup
 
@@ -16,10 +15,11 @@ just diff      # what applying the chezmoi tree would change in $HOME
 
 - `main` takes pull requests only, CI is green before merge, and zaffnet merges.
   `REVIEW.md` says what a reviewer should flag here and what automation already covers.
-- Conventional commits: `type(scope): subject`, imperative mood, first line of 72 characters or fewer.
+- Conventional commits: `type(scope): subject`, imperative mood, first line of 72
+  characters or fewer.
 - One logical change per PR.
 - No private hostnames, account ids, names, absolute home paths, or secrets. Pre-commit
-  checks this; `docs/redaction.md` explains what and why.
+  enforces this at commit time.
 - A disabled rule, an unusual flag, or a pinned version carries a comment that says why.
 
 ## Releasing and updating projects
