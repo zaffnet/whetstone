@@ -30,15 +30,15 @@ tool where the prompt was wanted, not a principle applied everywhere.
 ## Consequences
 
 - Any repository opened on a machine with this config gets an agent that can run commands
-  without asking. File writes ask only in a plain `claude` session; the unattended launchers,
-  Codex, and Cursor still write without asking. Code from someone else is reviewed in a VM or
-  a sandbox, or with a project-level `.claude/settings.json` that sets
-  `permissions.defaultMode` back to `default`.
-- `bin/run_claude_code.sh:26` and `bin/run-coding-agent.sh:99` pass
-  `--permission-mode bypassPermissions`, which overrides the setting. So the edit prompt
-  reaches a plain `claude` session and neither launcher, and the guard is narrower than the
-  settings file alone suggests. Removing it from the launchers is a separate decision: they
-  exist to run unattended, which is the case the prompt would break.
+  without asking. File writes ask in any Claude session, launched or plain; Codex and Cursor
+  still write without asking. Code from someone else is reviewed in a VM or a sandbox, or with
+  a project-level `.claude/settings.json` that sets `permissions.defaultMode` back to
+  `default`.
+- `bin/run-coding-agent.sh` passes no permission override on its Claude branch, so a launched
+  Claude session inherits `permissions.ask` from the settings file and prompts on a write like
+  any other. Its Codex branch still runs unattended, via `--sandbox danger-full-access` and
+  `--ask-for-approval never`. So the uneven posture above is what the launcher reproduces
+  rather than something it overrides.
 - The only edit-time guard is `ruff_format.sh`, and it runs in two places: every project
   generated from the template wires it in `.claude/settings.json`, and any other repository
   gets it only when the `whetstone-hooks` plugin is enabled. The global
