@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Stop hook. Asks a headless Claude whether the comments, docstrings, and checker
-# suppressions in this session's diff are honest about the code, and blocks the
-# turn while they are not.
+# suppressions in this session's Python diff are honest about the code, and blocks
+# the turn while they are not. Python only: the auditor's brief is written around
+# `# noqa` and `# type: ignore`.
 #
 # The judgment is the model's. This replaced a few hundred lines of regexes that
 # tried to decide by wording whether a comment carried a reason, which is not a
@@ -36,13 +37,23 @@ cwd="$(hook_field '.cwd // empty')"
 root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || exit 0
 cd "$root" || exit 0
 
+# The plugin candidate only when the plugin set the variable: unset, the first
+# entry would be the absolute path /agents/code-honesty-auditor.md, and an empty
+# candidate falls through to the next.
 for candidate in \
-  "${CLAUDE_PLUGIN_ROOT:-}/agents/code-honesty-auditor.md" \
+  "${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/agents/code-honesty-auditor.md}" \
   "$root/.claude/agents/code-honesty-auditor.md" \
   "${BASH_SOURCE[0]%/*}/../agents/code-honesty-auditor.md"; do
   [[ -f $candidate ]] && brief="$candidate" && break
 done
 [[ -n ${brief:-} ]] || exit 0
+
+# Before the first commit there is no HEAD to diff against, and staged files are
+# not untracked either, so that state would reach neither command below. The empty
+# tree stands in for the absent commit.
+base=HEAD
+git rev-parse --verify -q HEAD >/dev/null \
+  || base="$(git hash-object -t tree /dev/null)"
 
 # Tracked changes plus untracked files, as one patch. --no-color and no pager so
 # the model reads the diff and not terminal escapes. Untracked files have no
@@ -50,7 +61,7 @@ done
 # whenever it prints anything.
 diff_text="$(
   {
-    git --no-pager diff HEAD --no-color -U3 -- '*.py' '*.pyi' 2>/dev/null || true
+    git --no-pager diff "$base" --no-color -U3 -- '*.py' '*.pyi' 2>/dev/null || true
     while IFS= read -r -d '' f; do
       git --no-pager diff --no-index --no-color -U3 -- /dev/null "$f" 2>/dev/null || true
     done < <(git ls-files -z --others --exclude-standard -- '*.py' '*.pyi' 2>/dev/null)

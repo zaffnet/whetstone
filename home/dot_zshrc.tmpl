@@ -14,8 +14,10 @@ elif [[ -x /usr/local/bin/brew ]]; then
 fi
 
 # whetstone's own scripts, so a fix reaches every repository at once rather than being
-# copied into each. {{ .chezmoi.sourceDir }} is this checkout's home/, resolved at apply
-# time, so a clone anywhere works.
+# copied into each. {{ .chezmoi.sourceDir }} is the source checkout's home/, so a clone
+# anywhere works. It must be the worktree kept on main that [update] in .chezmoi.toml.tmpl
+# insists on: this line is read on every shell start, not at apply time, so on a branch
+# checkout `git checkout` alone would change what these scripts do in open terminals.
 export PATH="{{ .chezmoi.sourceDir | dir }}/bin:$PATH"
 
 # Language runtimes

@@ -22,7 +22,10 @@ setup() {
   : >"$WORK/pyproject.toml"
   git -C "$WORK" add -A
   git -C "$WORK" -c user.email=t@example.com -c user.name=t commit -qm init
-  export REPO WORK CLAUDE_PLUGIN_ROOT="$REPO"
+  # CLAUDE_PLUGIN_ROOT is not exported here. A generated project's hook runs
+  # without it, and a suite that set it for every case could not tell a hook that
+  # works there from one that only works as a plugin.
+  export REPO WORK
 }
 
 # Run a hook with a payload naming a directory, the throwaway repo by default.
@@ -74,11 +77,13 @@ envelope() {
   jq -nc --arg result "$1" '{is_error: false, subtype: "success", result: $result}'
 }
 
-# Run audit_comments.sh with `claude` stubbed to reply $1.
+# Run audit_comments.sh with `claude` stubbed to reply $1, in $2 or the throwaway
+# repo. The stub writes what it was given to $WORK regardless, so a case naming
+# another directory still reads the diff from there.
 run_audit() {
-  local bin
+  local bin dir=${2:-$WORK}
   bin="$(stub_claude "$(envelope "$1")")"
-  printf '{"cwd": "%s", "stop_hook_active": false}' "$WORK" \
+  printf '{"cwd": "%s", "stop_hook_active": false}' "$dir" \
     | PATH="$bin:$PATH" bash "$REPO/hooks/audit_comments.sh" 2>/dev/null
 }
 
@@ -179,6 +184,18 @@ run_audit() {
   [ "$(decision "$output")" = block ]
 }
 
+@test "audit: staged Python before the first commit is audited" {
+  # There is no HEAD to diff against yet, and a staged file is not untracked, so
+  # an unguarded hook builds an empty diff and never makes the call.
+  local fresh="$BATS_TEST_TMPDIR/fresh"
+  mkdir -p "$fresh"
+  git -C "$fresh" init -q
+  printf '# ==== BANNER ====\nx = 1\n' >"$fresh/a.py"
+  git -C "$fresh" add a.py
+  run -0 run_audit '{"findings": []}' "$fresh"
+  [[ "$(cat "$WORK/claude-stdin")" == *"BANNER"* ]]
+}
+
 @test "audit: silent outside a git repository" {
   local plain="$BATS_TEST_TMPDIR/plain"
   mkdir -p "$plain"
@@ -224,12 +241,15 @@ run_audit() {
   # bin/run-typecheck.sh runs mypy and basedpyright from the target project's
   # environment. A repository without them must fail on its code, not on the
   # missing executables.
+  export CLAUDE_PLUGIN_ROOT="$REPO"
   printf 'x: str = 1\n' >"$WORK/a.py"
   run -0 run_hook typecheck.sh
   [ "$(decision "$output")" = none ]
 }
 
 @test "typecheck: the repository's own script is preferred and its output blocks" {
+  # Also the shape a generated project has, since CLAUDE_PLUGIN_ROOT is unset
+  # here: ./run-typecheck.sh is the only checker such a project has.
   printf 'x = 1\n' >"$WORK/a.py"
   {
     printf '#!/bin/sh\n'
@@ -240,6 +260,21 @@ run_audit() {
   run -0 run_hook typecheck.sh
   [ "$(decision "$output")" = block ]
   [[ $output == *"something is wrong"* ]]
+}
+
+@test "typecheck: a script without the executable bit still runs" {
+  # copier writes the template's run-typecheck.sh without it, and that copy is the
+  # only checker a generated project has.
+  printf 'x = 1\n' >"$WORK/a.py"
+  {
+    printf '#!/bin/sh\n'
+    printf 'echo "a.py:1: error: ran unexecutable"\n'
+    printf 'exit 1\n'
+  } >"$WORK/run-typecheck.sh"
+  chmod -x "$WORK/run-typecheck.sh"
+  run -0 run_hook typecheck.sh
+  [ "$(decision "$output")" = block ]
+  [[ $output == *"ran unexecutable"* ]]
 }
 
 @test "typecheck: a passing script ends the turn" {

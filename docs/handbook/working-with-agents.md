@@ -50,13 +50,14 @@ again on every stop for as long as the problem is there. The only way past them 
 the code. Claude Code ends the turn itself after 8 consecutive blocks, which is the
 harness's ceiling, not theirs.
 
-- `hooks/typecheck.sh` runs `bin/run-typecheck.sh` and blocks while the checkers fail. It
-  skips repositories whose environment has neither mypy nor basedpyright, which would fail
-  on the missing executables rather than on their code. A missing virtualenv or `uvx` is
-  reported on stderr without blocking.
-- `hooks/audit_comments.sh` pipes the diff to a headless `claude -p` carrying
-  `agents/code-honesty-auditor.md`, and blocks on what it reports: comment text that a later
-  reader cannot use, and every checker suppression the diff adds. It reports; it never
+- `hooks/typecheck.sh` runs the repository's own `./run-typecheck.sh` where there is one,
+  which is what a generated project has, and `bin/run-typecheck.sh` otherwise. It blocks
+  while the checkers fail, and skips repositories whose environment has neither mypy nor
+  basedpyright, which would fail on the missing executables rather than on their code. A
+  missing virtualenv or `uvx` is reported on stderr without blocking.
+- `hooks/audit_comments.sh` pipes the session's Python diff to a headless `claude -p`
+  carrying `agents/code-honesty-auditor.md`, and blocks on what it reports: comment text that
+  a later reader cannot use, and every checker suppression the diff adds. It reports; it never
   rewrites, so the fix lands in the diff with the tests still to run.
 
 The audit judges every sentence and clause on its own, against a high bar: a comment holds

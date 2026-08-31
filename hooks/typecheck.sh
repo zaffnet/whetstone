@@ -22,20 +22,31 @@ cd "$root" || exit 0
 # No Python in the repository means no opinion.
 [[ -f pyproject.toml ]] || exit 0
 
+# Before the first commit there is no HEAD to diff against. The empty tree stands
+# in for the absent commit, so the check below reports whether anything changed
+# instead of that the command failed.
+base=HEAD
+git rev-parse --verify -q HEAD >/dev/null \
+  || base="$(git hash-object -t tree /dev/null)"
+
 # Nothing changed, nothing to check.
-git diff --quiet HEAD -- '*.py' '*.pyi' 2>/dev/null \
+git diff --quiet "$base" -- '*.py' '*.pyi' 2>/dev/null \
   && [[ -z "$(git ls-files --others --exclude-standard -- '*.py' '*.pyi' 2>/dev/null)" ]] \
   && exit 0
 
 # A repository's own script overrides the one shipped here, which is how it
-# chooses different tools or flags.
+# chooses different tools or flags. Readable rather than executable, and run
+# through bash below: copier writes the template's copy without the executable
+# bit, and a generated project has no other checker.
 checker="./run-typecheck.sh"
-if [[ ! -x $checker ]]; then
-  checker="${CLAUDE_PLUGIN_ROOT:-}/bin/run-typecheck.sh"
+if [[ ! -r $checker ]]; then
+  # Only when the plugin set it: unset, "$var/bin/run-typecheck.sh" is the
+  # absolute path /bin/run-typecheck.sh, which is not this repository's script.
+  checker="${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/bin/run-typecheck.sh}"
   # The shipped script runs mypy and basedpyright from the target project's
   # environment, so a repository without them would fail on the missing
   # executables rather than on its code.
-  [[ -x $checker ]] \
+  [[ -r $checker ]] \
     && uv run --no-sync python -c 'import mypy, basedpyright' >/dev/null 2>&1 \
     || exit 0
 fi
@@ -44,7 +55,7 @@ fi
 # depending on the tool, and the report needs both.
 output=""
 status=0
-output="$("$checker" 2>&1)" || status=$?
+output="$(bash "$checker" 2>&1)" || status=$?
 ((status != 0)) || exit 0
 
 # A missing virtualenv or uvx is the machine's problem, not the code's, so it is
