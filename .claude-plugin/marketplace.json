@@ -10,7 +10,7 @@
     {
       "name": "whetstone-skills",
       "source": "./",
-      "strict": false,
+      "strict": true,
       "skills": [
         "./skills"
       ],
@@ -30,7 +30,7 @@
     {
       "name": "whetstone-reviewers",
       "source": "./",
-      "strict": false,
+      "strict": true,
       "agents": [
         "./agents/async-safety-reviewer.md",
         "./agents/deceptive-test-hunter.md",
@@ -52,7 +52,7 @@
     {
       "name": "whetstone-hooks",
       "source": "./",
-      "strict": false,
+      "strict": true,
       "hooks": "./hooks/hooks.json",
       "description": "ruff on every edit and a worktree setup hook.",
       "version": "0.1.0",
