@@ -2,8 +2,9 @@
 # Most variables are assigned by the jq-driven eval below, which shellcheck cannot follow.
 # shellcheck disable=SC2154
 # Two-line Claude Code status line.
-# Line 1: p10k Pure identity (dir, vcs, PR, venv)
-# Line 2: session HUD (model, effort, context, cost, last turn, quota, diff)
+# Line 1: p10k Pure identity (dir, vcs, worktree, PR, venv)
+# Line 2: session HUD (model, effort, context, cost, duration, last turn, diff, quota,
+#         agent, vim mode, session name)
 
 input=$(cat)
 

@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
 # Stop hook. It reports what the type checkers found on stderr and lets the turn
 # end; the checkers also run in pre-commit and CI, so nothing here blocks.
-#
-# Suppressions are not this hook's business: the code-honesty auditor reads the
-# diff and reports every `# noqa` and `# type: ignore` it adds, which is the same
-# question it already answers about comments.
+# Suppressions are audit_comments.sh's business, not this hook's.
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
 
@@ -29,17 +26,17 @@ git diff --quiet "$base" -- '*.py' '*.pyi' 2>/dev/null \
   && [[ -z "$(git ls-files --others --exclude-standard -- '*.py' '*.pyi' 2>/dev/null)" ]] \
   && exit 0
 
-# A repository's own script overrides the one shipped here, which is how it
-# chooses different tools or flags. Readable rather than executable, and run
-# through bash below: copier writes the template's copy without the executable
-# bit, and a generated project has no other checker.
+# A repository's own script overrides the one shipped here, which is how it chooses
+# different tools or flags. Tested for readable rather than executable, and run through
+# bash below, because copier writes the template's copy without the executable bit and a
+# generated project has no other checker.
 checker="./run-typecheck.sh"
 if [[ ! -r $checker ]]; then
   # The plugin sets CLAUDE_PLUGIN_ROOT; a Stop hook configured in settings.json does
   # not, so fall back to this script's own directory. `pwd -P` resolves the
   # ~/.agents/hooks symlink to the checkout, which is what puts bin/ one level up.
   # Guarded with :+ because unset, "$var/bin/run-typecheck.sh" is the absolute path
-  # /bin/run-typecheck.sh, which is not this repository's script.
+  # /bin/run-typecheck.sh.
   checker="${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/bin/run-typecheck.sh}"
   if [[ ! -r $checker ]]; then
     here="$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P)" || exit 0

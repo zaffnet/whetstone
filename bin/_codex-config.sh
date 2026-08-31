@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Shared by the bin/ scripts that shell out to `codex exec`. Sourced, not executed; the
-# shebang is there so check-shebang-scripts-are-executable keeps it 0755, the same shape
-# as hooks/_common.sh. It is symlinked into ~/.local/bin beside its callers, so a caller
-# finds it next to itself whether it was reached through the repo or through the symlink.
+# shebang is there so check-shebang-scripts-are-executable keeps it 0755. It is symlinked
+# into ~/.local/bin beside its callers, so a caller finds it next to itself whether it was
+# reached through the repo or through the symlink.
 #
 # Those scripts pass --ignore-user-config so a run cannot pick up hooks, plugins, skills or
 # rules. That flag also drops the model and the proxy, which are not isolation concerns, so
@@ -11,9 +11,8 @@
 # config value -- the env var is the bare host, the config carries the /v1 suffix.
 
 # Top-level keys only. Everything from the first [table] header on belongs to a table, and
-# `model` appears inside tables too. awk rather than a TOML parser on purpose: tomllib needs
-# Python 3.11 and the system python3 on macOS is 3.9, which is what broke bin/sync-mcp on a
-# fresh Mac.
+# `model` appears inside tables too. awk rather than a TOML parser: tomllib needs Python 3.11
+# and the system python3 on macOS is 3.9.
 #
 # Finding that first header takes tracking where a value ends, not a per-line guess: an
 # array element and a line inside a multiline string both look like a header on their own.
@@ -54,8 +53,7 @@ codex_config_value() {
 
     # The header shape is the one home/dot_codex/modify_private_config.toml.tmpl uses.
     open == "" && depth == 0 && /^[[:space:]]*\[\[?[^]]+\]\]?[[:space:]]*(#.*)?$/ { exit }
-    # A bare, "quoted" or \047literal\047 key are the same key, as bin/sync-mcp and the Codex
-    # modify script already treat them.
+    # A bare, "quoted" or \047literal\047 key are the same key.
     open == "" && depth == 0 && $0 ~ "^[[:space:]]*[\"\047]?" key "[\"\047]?[[:space:]]*=" {
       sub(/^[^=]*=[[:space:]]*/, "")
       # A quoted value ends at its closing quote, so a trailing comment goes with it. An

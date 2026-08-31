@@ -37,7 +37,7 @@ JSON
 readonly SCHEMA
 
 # The library is symlinked into ~/.local/bin too, so it sits beside this script whichever
-# path reached it. No symlink resolution, which is where the first attempt went wrong.
+# path reached it. No symlink resolution.
 # shellcheck source-path=SCRIPTDIR source=_codex-config.sh
 source "${BASH_SOURCE[0]%/*}/_codex-config.sh"
 
@@ -203,7 +203,7 @@ git diff --stat "$DIFF_RANGE" >"$GIT_DIFF_STAT_FILE"
 CURRENT_BODY=$(jq -er '.body' "$PR_VIEW_FILE")
 
 # Checklist items come from the repository's pull request template so the script
-# works for any repo. Items already ticked in the current body stay ticked.
+# works for any repo.
 checklist_items() {
   local template
   for template in .github/PULL_REQUEST_TEMPLATE.md .github/pull_request_template.md \

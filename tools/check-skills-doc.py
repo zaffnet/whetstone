@@ -50,9 +50,9 @@ def txt_skills(path: Path) -> tuple[set[str], list[str]]:
 
     A line of just ``owner/repo`` is a form the installer supports: it expands to every
     skill in that repo. What that set contains is only knowable from the network, so a
-    table row for it cannot be verified here. Rather than pass such a line silently --
-    which would let the whole repo go missing from the doc -- it is reported, and the
-    fix is to list the skills the line means.
+    table row for it cannot be verified here. Such a line is reported rather than passed
+    silently, which would let the whole repo go missing from the doc; the fix is to list
+    the skills the line means.
     """
     names: set[str] = set()
     problems: list[str] = []

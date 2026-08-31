@@ -59,8 +59,7 @@ jobs:
           actionlint
           test -f LICENSE
           # A WorktreeCreate hook has no fallback and fails inside the Claude desktop app's
-          # session sandbox; generated projects must not ship one, wired or not
-          # (docs/decisions/0010).
+          # session sandbox; generated projects must not ship one, wired or not.
           jq -e '.hooks | has("WorktreeCreate") | not' .claude/settings.json
           test ! -e .claude/hooks/worktree_create.sh
       - name: Build the image and run the Compose stack
@@ -115,11 +114,9 @@ jobs:
           uv run ruff format --check .
 
   # One stable context for the branch ruleset to require. Both jobs above carry their
-  # matrix values in the job name, so adding an axis renames every context: adding
-  # line_length turned `render-and-check (true, true)` into
-  # `render-and-check (true, true, 88)` and the ruleset sat waiting on four names that
-  # no longer exist. Labelling the axes renames them again. This name never changes,
-  # whatever the matrix does.
+  # matrix values in the job name, so adding an axis or labelling one renames every
+  # context and the ruleset waits on names that no longer exist. This name never
+  # changes, whatever the matrix does.
   #
   # always() so a failed dependency still runs it. Without it the job is skipped, and a
   # skipped required check passes the ruleset.

@@ -12,9 +12,10 @@
 #          to stderr so the path parse stays clean.
 #   exit   0 on success; any non-zero aborts creation and shows stderr.
 #
-# Setup itself is delegated to setup-working-tree.sh next to this file, which
-# creates the branch from HEAD, copies the .worktreeinclude paths (Claude Code no
-# longer does this once a hook is present), and rebuilds the virtualenv.
+# Setup itself is delegated to setup-working-tree.sh next to this file: it creates the
+# branch from HEAD, copies the .worktreeinclude paths, then rebuilds the virtualenv.
+# Copying those paths is this hook's job: Claude Code does not do it once a
+# WorktreeCreate hook is present.
 #
 # Environment:
 #   WORKTREE_ROOT  Parent directory for new worktrees (default: the repo's parent).

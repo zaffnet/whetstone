@@ -12,7 +12,7 @@
 set -euo pipefail
 
 # The library is symlinked into ~/.local/bin too, so it sits beside this script whichever
-# path reached it. No symlink resolution, which is where the first attempt went wrong.
+# path reached it. No symlink resolution.
 # shellcheck source-path=SCRIPTDIR source=_codex-config.sh
 source "${BASH_SOURCE[0]%/*}/_codex-config.sh"
 
@@ -59,8 +59,7 @@ PREFIX="$(resolve_prefix)"
 readonly PREFIX
 
 # jq builds the schema so the prefix is escaped once for the regex (inside jq) and
-# once for JSON (by jq's encoder). Escaping by hand mixed the two: a prefix such as
-# "j.smith/" produced "\." and "\/", which JSON rejects.
+# once for JSON (by jq's encoder). The two escapes are separate; hand-escaping mixes them.
 SCHEMA="$(
   jq -n --arg prefix "$PREFIX" --argjson min "$((${#PREFIX} + 2))" '
     ($prefix | gsub("(?<c>[\\\\^$.|?*+()\\[\\]{}/])"; "\\" + .c)) as $escaped

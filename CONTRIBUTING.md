@@ -14,15 +14,13 @@ just diff      # what applying the chezmoi tree would change in $HOME
 
 ## Rules
 
-- `main` takes pull requests only, CI is green before merge, and zaffnet merges
-  (`docs/decisions/0011-main-is-pull-request-only.md`). `REVIEW.md` says what a reviewer
-  should flag here and what automation already covers.
+- `main` takes pull requests only, CI is green before merge, and zaffnet merges.
+  `REVIEW.md` says what a reviewer should flag here and what automation already covers.
 - Conventional commits: `type(scope): subject`, imperative mood, first line of 72 characters or fewer.
 - One logical change per PR.
 - No private hostnames, account ids, names, absolute home paths, or secrets. Pre-commit
   checks this; `docs/redaction.md` explains what and why.
 - A disabled rule, an unusual flag, or a pinned version carries a comment that says why.
-- Design changes get a short note in `docs/decisions/` in the same PR.
 
 ## Releasing and updating projects
 

@@ -4,16 +4,11 @@
 # the turn while they are not. Python only: the auditor's brief is written around
 # `# noqa` and `# type: ignore`.
 #
-# The judgment is the model's: whether a comment carries a reason is not a question
-# wording answers, so there is no word list to match against.
-#
-# It never edits a file. Claude makes the edit, so it lands in the diff, in view,
-# with the tests still to run.
+# It never edits a file: it reports, and Claude makes the edit.
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
 
-# The agent file's body, without the YAML frontmatter. awk, not sed: the BSD sed
-# on macOS rejects the address form this needs.
+# awk, not sed: the BSD sed on macOS rejects the address form this needs.
 strip_frontmatter() {
   awk '
     NR == 1 && $0 == "---" { in_fm = 1; next }
@@ -22,10 +17,9 @@ strip_frontmatter() {
   ' "$1"
 }
 
-# stop_hook_active is deliberately not consulted: the findings are reported again
-# on every stop for as long as the comments are still there. Standing down on the
-# second pass would make the block a formality that waiting out is cheaper than
-# answering.
+# stop_hook_active is deliberately not consulted: the findings are reported again on
+# every stop for as long as the comments are still there. Standing down on the second
+# pass would make the block cheaper to wait out than to answer.
 
 if ! command -v claude >/dev/null 2>&1; then
   printf 'audit_comments: claude was not found; comments were not checked\n' >&2
@@ -38,9 +32,8 @@ cwd="$(hook_field '.cwd // empty')"
 root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || exit 0
 cd "$root" || exit 0
 
-# The plugin candidate only when the plugin set the variable: unset, the first
-# entry would be the absolute path /agents/code-honesty-auditor.md, and an empty
-# candidate falls through to the next.
+# Guarded with :+ because unset, the first entry would be the absolute path
+# /agents/code-honesty-auditor.md. An empty candidate falls through to the next.
 for candidate in \
   "${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/agents/code-honesty-auditor.md}" \
   "$root/.claude/agents/code-honesty-auditor.md" \
@@ -49,17 +42,17 @@ for candidate in \
 done
 [[ -n ${brief:-} ]] || exit 0
 
-# Before the first commit there is no HEAD to diff against, and staged files are
-# not untracked either, so that state would reach neither command below. The empty
-# tree stands in for the absent commit.
+# Before the first commit there is no HEAD to diff against, and staged files are not
+# untracked either, so that state reaches neither command below. The empty tree
+# stands in for the absent commit.
 base=HEAD
 git rev-parse --verify -q HEAD >/dev/null \
   || base="$(git hash-object -t tree /dev/null)"
 
-# Tracked changes plus untracked files, as one patch. --no-color and no pager so
-# the model reads the diff and not terminal escapes. Untracked files have no
-# diff, so they go through --no-index against /dev/null, which exits non-zero
-# whenever it prints anything.
+# Tracked changes plus untracked files, as one patch. --no-color and no pager so the
+# model reads the diff and not terminal escapes. Untracked files have no diff, so they
+# go through --no-index against /dev/null, which exits non-zero whenever it prints
+# anything -- hence the `|| true`.
 diff_text="$(
   {
     git --no-pager diff "$base" --no-color -U3 -- '*.py' '*.pyi' 2>/dev/null || true
@@ -70,20 +63,18 @@ diff_text="$(
 )"
 [[ -n $diff_text ]] || exit 0
 
-# A diff far past what the question needs is not worth the tokens, and a rewrite
-# that large is reviewed by a person rather than by this.
+# A rewrite this large is reviewed by a person rather than by this.
 if (($(wc -l <<<"$diff_text") > 4000)); then
   printf 'audit_comments: diff over 4000 lines; not audited\n' >&2
   exit 0
 fi
 
 # --setting-sources "" and --strict-mcp-config keep this machine's settings, MCP
-# servers, and CLAUDE.md out of the subprocess: none of them bear on the
-# question, and loading them tripled the cost of the call in measurement.
-# --tools "" with --max-turns 1: the diff is on stdin, so the answer is one
-# message and no tool is needed. Leaving any tool enabled means the model can
-# reach for one, spend the single turn on it, and return nothing. --allowed-tools
-# "" does not do this -- it grants the full set.
+# servers, and CLAUDE.md out of the subprocess: none of them bear on the question, and
+# loading them costs.
+# --tools "" with --max-turns 1: the diff is on stdin, so the answer is one message.
+# With any tool enabled the model can spend the single turn on it and return nothing.
+# --allowed-tools "" is not a substitute -- it grants the full set.
 errfile="$(mktemp)"
 trap 'rm -f "$errfile"' EXIT
 
@@ -102,8 +93,8 @@ envelope="$(
 )" || status=$?
 
 # Exit 0 is an answer; anything else is the call failing to complete. A failure
-# is reported and does not block, since a checker that cannot run must not hold a
-# turn hostage -- but it must not pass as a clean audit either.
+# is reported and does not block: a checker that cannot run must not hold a turn, but
+# must not pass as a clean audit either.
 if ((status != 0)); then
   {
     printf 'audit_comments: the auditor did not run (exit %s); comments were not checked\n' "$status"
@@ -112,10 +103,9 @@ if ((status != 0)); then
   exit 0
 fi
 
-# --output-format json returns the event stream as an array, the result last.
-# Guarded because a zero-exit claude can still leave unparseable stdout behind --
-# a truncated stream from a killed or OOM-ed process -- and set -e would otherwise
-# end the hook here, on a failing jq, without the message the paths below promise.
+# --output-format json returns the event stream as an array, the result last. Guarded
+# because a zero-exit claude can still leave unparseable stdout behind, and set -e
+# would otherwise end the hook on the failing jq, without the message below.
 result="$(jq -c 'if type == "array" then .[-1] else . end' <<<"$envelope" 2>/dev/null)" || result=""
 
 if [[ -z $result ]]; then
@@ -132,11 +122,10 @@ if [[ "$(jq -r '.is_error // false' <<<"$result" 2>/dev/null)" != false ]]; then
   exit 0
 fi
 
-# The model was told to answer with a findings array, so anything else -- prose, or
-# JSON carrying some other shape -- is a failure to follow the format rather than a
-# clean audit. Fenced output is tolerated because it is the one deviation worth
-# expecting. The type is checked because `length` is defined on an object and a
-# string too: {"findings": {}} would otherwise read as nothing to report.
+# Anything but a findings array -- prose, or JSON of another shape -- is a failure to
+# follow the format, not a clean audit. Fenced output is tolerated. The type is checked
+# because `length` is defined on objects and strings too: {"findings": {}} would
+# otherwise read as nothing to report.
 findings="$(
   jq -r '.result // empty' <<<"$result" \
     | sed -e '/^[[:space:]]*```/d' \

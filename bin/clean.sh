@@ -147,7 +147,7 @@ select_junk() {
 
   # Prunes the same junk directories so a log inside one is not named twice:
   # under --apply the first pass has already removed it by the time this pass
-  # would reach it. -not excludes files the first pass already selected.
+  # would reach it.
   find "$root" "${protect[@]}" -o \
     "${dir_group[@]}" -type d -prune -o \
     -path '*/logs/*' -type f \( -name '*.log' -o -name '*.log.*' \) \

@@ -11,7 +11,6 @@
 #   CLAUDE_MODEL      Claude model (default: opus).
 #   CODEX_MODEL       Codex model (default: gpt-5.5).
 #
-# AGENTS.md is the source of truth for agent instructions; CLAUDE.md is @AGENTS.md.
 # Codex reads AGENTS.override.md *instead of* AGENTS.md when it exists, so when
 # CLAUDE.local.md exists the override is AGENTS.md plus the local file: Codex sees
 # the same extra context as Claude without it ever being committed.

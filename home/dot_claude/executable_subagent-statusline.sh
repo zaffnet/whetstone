@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Claude Code subagent status line: one NDJSON row override per visible task.
-# Style matches ~/.claude/statusline-command.sh (p10k Pure palette).
+# p10k Pure palette, matching ~/.claude/statusline-command.sh.
 
 input=$(cat)
 

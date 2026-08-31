@@ -22,7 +22,6 @@ managed_finder_settings=(
   "AppleShowAllFiles|-bool|true"
   # Search the current folder rather than the whole Mac; open a new window on Recents
   # (PfAF -- the home folder would be PfHm); let the Trash empty items after 30 days.
-  # Captured from this machine, not chosen.
   "FXDefaultSearchScope|-string|SCcf"
   "NewWindowTarget|-string|PfAF"
   "FXRemoveOldTrashItems|-bool|true"
@@ -42,9 +41,7 @@ managed_dock_settings=(
 )
 # iTerm2 settings that live in the app's own domain rather than in a profile. A Dynamic
 # Profile carries what is inside `New Bookmarks` and nothing else, so focus-follows-mouse,
-# split-pane dimming and the copy behaviour never travelled with it. Comparing two Macs'
-# plists is what surfaced them; reading one machine's could not, because there is no way to
-# tell a value that was set from one that was defaulted.
+# split-pane dimming and the copy behaviour never travel with it.
 managed_iterm2_settings=(
   "FocusFollowsMouse|-bool|true"
   "AggressiveFocusFollowsMouse|-bool|true"

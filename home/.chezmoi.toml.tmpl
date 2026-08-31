@@ -11,7 +11,6 @@
 sourceDir = {{ .chezmoi.workingTree | quote }}
 
 [data]
-  # Git identity.
   name = {{ $name | quote }}
   email = {{ $email | quote }}
   # personal | work. The work profile adds values for a machine that needs a proxy,
@@ -33,11 +32,10 @@ sourceDir = {{ .chezmoi.workingTree | quote }}
 [data.work]
 
 # `chezmoi update` pulls and then applies whatever the source directory's working tree
-# holds, so a source that is anything other than released main applies unreleased work. A
-# branch is the obvious way to get there, but not the only one: `git pull --ff-only origin
-# main` succeeds without moving on a main that is merely ahead, and says nothing about
-# uncommitted edits. So this asserts the condition that actually matters -- the tree is
-# exactly origin/main -- and refuses otherwise rather than pulling and hoping.
+# holds, so a source that is anything other than released main applies unreleased work.
+# `git pull --ff-only origin main` is not enough on its own: it succeeds without moving on
+# a main that is merely ahead, and says nothing about uncommitted edits. So this asserts
+# the tree is exactly origin/main and refuses otherwise.
 [update]
   command = "sh"
   args = [

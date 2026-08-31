@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Refuses to apply while an agent's skills directory is a real directory. chezmoi replaces it
 # with the managed symlink by deleting it recursively, with no prompt, so anything installed
-# only there would go with it. Verified against a throwaway home: the directory and its
-# contents were gone after one apply.
+# only there would go with it.
 #
 # Skills live in ~/.agents/skills. Adopt what is worth keeping (skills.txt for anything with
 # an upstream, a plain move for anything without), then remove the directory and apply again.

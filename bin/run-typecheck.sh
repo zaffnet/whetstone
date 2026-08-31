@@ -7,10 +7,10 @@
 # Usage: run-typecheck.sh [path ...]
 # Paths default to the repo root and are passed to every tool.
 #
-# Run it from anywhere inside a repository: the repo root is the git top level,
-# which is also where the tools resolve their configuration from. A project that
-# wants different tools or flags ships its own ./run-typecheck.sh at that root,
-# and the typecheck Stop hook prefers that copy over this one.
+# Run it from anywhere inside a repository: it cd's to the git top level, which is
+# where the tools resolve their configuration from. A project that wants different
+# tools or flags ships its own ./run-typecheck.sh at that root, and the typecheck
+# Stop hook prefers that copy over this one.
 set -euo pipefail
 
 name=$(basename "$0")
@@ -41,15 +41,13 @@ run() {
   "$@" || status=1
 }
 
-# --check, so this reports rather than rewrites: it runs as a Stop hook, after
-# the work has been reported done, and a gate that edited the tree there would
-# change code nobody reviewed. Stable mode, not --preview, so a pass here is a
-# pass at pre-commit; skip-magic-trailing-comma lives in pyproject.toml, so both
-# collapse the same way.
+# --check, so this reports rather than rewrites: it runs as a Stop hook, and a gate
+# that edited the tree would change code nobody reviewed. Stable mode, not --preview,
+# so a pass here is a pass at pre-commit.
 run uv run --no-sync ruff format --check --color always "${targets[@]}"
 
-# No ruff.toml required. explicit-preview-rules keeps --preview + ALL from
-# enabling every preview rule; E266 is the one preview rule we opt into.
+# explicit-preview-rules keeps --preview + ALL from enabling every preview rule;
+# E266 is the one preview rule opted into.
 ruff_check=(
   uv run --no-sync ruff check
   --target-version py312

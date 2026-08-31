@@ -8,10 +8,7 @@ drift is this script's job in `just sync`; pulling it is `--adopt`, run delibera
 
 Reporting, not adopting, is the default because a declared key that differs does not say
 why it differs. It reads the same whether the product setting is the one worth keeping or
-the template's is and this machine is simply behind. Both live cases on the machine this was
-written for wanted the template: `pyright-lsp` was false here and true everywhere on
-purpose, and `claude-md-management` was absent here and enabled in the repo. Auto-adopting
-would have committed the wrong value twice.
+the template's is and this machine is simply behind.
 
 `--adopt` merges dict values a level down rather than replacing them, so a nested key the
 live file lacks survives. Absent is not a deletion: it reads identically to a machine that

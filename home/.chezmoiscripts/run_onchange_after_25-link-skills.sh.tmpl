@@ -21,7 +21,7 @@ for skill in "$repo_skills"/*/; do
   fi
 done
 
-# Remove links that point into the repo but whose skill folder is gone.
+# Only links into the repo are pruned; anything else here is another installer's.
 for link in "$target"/*; do
   [[ -L $link ]] || continue
   dest="$(readlink "$link")"
