@@ -11,7 +11,7 @@
 # agrees with interactive Codex by construction.
 #
 # Environment:
-#   CODEX_MODEL      Overrides the config's `model` (fallback: gpt-5.5).
+#   CODEX_MODEL      Overrides the config's `model` (fallback: gpt-5.6-sol).
 #   CODEX_BASE_URL   Overrides the config's `openai_base_url`, then OPENAI_BASE_URL. When set,
 #                    requests go through it with OPENAI_API_KEY. Unset = OpenAI direct.
 #   COMMIT_SIGN      Set to 1 to force `git commit -S`. Otherwise the commit is

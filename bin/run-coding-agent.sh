@@ -9,7 +9,7 @@
 #                     the current repo) to pull and mount. Falls back to a .reference-repos
 #                     file in the repo root, one name per line. Default: none.
 #   CLAUDE_MODEL      Claude model (default: opus).
-#   CODEX_MODEL       Codex model (default: gpt-5.5).
+#   CODEX_MODEL       Codex model (default: gpt-5.6-sol).
 #
 # Codex reads AGENTS.override.md *instead of* AGENTS.md when it exists, so when
 # CLAUDE.local.md exists the override is AGENTS.md plus the local file: Codex sees
@@ -40,7 +40,7 @@ fi
 
 AGENT="claude" # "codex"
 CLAUDE_MODEL="${CLAUDE_MODEL:-opus}"
-CODEX_MODEL="${CODEX_MODEL:-gpt-5.5}"
+CODEX_MODEL="${CODEX_MODEL:-gpt-5.6-sol}"
 EFFORT="high"
 
 while [[ $# -gt 0 ]]; do
