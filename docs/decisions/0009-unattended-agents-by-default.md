@@ -8,9 +8,9 @@ Codex and Cursor unattended, and leave Claude Code unattended except when it wri
 Claude Code `permissions.defaultMode = "auto"` with
 `ask = ["Edit", "Write", "NotebookEdit"]`, Codex
 `approval_policy = "never"` inside a `workspace-write` sandbox with network access, Cursor
-`claudeCode.initialPermissionMode = "bypassPermissions"`. The two launchers in `bin/` start
-Claude with `--permission-mode bypassPermissions` and Codex with
-`--sandbox danger-full-access --ask-for-approval never`.
+`claudeCode.initialPermissionMode = "bypassPermissions"`. `bin/run-coding-agent.sh` passes no
+permission override on either branch, so a launched session keeps whatever posture its own
+settings file sets.
 
 ## Decision
 
@@ -34,11 +34,11 @@ tool where the prompt was wanted, not a principle applied everywhere.
   still write without asking. Code from someone else is reviewed in a VM or a sandbox, or with
   a project-level `.claude/settings.json` that sets `permissions.defaultMode` back to
   `default`.
-- `bin/run-coding-agent.sh` passes no permission override on its Claude branch, so a launched
-  Claude session inherits `permissions.ask` from the settings file and prompts on a write like
-  any other. Its Codex branch still runs unattended, via `--sandbox danger-full-access` and
-  `--ask-for-approval never`. So the uneven posture above is what the launcher reproduces
-  rather than something it overrides.
+- `bin/run-coding-agent.sh` passes no permission override on either branch, so a launched
+  session inherits the posture above rather than widening it: Claude prompts on a write via
+  `permissions.ask`, and Codex stays unattended through `approval_policy = "never"` in
+  `~/.codex/config.toml`. The launcher reproduces the settings files, it does not override
+  them.
 - The only edit-time guard is `ruff_format.sh`, and it runs in two places: every project
   generated from the template wires it in `.claude/settings.json`, and any other repository
   gets it only when the `whetstone-hooks` plugin is enabled. The global
