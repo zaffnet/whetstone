@@ -32,7 +32,6 @@
     "allow": [
       "Bash(uv run *)",
       "Bash(cd *)",
-      "Bash(python3 -)",
       "Bash(cat)"
     ]
   },
