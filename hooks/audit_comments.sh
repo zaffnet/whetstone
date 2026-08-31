@@ -82,9 +82,10 @@ fi
 # --setting-sources "" and --strict-mcp-config keep this machine's settings, MCP
 # servers, and CLAUDE.md out of the subprocess: none of them bear on the
 # question, and loading them tripled the cost of the call in measurement.
-# --allowed-tools "" with --max-turns 1: the diff is on stdin, so the answer is
-# one message and no tool is needed. Leaving any tool enabled means the model can
-# reach for one, spend the single turn on it, and return nothing.
+# --tools "" with --max-turns 1: the diff is on stdin, so the answer is one
+# message and no tool is needed. Leaving any tool enabled means the model can
+# reach for one, spend the single turn on it, and return nothing. --allowed-tools
+# "" does not do this -- it grants the full set.
 errfile="$(mktemp)"
 trap 'rm -f "$errfile"' EXIT
 
@@ -97,7 +98,7 @@ envelope="$(
       --max-turns 1 \
       --strict-mcp-config \
       --setting-sources "" \
-      --allowed-tools "" \
+      --tools "" \
       --append-system-prompt "$(strip_frontmatter "$brief")" \
       2>"$errfile"
 )" || status=$?
@@ -113,11 +114,22 @@ if ((status != 0)); then
   exit 0
 fi
 
+# --output-format json returns the event stream as an array, the result last.
+# Guarded because a zero-exit claude can still leave unparseable stdout behind --
+# a truncated stream from a killed or OOM-ed process -- and set -e would otherwise
+# end the hook here, on a failing jq, without the message the paths below promise.
+result="$(jq -c 'if type == "array" then .[-1] else . end' <<<"$envelope" 2>/dev/null)" || result=""
+
+if [[ -z $result ]]; then
+  printf "audit_comments: the auditor's output did not parse; comments were not checked\n" >&2
+  exit 0
+fi
+
 # The envelope reports its own failures in is_error, with the text in result.
-if [[ "$(jq -r '.is_error // false' <<<"$envelope" 2>/dev/null)" != false ]]; then
+if [[ "$(jq -r '.is_error // false' <<<"$result" 2>/dev/null)" != false ]]; then
   {
     printf 'audit_comments: the auditor reported an error; comments were not checked\n'
-    jq -r '.result // empty' <<<"$envelope" 2>/dev/null | head -c 2000
+    jq -r '.result // empty' <<<"$result" 2>/dev/null | head -c 2000
   } >&2
   exit 0
 fi
@@ -128,7 +140,7 @@ fi
 # expecting. The type is checked because `length` is defined on an object and a
 # string too: {"findings": {}} would otherwise read as nothing to report.
 findings="$(
-  jq -r '.result // empty' <<<"$envelope" \
+  jq -r '.result // empty' <<<"$result" \
     | sed -e '/^[[:space:]]*```/d' \
     | jq -c 'if (.findings | type) == "array" then .findings else empty end' 2>/dev/null
 )" || findings=""
