@@ -1,7 +1,7 @@
 # Files fetched from outside the repo: pinned to a commit and checksummed, never a moving
-# branch. Off `master` any upstream commit changes the bytes, so the checksum stops
-# matching and every apply fails until someone updates it here. A pinned commit fetches
-# the same bytes forever.
+# branch. Off the upstream `master` any commit there changes the bytes, so the checksum
+# stops matching and every apply fails until someone updates it here. A pinned commit
+# fetches the same bytes forever.
 #
 # Homebrew ships hunspell with no dictionaries and macOS puts none in either search path,
 # so without these `hunspell -D` lists nothing and every word reads as a miss.
