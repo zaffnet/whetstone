@@ -115,7 +115,15 @@ if ((status != 0)); then
 fi
 
 # --output-format json returns the event stream as an array, the result last.
-result="$(jq -c 'if type == "array" then .[-1] else . end' <<<"$envelope" 2>/dev/null)"
+# Guarded because a zero-exit claude can still leave unparseable stdout behind --
+# a truncated stream from a killed or OOM-ed process -- and set -e would otherwise
+# end the hook here, on a failing jq, without the message the paths below promise.
+result="$(jq -c 'if type == "array" then .[-1] else . end' <<<"$envelope" 2>/dev/null)" || result=""
+
+if [[ -z $result ]]; then
+  printf "audit_comments: the auditor's output did not parse; comments were not checked\n" >&2
+  exit 0
+fi
 
 # The envelope reports its own failures in is_error, with the text in result.
 if [[ "$(jq -r '.is_error // false' <<<"$result" 2>/dev/null)" != false ]]; then

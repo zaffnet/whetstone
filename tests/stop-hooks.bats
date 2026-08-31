@@ -57,19 +57,50 @@ decision() {
 
 # A stub `claude` earlier on PATH than the real one. $1 is the envelope it prints;
 # $2 is its exit status. Writing the invocation to $WORK/claude-argv lets a case
-# assert how the hook called it.
+# assert how the hook called it. NUL-delimited rather than "$*": an empty argument
+# leaves nothing between two spaces there, so `--tools ""` and `--tools Read` are
+# the same string to a glob, and a case cannot tell them apart. Read it with
+# argv_pair.
 stub_claude() {
   local envelope=$1 code=${2:-0}
   mkdir -p "$BATS_TEST_TMPDIR/bin"
   {
     printf '#!/bin/sh\n'
     printf 'cat >"%s/claude-stdin"\n' "$WORK"
-    printf 'printf "%%s\\n" "$*" >"%s/claude-argv"\n' "$WORK"
+    printf 'printf "%%s\\0" "$@" >"%s/claude-argv"\n' "$WORK"
     printf 'cat <<'"'"'ENVELOPE'"'"'\n%s\nENVELOPE\n' "$envelope"
     printf 'exit %s\n' "$code"
   } >"$BATS_TEST_TMPDIR/bin/claude"
   chmod +x "$BATS_TEST_TMPDIR/bin/claude"
   printf '%s' "$BATS_TEST_TMPDIR/bin"
+}
+
+# argv_pair <flag> <value>
+# True when <flag> was passed and the argument after it is exactly <value>. The
+# adjacency is the point: it holds whatever order the flags are in, and an empty
+# <value> asserts the flag was passed an empty argument rather than the next flag.
+argv_pair() {
+  local flag=$1 want=$2 i x
+  local -a a=()
+  while IFS= read -r -d '' x; do a+=("$x"); done <"$WORK/claude-argv"
+  for ((i = 0; i < ${#a[@]}; i++)); do
+    [[ ${a[i]} == "$flag" ]] || continue
+    [[ -n ${a[i + 1]+set} ]] && [[ ${a[i + 1]} == "$want" ]]
+    return
+  done
+  return 1
+}
+
+# argv_has <flag>
+# True when <flag> was passed, for a flag that takes no value.
+argv_has() {
+  local i x
+  local -a a=()
+  while IFS= read -r -d '' x; do a+=("$x"); done <"$WORK/claude-argv"
+  for ((i = 0; i < ${#a[@]}; i++)); do
+    [[ ${a[i]} == "$1" ]] && return 0
+  done
+  return 1
 }
 
 # An envelope carrying $1 as the model's reply, in the event-stream array the CLI
@@ -175,8 +206,20 @@ run_audit() {
   # spend its single turn on a Read and return error_max_turns.
   printf '# ==== BANNER ====\nx = 1\n' >"$WORK/a.py"
   run -0 run_audit '{"findings": []}'
-  [[ "$(cat "$WORK/claude-argv")" == *"--tools "* ]]
-  [[ "$(cat "$WORK/claude-argv")" != *"--allowed-tools"* ]]
+  argv_pair --tools ""
+  run ! argv_has --allowed-tools
+}
+
+@test "audit: unparseable output is reported on stderr" {
+  # A claude that exits 0 having written a truncated stream. set -e ended the hook
+  # on the failing jq before this was guarded, so the turn saw a hook that had
+  # crashed rather than one reporting it had not checked.
+  printf '# ==== BANNER ====\nx = 1\n' >"$WORK/a.py"
+  local bin
+  bin="$(stub_claude 'not json at all {{{')"
+  run -0 env "PATH=$bin:$PATH" bash -c \
+    "bash '$REPO/hooks/audit_comments.sh' 2>&1 >/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'"
+  [[ $output == *"did not parse"* ]]
 }
 
 @test "audit: a claude that exits non-zero is reported on stderr" {
@@ -223,11 +266,9 @@ run_audit() {
   # None of them bear on the question, and loading them tripled the cost.
   printf '# ==== BANNER ====\nx = 1\n' >"$WORK/a.py"
   run -0 run_audit '{"findings": []}'
-  local argv
-  argv="$(cat "$WORK/claude-argv")"
-  [[ $argv == *"--strict-mcp-config"* ]]
-  [[ $argv == *"--setting-sources"* ]]
-  [[ $argv == *"--max-turns 1"* ]]
+  argv_has --strict-mcp-config
+  argv_pair --setting-sources ""
+  argv_pair --max-turns 1
 }
 
 @test "audit: no diff means no call" {
