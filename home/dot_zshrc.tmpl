@@ -133,8 +133,8 @@ prompt_ghpr() {
 export EDITOR="cursor -w"
 export CLAUDE_CODE_NO_FLICKER=1
 export CLAUDE_CODE_SCROLL_SPEED=3
-# Here rather than in ~/.claude/settings.json, which ADR 0008 keeps free of an `env` block
-# and tests/home.bats asserts on. Not ~/.zsh_secrets either: that file is unmanaged on
+# Here rather than in ~/.claude/settings.json, which ADR 0008 keeps free of an `env` block.
+# Not ~/.zsh_secrets either: that file is unmanaged on
 # purpose, so anything in it reaches one machine and no other, and none of these is a secret.
 export MAX_THINKING_TOKENS=0
 export CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1

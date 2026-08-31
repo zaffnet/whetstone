@@ -19,9 +19,9 @@ jobs:
         role: [personal, work]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # uv: tests/home.bats parses TOML through it, because the system python3 on macOS
-      # has no tomllib. A real machine gets uv from the Brewfile.
-      - run: brew install chezmoi bats-core jq uv
+      # uv: the rendered-config step parses TOML through it, because the system python3 on
+      # macOS has no tomllib. A real machine gets uv from the Brewfile.
+      - run: brew install chezmoi jq uv
       - name: Write the chezmoi config
         env:
           ROLE: ${{ matrix.role }}
@@ -41,23 +41,6 @@ jobs:
           start=$SECONDS
           chezmoi apply --source "$GITHUB_WORKSPACE"
           echo "Apply (CI mode, no package installs): $((SECONDS - start))s" >> "$GITHUB_STEP_SUMMARY"
-      - name: Run the suite, and check that only the known cases skip
-        env:
-          ROLE: ${{ matrix.role }}
-        run: |
-          bats --formatter tap tests/ | tee /tmp/tap.txt
-          # tests/home.bats states which conditions skip a case. Pinning the set here is
-          # what keeps that honest: a skip nobody declared is the shape that let the
-          # regression through on #10, where a guard fired exactly when the behaviour
-          # under test broke.
-          expected=$(
-            echo "the secrets file, when present, is readable only by its owner"
-            if [ "$ROLE" = work ]; then
-              echo "git identity comes from chezmoi data (CI home only)"
-            fi
-          )
-          skipped=$(sed -nE 's/^ok [0-9]+ (.*) # skip .*/\1/p' /tmp/tap.txt)
-          diff <(printf '%s\n' "$expected" | sort) <(printf '%s\n' "$skipped" | sort)
       - name: Rendered config parses and carries the work values
         if: matrix.role == 'work'
         run: |

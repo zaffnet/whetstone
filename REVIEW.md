@@ -67,7 +67,11 @@ Known and tracked. Do not re-report:
 - `macos.yml`'s `bootstrap (personal|work)` are matrix-named required contexts with no
   aggregator job (#24).
 - No test renders the `modify_*` scripts and checks they parse (#25).
-- `tests/home.bats`'s header undercounts its own skips (#26).
+- Almost nothing here is tested. The Bats suite over the chezmoi tree, the Stop hooks,
+  `bin/sync-mcp` and `bin/sync-claude-settings` was removed. What survives in `macos.yml` is an
+  apply for both roles plus assertions that the rendered work config parses and carries its
+  `[data.work]` values into `~/.codex/config.toml`, `~/.agents/mcp.json`, and `uv.toml`. The
+  hooks, both sync scripts, and every non-work-role rendering are on review alone.
 
 ## Always check
 

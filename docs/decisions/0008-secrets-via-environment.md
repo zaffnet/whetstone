@@ -15,7 +15,9 @@ secret values. Machine-specific non-secret overrides go in `*.local` files
 
 ## Consequences
 
-- `jq 'has("env") | not' ~/.claude/settings.json` is a test in `tests/home.bats`.
+- Nothing checks that a tool config file stays free of an `env` block. A Bats case asserted
+  `jq 'has("env") | not' ~/.claude/settings.json` until the suite was removed; the rule now
+  rests on review.
 - Every process started from the shell inherits the keys; GUI-launched tools read them
   after a login shell has run once.
 - Rotating a key is one edit in one file.

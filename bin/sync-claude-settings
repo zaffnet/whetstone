@@ -34,8 +34,8 @@ LIVE = Path.home() / ".claude" / "settings.json"
 
 # Byte for byte the RUNTIME tuple in home/dot_claude/modify_settings.json.tmpl, and it has
 # to stay that way: that script hands these keys back to the product on every apply, so a
-# value pulled here would be committed and then lose to the next apply regardless.
-# tests/sync-claude-settings.bats asserts the two agree.
+# value pulled here would be committed and then lose to the next apply regardless. Nothing
+# checks that the two agree, so a key added there has to be added here by hand.
 RUNTIME = ("model",)
 
 

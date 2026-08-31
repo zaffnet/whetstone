@@ -103,8 +103,8 @@ subagents, and the hooks.
   then a normal commit.
 - CI renders the template in all four `use_docker` and `use_fastapi` combinations and runs
   each result's own pre-commit hooks and tests, builds the Docker variants and hits
-  `/health`, and applies the `home/` tree into a clean macOS runner for both roles and runs
-  the bats assertions. Homebrew installs are not exercised in CI.
+  `/health`, and applies the `home/` tree into a clean macOS runner for both roles.
+  Homebrew installs are not exercised in CI.
 - One repo covers more than one Mac. Machine-specific values sit in `[data.work]` of the
   local chezmoi config.
 
@@ -127,7 +127,6 @@ bin/                  Scripts: AI commit messages, PR descriptions, worktree cle
                       sync-mcp, run-typecheck
 template/             Copier template for a Python project (copier.yml is at the root)
 docs/                 Handbook, decisions, runbooks
-tests/                bats assertions run against an applied home
 .github/workflows/    lint, secrets, template, macos, claude
 ```
 
