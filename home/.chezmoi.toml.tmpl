@@ -32,6 +32,31 @@ sourceDir = {{ .chezmoi.workingTree | quote }}
 #     code_scan_command = "/opt/vendor/bin/code-scan"             # MCP server only this machine has
 [data.work]
 
+# `chezmoi update` pulls and then applies whatever the source directory's working tree
+# holds, so a source that is anything other than released main applies unreleased work. A
+# branch is the obvious way to get there, but not the only one: `git pull --ff-only origin
+# main` succeeds without moving on a main that is merely ahead, and says nothing about
+# uncommitted edits. So this asserts the condition that actually matters -- the tree is
+# exactly origin/main -- and refuses otherwise rather than pulling and hoping.
+[update]
+  command = "sh"
+  args = [
+    "-c",
+    '''
+set -e
+git fetch --quiet origin main
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "chezmoi source has uncommitted changes; refusing to apply it" >&2
+  exit 1
+fi
+git pull --ff-only origin main
+if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+  echo "chezmoi source is not origin/main; refusing to apply it" >&2
+  exit 1
+fi
+''',
+  ]
+
 [edit]
   command = "cursor"
   args = ["--wait"]

@@ -43,6 +43,38 @@ Never end a turn with "I'll wait for X".
 commands error cleanly or print static text; under a PTY the same commands open a prompt or
 a full-screen TUI and block. Pass explicit flags instead of relying on that detection.
 
+## Stop hooks
+
+Two hooks decide whether a turn may end, and neither takes no for an answer: they report
+again on every stop for as long as the problem is there. The only way past them is to fix
+the code. Claude Code ends the turn itself after 8 consecutive blocks, which is the
+harness's ceiling, not theirs.
+
+- `hooks/typecheck.sh` runs the repository's own `./run-typecheck.sh` where there is one,
+  which is what a generated project has, and `bin/run-typecheck.sh` otherwise. It blocks
+  while the checkers fail, and skips repositories whose environment has neither mypy nor
+  basedpyright, which would fail on the missing executables rather than on their code. A
+  missing virtualenv or `uvx` is reported on stderr without blocking.
+- `hooks/audit_comments.sh` pipes the session's Python diff to a headless `claude -p`
+  carrying `agents/code-honesty-auditor.md`, and blocks on what it reports: comment text that
+  a later reader cannot use, and every checker suppression the diff adds. It reports; it never
+  rewrites, so the fix lands in the diff with the tests still to run.
+
+The audit judges every sentence and clause on its own, against a high bar: a comment holds
+its space only by supplying what the code cannot express. A comment carrying one useful
+clause and three of padding is reported for the padding. The aim is the largest honest
+reduction in comment text, so expect the check to ask for deletions rather than rewordings.
+
+The call is confined: `--max-turns 1`, no tools, and `--setting-sources ""` with
+`--strict-mcp-config`, which keeps this machine's settings, MCP servers, and CLAUDE.md out
+of the subprocess and cuts the cost roughly threefold. Diffs over 4000 lines are skipped. A
+`claude` that is absent, fails, or answers in prose is reported on stderr and does not
+block: a checker that cannot run must not hold a turn hostage, and must not pass as a clean
+audit either.
+
+Shrink a docstring rather than deleting it: pre-commit fails on a public interface without
+one.
+
 ## Generated projects and managed files
 
 - A project created with Copier records its template version in `.copier-answers.yml`. When a
