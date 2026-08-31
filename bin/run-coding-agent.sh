@@ -102,9 +102,6 @@ if [ "$AGENT" = "claude" ]; then
     "$@"
 else
   exec codex \
-    --sandbox danger-full-access \
-    --ask-for-approval never \
-    --dangerously-bypass-hook-trust \
     --config model="$MODEL" \
     --config model_reasoning_effort="$EFFORT" \
     ${ADD_DIRS[@]+"${ADD_DIRS[@]}"} \
