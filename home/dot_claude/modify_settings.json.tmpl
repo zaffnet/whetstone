@@ -47,13 +47,6 @@ except json.JSONDecodeError:
 for key in RUNTIME:
     if key in current:
         managed[key] = current[key]
-# One-time removals: keys that were once written by chezmoi or the product but must be
-# deleted from every machine on the next apply. Drop from TOMBSTONES once the key is gone
-# from all machines (i.e. after the next full apply pass across the fleet).
-TOMBSTONES = ("alwaysThinkingEnabled", "env")
-for key in TOMBSTONES:
-    current.pop(key, None)
-    managed.pop(key, None)
 # Kept after the declared keys, so `chezmoi diff` shows what the product added rather than
 # interleaving it. Named on stderr because JSON has no comment to label a block with, which
 # is what the Cursor script uses its marker for.
