@@ -33,4 +33,4 @@ def strip(text: str) -> str:
 
 if __name__ == "__main__":
     text = Path(sys.argv[1]).read_text() if len(sys.argv) > 1 else sys.stdin.read()
-    sys.stdout.write(strip(text))
+    _ = sys.stdout.write(strip(text))

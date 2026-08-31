@@ -55,7 +55,7 @@ def split_markdown(text: str) -> tuple[dict[str, str], str]:
     front: dict[str, str] = {}
     for line in match.group(1).splitlines():
         key, separator, value = line.partition(":")
-        if separator:
+        if separator != "":
             front[key.strip()] = value.strip()
     return front, match.group(2).strip()
 
@@ -90,10 +90,12 @@ def compare(md_path: Path, toml_path: Path) -> list[str]:
     except tomllib.TOMLDecodeError as exc:
         return [f"{toml_path}: invalid TOML: {exc}"]
 
-    if agent_gate(md_path) != agent_gate(toml_path):
+    md_gate = agent_gate(md_path)
+    toml_gate = agent_gate(toml_path)
+    if md_gate != toml_gate:
         problems.append(
-            f"{md_path}: rendered under {agent_gate(md_path) or 'no condition'}, "
-            f"{toml_path} under {agent_gate(toml_path) or 'no condition'}"
+            f"{md_path}: rendered under {md_gate if md_gate != '' else 'no condition'}, "
+            f"{toml_path} under {toml_gate if toml_gate != '' else 'no condition'}"
         )
     for path, keys, present, only in (
         (md_path, MD_KEYS, frozenset(front), "MD_ONLY"),
@@ -150,7 +152,7 @@ def main() -> int:
     for problem in problems:
         print(problem, file=sys.stderr)  # noqa: T201  -- CLI report
     print(f"check-agents-sync: {checked} pairs checked, {len(problems)} problems")  # noqa: T201  -- CLI report
-    return 1 if problems else 0
+    return 1 if len(problems) > 0 else 0
 
 
 if __name__ == "__main__":
