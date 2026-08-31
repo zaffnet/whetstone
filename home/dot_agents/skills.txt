@@ -5,6 +5,9 @@
 # it would have to fetch. Name the skills.
 # The tool keeps its own lock file (~/.agents/.skill-lock.json); it is not managed here.
 aws/agent-toolkit-for-aws amazon-bedrock aws-auth aws-billing-and-cost-management aws-blocks aws-cdk aws-cloudformation aws-compute aws-containers aws-database aws-deployment aws-iam aws-messaging-and-streaming aws-networking aws-observability aws-sdk-js-v3-usage aws-sdk-python-usage aws-sdk-swift-usage aws-security aws-serverless creating-secrets-using-best-practices launch-with-aws querying-aws-cloudwatch querying-aws-s3 rds-oss route53 routing-traffic-with-route53-and-cloudfront setting-up-cloudwatch-alarm-notifications signing-in-to-aws troubleshooting-application-failures
+fastapi/fastapi fastapi
+fastapi/sqlmodel sqlmodel
+obra/superpowers verification-before-completion
 github/gh-stack gh-stack
 vercel-labs/skills find-skills
 obra/the-elements-of-style writing-clearly-and-concisely

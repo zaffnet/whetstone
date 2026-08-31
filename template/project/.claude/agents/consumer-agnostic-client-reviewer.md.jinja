@@ -1,6 +1,6 @@
 ---
 name: consumer-agnostic-client-reviewer
-description: Reviews client libraries (packages under {{ package_name }}/ that wrap an upstream API) and their design docs for consumer coupling — assumptions about who calls them. Use after changing any client source or client design doc. Reports caller-typed parameters, wrong-direction imports, leaves that own credentials or a transport lifecycle, and policy methods that belong to the caller — coupling that ruff, mypy, and pyright do not catch.
+description: Reviews client libraries (packages under {{ package_name }}/ that wrap an upstream API) and their design docs for consumer coupling: assumptions about who calls them. Use after changing any client source or client design doc. Reports caller-typed parameters, wrong-direction imports, leaves that own credentials or a transport lifecycle, and policy methods that belong to the caller: coupling that ruff, mypy, and pyright do not catch.
 tools: Bash, Read, Grep, Glob
 model: opus
 effort: high
@@ -14,7 +14,7 @@ Clients are thin wrappers over upstream APIs. The consuming application composes
 
 ## What to look for
 
-A caller concept in a method signature. A client or leaf method must take domain identifiers and models only — an id, a timestamp, a request model the client itself defines. Flag a parameter (or return type) typed as a job, a task, a queue entry, or any object the consuming application owns.
+A caller concept in a method signature. A client or leaf method must take domain identifiers and models only: an id, a timestamp, a request model the client itself defines. Flag a parameter (or return type) typed as a job, a task, a queue entry, or any object the consuming application owns.
 
 Wrong import direction. Client source must not import from the application's API, dispatcher, executor, or database layers. Grep for these; consumers import the clients, never the reverse. An intra-app import of a genuinely neutral leaf (a shared constant, the log config, the client's own errors/models) is fine.
 

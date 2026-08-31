@@ -34,13 +34,13 @@ prose nits here are unbounded and crowd out everything else.
 
 Already enforced, so a finding here is noise:
 
-- ruff, mypy, basedpyright, bandit, pip-audit findings inside `template/project/` — CI
+- ruff, mypy, basedpyright, bandit, pip-audit findings inside `template/project/`. CI
   renders eight variants and runs the generated project's own hooks against them.
 - shellcheck or shfmt on paths `.pre-commit-config.yaml` excludes, including the zsh files,
   which are not parseable as bash.
 - Conventional-commit format. `bin/commitlint-msg` owns it.
 
-Deliberate, with the reason in the file — do not re-raise:
+Deliberate, with the reason in the file. Do not re-raise:
 
 - Whole-table ownership in the Codex merge drops undeclared keys *inside* a declared table
   by design. That is what makes deleting a setting from the template remove it from every
@@ -57,7 +57,7 @@ Deliberate, with the reason in the file — do not re-raise:
 
 Known and tracked. Do not re-report:
 
-- `home/dot_claude/modify_settings.json.tmpl` — the `PRESERVE` allowlist makes the live
+- `home/dot_claude/modify_settings.json.tmpl`: the `PRESERVE` allowlist makes the live
   value win, so the repo cannot change `model`, `enabledPlugins`, or
   `extraKnownMarketplaces` (#20).
 - `bin/sync-mcp` has no behavioural test coverage (#21) and keeps one backup name that
@@ -77,47 +77,47 @@ Known and tracked. Do not re-report:
 
 Each of these has shipped as a bug here at least once.
 
-- **Ownership.** For any file both a template and a live application write, the diff must
+- Ownership. For any file both a template and a live application write, the diff must
   answer two questions: what happens to a key the template never mentions, and what happens
   to a key removed from the template. If it answers neither, that is Important.
-- **No hand-rolled parsing.** A regex or line loop over TOML, JSON, or JSONC needs the
+- No hand-rolled parsing. A regex or line loop over TOML, JSON, or JSONC needs the
   awkward inputs before it is trustworthy: a multiline value, a comment or blank line inside
   a value, `//` inside a string, an escaped quote followed by a brace, an escaped key
   spelling such as `.`, a trailing comma, a closer that does not match its opener, and
   content after the root object. Silent truncation and a key winning as a duplicate are the
   two failure modes to look for.
-- **What edit makes this test fail?** If nothing, it is not a test. A bare `!` in a bats
-  case does not fail it (SC2314) — require `run` plus a status check. A `skip` guard must
+- What edit makes this test fail? If nothing, it is not a test. A bare `!` in a bats
+  case does not fail it (SC2314), so require `run` plus a status check. A `skip` guard must
   not depend on the behaviour under test, or the suite goes green as the code breaks. Assert
   the resulting value, not that a key name appears.
-- **Hook filters.** A pre-commit hook with a `files:` filter is skipped by a deletion-only
+- Hook filters. A pre-commit hook with a `files:` filter is skipped by a deletion-only
   commit, which is the commit that breaks a path reference. Reference-checking hooks need
   `always_run: true`, and the then-dead `files:` key deleted rather than left in place.
-- **CI contexts.** Any matrix change renames every job in it. Matrix-named jobs are used as
+- CI contexts. Any matrix change renames every job in it. Matrix-named jobs are used as
   required status checks, so a rename blocks the branch with checks stuck at "Expected".
-  Aggregate behind a stable name with `if: always()` — a skipped required check passes the
+  Aggregate behind a stable name with `if: always()`; a skipped required check passes the
   ruleset. Verify against the live ruleset, not against a doc.
-- **Coverage of what CI cannot see.** `template.yml` runs `SKIP=check-container-version,
+- Coverage of what CI cannot see. `template.yml` runs `SKIP=check-container-version,
   diff-cover`; the runner preinstalls `uv`, so fresh-machine PATH and interpreter problems
   are invisible; `bin/forbid-private-patterns` and `bin/commitlint-msg` no-op in CI by
   design. Never accept "CI checks this" for any of them.
-- **Names that change behaviour with no error.** `modify_private_`, not `private_modify_` —
+- Names that change behaviour with no error. `modify_private_`, not `private_modify_`:
   the latter writes a file literally named `modify_config.toml` and unmanages the real one.
   A `symlink_` source needs `.tmpl`, or the target becomes a literal template string. A
   `run_onchange_` script's trigger comment is load-bearing, not documentation, and `include`
   returns raw source, so a hash over it misses data changes. `{{ if env "CI" }}` is true for
   `CI=0`.
-- **Interpolated identifiers.** Anything putting `project_name`, `package_name`, or
+- Interpolated identifiers. Anything putting `project_name`, `package_name`, or
   `description` into rendered Python must hold at the 40-character cap and
   `line_length = 88`, in every variant. A manual line wrap is undone by `ruff format`.
-- **Two layers.** A fix for a generated project belongs in `template/project/` and ships
+- Two layers. A fix for a generated project belongs in `template/project/` and ships
   with a release; a fix for a machine belongs in `home/` and ships with an apply. `just
   sync` cannot pull back a `.tmpl` or a `modify_*` file, so those are edited in the repo.
 
 ## Verification bar
 
 A behaviour claim needs a `file:line` citation or a command whose output you quote. Do not
-infer behaviour from a name, a comment, or a doc — several docs in this repo have described
+infer behaviour from a name, a comment, or a doc: several docs in this repo have described
 behaviour the tree does not have. If you cannot verify a finding, say so in it rather than
 dropping it or asserting it.
 

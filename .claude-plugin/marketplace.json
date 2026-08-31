@@ -14,13 +14,11 @@
       "skills": [
         "./skills"
       ],
-      "description": "FastAPI and SQLModel conventions, deslop, writing-whip, verification-before-completion, multi-model PR review, and more.",
+      "description": "deslop, writing-whip, multi-model PR review, plain-English rewriting, and more.",
       "version": "0.1.0",
       "category": "Developer Tools",
       "keywords": [
         "python",
-        "fastapi",
-        "sqlmodel",
         "writing",
         "code-review"
       ],

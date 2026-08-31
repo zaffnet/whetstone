@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   render-and-check:
-    # The default label is positional — `render-and-check (true, false, 88)` gives no clue
+    # The default label is positional: `render-and-check (true, false, 88)` gives no clue
     # which axis is which. Name them.
     name: >-
       render-and-check
