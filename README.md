@@ -119,7 +119,7 @@ codex/agents/         The same reviewers as Codex TOML (linked to ~/.codex/agent
 hooks/                ruff on edit, worktree setup, typecheck and comment audit on turn end
 bin/                  AI commit messages, PR descriptions, worktree cleanup, sync-mcp
 template/             Copier template for a Python project (copier.yml is at the root)
-docs/                 Handbook, decisions, runbooks
+docs/                 Handbook, runbooks, live GitHub ruleset
 .github/workflows/    lint, secrets, template, macos, claude
 ```
 
