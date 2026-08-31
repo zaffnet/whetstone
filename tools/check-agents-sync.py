@@ -44,6 +44,7 @@ MD_ONLY = frozenset({"tools", "model"})
 TOML_ONLY = frozenset({"developer_instructions"})
 MD_KEYS = frozenset(SAME) | MD_ONLY
 TOML_KEYS = frozenset(SAME.values()) | TOML_ONLY
+UNPAIRED_FIX = "put it in SAME if both halves must agree, or in {only} if this side owns it"
 
 
 def split_markdown(text: str) -> tuple[dict[str, str], str]:
@@ -82,9 +83,15 @@ def render(text: str) -> str:
     return text.replace("{{ package_name }}", "pkg")
 
 
+def toml_str(data: dict[str, object], key: str) -> str:
+    value = data.get(key, "")
+    return str(value).strip()
+
+
 def compare(md_path: Path, toml_path: Path) -> list[str]:
     problems: list[str] = []
     front, md_body = split_markdown(render(md_path.read_text()))
+    data: dict[str, object]
     try:
         data = tomllib.loads(render(toml_path.read_text()))
     except tomllib.TOMLDecodeError as exc:
@@ -93,23 +100,23 @@ def compare(md_path: Path, toml_path: Path) -> list[str]:
     md_gate = agent_gate(md_path)
     toml_gate = agent_gate(toml_path)
     if md_gate != toml_gate:
+        md_condition = md_gate if md_gate != "" else "no condition"
+        toml_condition = toml_gate if toml_gate != "" else "no condition"
         problems.append(
-            f"{md_path}: rendered under {md_gate if md_gate != '' else 'no condition'}, "
-            f"{toml_path} under {toml_gate if toml_gate != '' else 'no condition'}"
+            f"{md_path}: rendered under {md_condition}, {toml_path} under {toml_condition}"
         )
     for path, keys, present, only in (
         (md_path, MD_KEYS, frozenset(front), "MD_ONLY"),
         (toml_path, TOML_KEYS, frozenset(data), "TOML_ONLY"),
     ):
         problems.extend(
-            f"{path}: key {key!r} is compared against nothing; put it in SAME if the other "
-            f"half must carry the same value, or in {only} if this side owns it alone"
+            f"{path}: key {key!r} is compared against nothing; {UNPAIRED_FIX.format(only=only)}"
             for key in sorted(present - keys)
         )
         problems.extend(f"{path}: missing key {key!r}" for key in sorted(keys - present))
     for md_key, toml_key in SAME.items():
         md_value = front.get(md_key, "")
-        toml_value = str(data.get(toml_key, "")).strip()
+        toml_value = toml_str(data, toml_key)
         if md_value != toml_value:
             problems.append(
                 f"{toml_path}: {toml_key} is {toml_value!r}, {md_path} {md_key} is {md_value!r}"
@@ -119,7 +126,7 @@ def compare(md_path: Path, toml_path: Path) -> list[str]:
     if front.get("name", "") != agent_name(md_path):
         problems.append(f"{md_path}: name {front.get('name', '')!r} is not the file's name")
 
-    toml_body = str(data.get("developer_instructions", "")).strip()
+    toml_body = toml_str(data, "developer_instructions")
     if toml_body != md_body:
         diff = difflib.unified_diff(
             md_body.splitlines(),
