@@ -28,12 +28,9 @@ Source: `skills/<name>/SKILL.md`.
 | `deep-claude-code-review` | Claude-only deep review: several Claude subagents review the same change, findings merged by agreement. |
 | `deep-pr-review` | Multi-model deep review: one reviewer per model you can reach, findings merged by agreement. |
 | `deslop` | Strips AI slop and off-style code from the branch diff. |
-| `fastapi` | FastAPI and Pydantic conventions for new and existing code. |
 | `fix-design-implementation-discrepancies` | Checks a PR against the design and schema docs, then makes the chosen fixes. |
 | `simplify-english` | Rewrites Markdown prose into plain English, structure intact. |
-| `sqlmodel` | SQLModel patterns: models, sessions, queries, relationships, FastAPI integration. |
 | `teach-me` | Teaches a topic one chunk at a time, quizzing between chunks. |
-| `verification-before-completion` | Demands command output before any claim that work passes. |
 | `writing-whip` | Kills AI writing tropes at generation time. |
 
 ## Installed from elsewhere
@@ -78,6 +75,9 @@ From other repos:
 
 | Skill | Source repo | What it does |
 | --- | --- | --- |
+| `fastapi` | `fastapi/fastapi` | FastAPI and Pydantic conventions for new and existing code. |
+| `sqlmodel` | `fastapi/sqlmodel` | SQLModel patterns: models, sessions, queries, relationships, FastAPI integration. |
+| `verification-before-completion` | `obra/superpowers` | Demands command output before any claim that work passes. |
 | `gh-stack` | `github/gh-stack` | Stacked PRs: create, push, submit, sync, rebase, merge. |
 | `find-skills` | `vercel-labs/skills` | Finds and installs skills for a described task. |
 | `writing-clearly-and-concisely` | `obra/the-elements-of-style` | Strunk's rules applied to any prose. |
@@ -90,4 +90,4 @@ Source: the `enabledPlugins` and `[plugins.*]` entries above.
 | Skill | Plugin | Products | What it does |
 | --- | --- | --- | --- |
 | `claude-md-improver` | `claude-md-management@claude-plugins-official` | Claude Code, Codex | Audits and improves a repo's `CLAUDE.md` files. |
-| its own set, versioned upstream | `superpowers@claude-plugins-official` (`obra/superpowers`) | Codex | Not enumerated here; read the plugin's own `skills/`. |
+| its own set, versioned upstream | `superpowers@claude-plugins-official` (`obra/superpowers`) | Codex | Not enumerated here; read the plugin's own `skills/`. `verification-before-completion` is also in `skills.txt`, so Codex sees it twice; Claude Code, where the plugin is off, gets it only from `skills.txt`. |

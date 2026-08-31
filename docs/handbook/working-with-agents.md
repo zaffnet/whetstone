@@ -52,7 +52,7 @@ is the harness's ceiling, not the hook's. The other only reports.
 
 - `hooks/typecheck.sh` runs the repository's own `./run-typecheck.sh` where there is one,
   which is what a generated project has, and `bin/run-typecheck.sh` otherwise. Whatever
-  fails — the code, or a missing virtualenv or `uvx` — is reported on stderr without
+  fails, the code or a missing virtualenv or `uvx`, is reported on stderr without
   blocking, since the same checkers run in pre-commit and CI. It skips repositories whose
   environment has neither mypy nor basedpyright, which would fail on the missing executables
   rather than on their code.

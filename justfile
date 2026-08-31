@@ -35,7 +35,7 @@ bootstrap:
     chezmoi init --apply --source .
 
 # re-add skips templates (.zshrc, .gitconfig, mcp.json) and modify scripts (the Claude and
-# Codex configs, the Cursor settings): edit those with `chezmoi edit` or in home/. The Brewfile diff drops the tracked file's trailing comments.
+# Codex configs, the Cursor settings): edit those with `chezmoi edit` or in home/.
 # Pull non-template edits made in $HOME back into home/; diff the Brewfile against brew.
 sync:
     chezmoi --source . re-add

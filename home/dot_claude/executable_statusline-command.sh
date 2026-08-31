@@ -50,8 +50,6 @@ eval "$(printf '%s' "$input" | jq -r '
   ] | join("\n")
 ')"
 
-# --- helpers ---------------------------------------------------------------
-
 abbrev_path() {
   local p="${1/#$HOME\//~/}"
   [[ $1 != "$HOME" ]] || p="~"
@@ -290,8 +288,6 @@ PY
   fi
 fi
 
-# --- line 1: where ---------------------------------------------------------
-
 line1=()
 
 if [[ -n "$cwd" ]]; then
@@ -358,8 +354,6 @@ fi
 if [[ -n "$VIRTUAL_ENV" ]]; then
   line1+=("$(printf '%b%s%b' "$GREY" "$(basename "$VIRTUAL_ENV")" "$RESET")")
 fi
-
-# --- line 2: session -------------------------------------------------------
 
 line2=()
 
@@ -442,8 +436,6 @@ fi
 if [[ -n "$session_name" ]]; then
   line2+=("$(printf '%b%s%b' "$GREY" "$session_name" "$RESET")")
 fi
-
-# --- render ----------------------------------------------------------------
 
 join_spaces() {
   local out="" item

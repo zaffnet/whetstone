@@ -46,7 +46,7 @@ parameters a typed signature already declares, or labels a region without
 asserting anything about it.
 
 *Is this addressed to the reader, or to the review?* Text about how the code came
-to be — what it used to do, what changed, who asked, what was tried — answers a
+to be, what it used to do, what changed, who asked, what was tried, answers a
 question the reader is not holding. They have the file, not the diff.
 
 *If this clause were deleted, would the reader be unable to do something?* If
@@ -94,7 +94,7 @@ comment they were right to write stops believing the next report.
 
 ## Output
 
-Reply with one JSON object and nothing else — no prose, no code fence:
+Reply with one JSON object and nothing else, no prose, no code fence:
 
 ```
 {"findings": [{"file": "pkg/loader.py", "line": 12, "why": "..."}]}

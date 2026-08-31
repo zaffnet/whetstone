@@ -12,8 +12,6 @@
   "license": "MIT",
   "keywords": [
     "python",
-    "fastapi",
-    "sqlmodel",
     "code-review",
     "writing",
     "ruff",
