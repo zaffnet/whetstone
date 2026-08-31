@@ -10,7 +10,9 @@
   "permissions": {
     "defaultMode": "auto",
     "ask": [
-      "Edit"
+      "Edit",
+      "Write",
+      "NotebookEdit"
     ]
   },
   "model": "opus[1m]",
