@@ -3,8 +3,10 @@
 ## Context
 
 Claude Code, Codex, and Cursor each ask for confirmation before shell commands, file
-writes, and network access unless told otherwise. The user-level settings in this repo turn
-those prompts off: Claude Code `permissions.defaultMode = "dontAsk"`, Codex
+writes, and network access unless told otherwise. The user-level settings in this repo leave
+Codex and Cursor unattended, and leave Claude Code unattended except when it writes a file:
+Claude Code `permissions.defaultMode = "auto"` with
+`ask = ["Edit", "Write", "NotebookEdit"]`, Codex
 `approval_policy = "never"` inside a `workspace-write` sandbox with network access, Cursor
 `claudeCode.initialPermissionMode = "bypassPermissions"`. The two launchers in `bin/` start
 Claude with `--permission-mode bypassPermissions` and Codex with
@@ -12,18 +14,31 @@ Claude with `--permission-mode bypassPermissions` and Codex with
 
 ## Decision
 
-Keep the unattended posture at user level. The machines this repo is applied to are the
-author's own, and the repositories opened on them are the author's own work. Per-action
-prompts there cost more attention than they save.
+Keep the unattended posture at user level, with one exception: Claude Code asks before it
+writes a file. The machines this repo is applied to are the author's own, and the
+repositories opened on them are the author's own work, so per-action prompts there cost more
+attention than they save -- for commands. Writing a file is the action that is awkward to
+inspect after the fact, and it is the one an agent takes most often, so the three tools that
+write one -- `Edit`, `Write`, `NotebookEdit` -- earn a prompt that commands do not. The rules
+cover a subagent's writes too: `Agent` does not prompt on launch, and the subagent's own tool
+calls are checked as it runs.
+
+Claude Code alone. Codex keeps `approval_policy = "never"` and Cursor keeps
+`bypassPermissions`, so the posture is deliberately uneven rather than uniform: this is the
+tool where the prompt was wanted, not a principle applied everywhere.
 
 ## Consequences
 
 - Any repository opened on a machine with this config gets an agent that can run commands
-  and edit files without asking. Code from someone else is reviewed in a VM or a sandbox,
-  or with a project-level `.claude/settings.json` that sets `permissions.defaultMode`
-  back to `default`.
-- `bin/run_claude_code.sh` and `bin/run-coding-agent.sh` use the same mode,
-  `bypassPermissions`, so launching either way behaves the same.
+  without asking. File writes ask only in a plain `claude` session; the unattended launchers,
+  Codex, and Cursor still write without asking. Code from someone else is reviewed in a VM or
+  a sandbox, or with a project-level `.claude/settings.json` that sets
+  `permissions.defaultMode` back to `default`.
+- `bin/run_claude_code.sh:26` and `bin/run-coding-agent.sh:99` pass
+  `--permission-mode bypassPermissions`, which overrides the setting. So the edit prompt
+  reaches a plain `claude` session and neither launcher, and the guard is narrower than the
+  settings file alone suggests. Removing it from the launchers is a separate decision: they
+  exist to run unattended, which is the case the prompt would break.
 - The only edit-time guard is `ruff_format.sh`, and it runs in two places: every project
   generated from the template wires it in `.claude/settings.json`, and any other repository
   gets it only when the `whetstone-hooks` plugin is enabled. The global
