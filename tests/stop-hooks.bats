@@ -72,9 +72,13 @@ stub_claude() {
   printf '%s' "$BATS_TEST_TMPDIR/bin"
 }
 
-# An envelope carrying $1 as the model's reply.
+# An envelope carrying $1 as the model's reply, in the event-stream array the CLI
+# emits: an init entry first, the result last.
 envelope() {
-  jq -nc --arg result "$1" '{is_error: false, subtype: "success", result: $result}'
+  jq -nc --arg result "$1" '[
+    {type: "system", subtype: "init"},
+    {is_error: false, subtype: "success", result: $result}
+  ]'
 }
 
 # Run audit_comments.sh with `claude` stubbed to reply $1, in $2 or the throwaway
@@ -140,6 +144,39 @@ run_audit() {
   run -0 env "PATH=$bin:$PATH" bash -c \
     "bash '$REPO/hooks/audit_comments.sh' 2>/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'"
   [ -z "$output" ]
+}
+
+@test "audit: an error reported in the stream's last entry does not block" {
+  printf '# ==== BANNER ====\nx = 1\n' >"$WORK/a.py"
+  local bin
+  bin="$(stub_claude '[{"type": "system", "subtype": "init"},
+    {"is_error": true, "subtype": "error_max_turns", "result": "turn limit"}]')"
+  run -0 env "PATH=$bin:$PATH" bash -c \
+    "bash '$REPO/hooks/audit_comments.sh' 2>/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'"
+  [ -z "$output" ]
+}
+
+@test "audit: a bare result object is still read" {
+  # The shape older versions returned, and the one --output-format json returned
+  # before it grew the event stream.
+  printf '# ==== BANNER ====\nx = 1\n' >"$WORK/a.py"
+  local bin bare
+  bare="$(jq -nc --arg result \
+    '{"findings": [{"file": "a.py", "line": 1, "why": "Remove the banner."}]}' \
+    '{is_error: false, subtype: "success", result: $result}')"
+  bin="$(stub_claude "$bare")"
+  run -0 env "PATH=$bin:$PATH" bash -c \
+    "bash '$REPO/hooks/audit_comments.sh' 2>/dev/null <<<'{\"cwd\": \"$WORK\", \"stop_hook_active\": false}'"
+  [ "$(decision "$output")" = block ]
+}
+
+@test "audit: the call grants no tools" {
+  # --allowed-tools "" grants the full set instead of none, which let the auditor
+  # spend its single turn on a Read and return error_max_turns.
+  printf '# ==== BANNER ====\nx = 1\n' >"$WORK/a.py"
+  run -0 run_audit '{"findings": []}'
+  [[ "$(cat "$WORK/claude-argv")" == *"--tools "* ]]
+  [[ "$(cat "$WORK/claude-argv")" != *"--allowed-tools"* ]]
 }
 
 @test "audit: a claude that exits non-zero is reported on stderr" {
