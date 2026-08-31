@@ -139,6 +139,38 @@ tests/                bats assertions run against an applied home
 - `macos.yml` and `secrets.yml` also run weekly, so a renamed cask or a leaked string is
   caught when nothing was pushed.
 
+### When a config changes locally
+
+`chezmoi re-add`, and so `just sync`, only rewrites plain managed files. It skips templates
+and modify scripts, which is where the agent configs live: edit a setting inside Claude
+Code and `re-add` reports nothing, then the next `just apply` reverts it.
+
+`~/.claude/settings.json` has a pass of its own for that reason. `just sync` runs
+`bin/sync-claude-settings`, which lists every declared key whose live value differs:
+
+```console
+$ just sync
+  plansDirectory:
+    './claude/plans' -> './.claude/plans'
+
+1 declared key(s) differ; nothing written.
+```
+
+Read the arrow as template value on the left, live value on the right. Reporting is the
+default because a difference does not say which side is right -- the setting may be worth
+keeping, or this machine may simply be behind an applied template. Decide, then:
+
+- Keep the local value: `bin/sync-claude-settings --adopt` writes it into
+  `home/.chezmoitemplates/claude-settings.json`, and you commit that.
+- Keep the template value: change nothing and run `just apply`.
+
+`model` is exempt -- it is picked per machine, so the template only seeds a machine that has
+none. Deleting a setting is two steps: remove it from the template, then remove it once from
+the live file, because an undeclared key is carried over as Claude Code's own.
+
+The Codex and Cursor configs are modify scripts too, but have no reporting pass yet. Edit
+those in `home/`, or with `chezmoi edit`, rather than in `$HOME`.
+
 ## Docs
 
 - [New machine](docs/new-machine.md)
