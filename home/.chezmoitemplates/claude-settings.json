@@ -98,7 +98,7 @@
   "worktree": {
     "baseRef": "fresh"
   },
-  "respondToBashCommands": false,
+  "respondToBashCommands": true,
   "allowAllClaudeAiMcps": true,
   "statusLine": {
     "type": "command",
@@ -140,9 +140,9 @@
   "outputStyle": "Concise",
   "spinnerTipsEnabled": true,
   "alwaysThinkingEnabled": false,
-  "effortLevel": "xhigh",
+  "effortLevel": "high",
   "plansDirectory": "./.claude/plans",
-  "showClearContextOnPlanAccept": false,
+  "showClearContextOnPlanAccept": true,
   "askUserQuestionTimeout": "never",
   "dialogExpiry": "never",
   "tui": "fullscreen",
@@ -150,9 +150,9 @@
     "enabled": false,
     "mode": "hold"
   },
-  "autoMemoryEnabled": true,
-  "showThinkingSummaries": true,
-  "skipDangerousModePermissionPrompt": true,
+  "autoMemoryEnabled": false,
+  "showThinkingSummaries": false,
+  "skipDangerousModePermissionPrompt": false,
   "theme": "custom:solarized-light",
   "editorMode": "normal",
   "preferredNotifChannel": "auto",
@@ -166,5 +166,20 @@
   "skipAutoPermissionPrompt": true,
   "voiceEnabled": false,
   "autoUpdate": true,
-  "useAutoModeDuringPlanAccept": true
+  "useAutoModeDuringPlanAccept": true,
+  "cleanupPeriodDays": 5,
+  "desktopSessionCleanupPeriodDays": 5,
+  "enableArtifact": false,
+  "enableWorkflows": false,
+  "workflowKeywordTriggerEnabled": false,
+  "spellcheck": {
+    "enabled": true,
+    "language": "en_US"
+  },
+  "awaySummaryEnabled": true,
+  "verbose": false,
+  "useAutoModeDuringPlan": true,
+  "externalEditorContext": true,
+  "permissionExplainerEnabled": false,
+  "diffTool": "auto"
 }
