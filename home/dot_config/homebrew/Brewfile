@@ -24,7 +24,6 @@ brew "smimesign"               # S/MIME commit signing
 # Dotfiles and task running
 brew "chezmoi"
 brew "just"
-brew "bats-core"               # Shell test framework used by tests/
 
 # Shell script quality
 brew "shellcheck"
