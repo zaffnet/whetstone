@@ -4,23 +4,13 @@
 # rewritten from it; every other key belongs to Claude Code and is carried over, so an apply
 # never undoes a choice made inside the product.
 #
-# This replaced a three-name allowlist -- model, enabledPlugins, extraKnownMarketplaces --
-# whose entries won unconditionally, which made all three unmanageable from the repo:
-# editing them in home/.chezmoitemplates/claude-settings.json was a no-op on any machine
-# that already had them, and ~/.agents/plugins/desired.yaml claimed to be kept in step with
-# an enabledPlugins value it could not change. Same ownership problem as the Codex script
-# (whole table) and the Cursor script (per key with a marker); this was the last of the
-# three still on a named allowlist.
+# RUNTIME exempts one key by name: `model` is picked per machine in the model picker, so the
+# template's value seeds a machine that has none and then steps aside. Every other key the
+# template names, it owns.
 #
-# The allowlist did one thing worth keeping, so RUNTIME keeps it, for one key and by name:
-# `model` is picked per machine in the model picker. The template's value seeds a machine
-# that has none and then steps aside. Every other key the template names, it owns.
-#
-# The consequence worth naming: a key dropped from the template stops being declared, so it
-# is carried over as Claude Code's instead of leaving the machine. Removing a setting is two
-# steps -- delete it from the template, then delete it once from the live file. Undeclared
-# keys used to be dropped outright, which is why this script's own header used to claim they
-# were carried over when only the three allowlisted names were.
+# A key dropped from the template stops being declared, so it is carried over as Claude
+# Code's instead of leaving the machine. Removing a setting is two steps -- delete it from
+# the template, then delete it once from the live file.
 set -euo pipefail
 current=$(cat)
 MANAGED=$(
@@ -48,8 +38,7 @@ for key in RUNTIME:
     if key in current:
         managed[key] = current[key]
 # Kept after the declared keys, so `chezmoi diff` shows what the product added rather than
-# interleaving it. Named on stderr because JSON has no comment to label a block with, which
-# is what the Cursor script uses its marker for.
+# interleaving it. Named on stderr because JSON has no comment to label the block with.
 undeclared = [key for key in current if key not in managed]
 for key in undeclared:
     managed[key] = current[key]

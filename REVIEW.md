@@ -66,15 +66,12 @@ Known and tracked. Do not re-report:
 - `macos.yml`'s `bootstrap (personal|work)` are matrix-named required contexts with no
   aggregator job (#24).
 - No test renders the `modify_*` scripts and checks they parse (#25).
-- Almost nothing here is tested. The Bats suite over the chezmoi tree, the Stop hooks,
-  `bin/sync-mcp` and `bin/sync-claude-settings` was removed. What survives in `macos.yml` is an
-  apply for both roles plus assertions that the rendered work config parses and carries its
-  `[data.work]` values into `~/.codex/config.toml`, `~/.agents/mcp.json`, and `uv.toml`. The
-  hooks, both sync scripts, and every non-work-role rendering are on review alone.
+- Almost nothing here is tested. `macos.yml` runs an apply for both roles plus assertions
+  that the rendered work config parses and carries its `[data.work]` values into
+  `~/.codex/config.toml`, `~/.agents/mcp.json`, and `uv.toml`. The hooks, both sync scripts,
+  and every non-work-role rendering are on review alone.
 
 ## Always check
-
-Each of these has shipped as a bug here at least once.
 
 - Ownership. For any file both a template and a live application write, the diff must
   answer two questions: what happens to a key the template never mentions, and what happens
@@ -116,11 +113,8 @@ Each of these has shipped as a bug here at least once.
 ## Verification bar
 
 A behaviour claim needs a `file:line` citation or a command whose output you quote. Do not
-infer behaviour from a name, a comment, or a doc: several docs in this repo have described
-behaviour the tree does not have. If you cannot verify a finding, say so in it rather than
-dropping it or asserting it.
-
-"The current state is X" is not evidence that X was chosen.
+infer behaviour from a name, a comment, or a doc. If you cannot verify a finding, say so in
+it rather than dropping it or asserting it.
 
 ## Re-review convergence
 

@@ -3,19 +3,17 @@
 # new file. Ownership is per top-level key. A key the template declares is rewritten; every
 # other key belongs to another writer -- Cursor itself, or an extension -- and is carried
 # over into a labelled block above the closing brace, so an apply never undoes a setting
-# made inside the editor. It used to: this was a plain template, so every apply wrote the
-# file whole and deleted whatever Cursor had added.
+# made inside the editor.
 #
 # Preserving by key has a consequence worth naming: a key dropped from the template stops
 # being declared, so it relocates into that block instead of leaving the machine. Removing
 # a setting is two steps -- delete it from the template, then delete it once from the
-# block. The Codex script escapes this by owning whole tables; a flat JSON key space has
-# none, so the marker buys visibility instead, and the relocation shows up in a
-# `chezmoi diff` rather than as nothing at all.
+# block. The marker buys visibility, so the relocation shows up in a `chezmoi diff` rather
+# than as nothing at all.
 #
-# Rejected owning a prefix as the table analogue, on a case from this very file:
-# python.analysis.diagnosticMode is managed and python.defaultInterpreterPath is machine
-# state, so owning `python.*` would delete the key that prompted this change.
+# Owning a prefix is not an option: python.analysis.diagnosticMode is managed and
+# python.defaultInterpreterPath is machine state, so owning `python.*` would delete a key
+# Cursor needs.
 set -euo pipefail
 
 # Not `managed=$(cat <<'MANAGED' ... )`. The rendered body holds an odd number of
@@ -68,8 +66,7 @@ def scan(text):
     ({}, None) for anything that is not one well-formed JSONC object, so a file Cursor
     itself could not read preserves nothing rather than half a value.
 
-    Character-wise rather than line-wise, which is what makes the awkward cases fall out
-    instead of needing rules:
+    Character-wise rather than line-wise, which is what handles these cases:
       - `//` inside a string is content, not a comment: the template holds
         "https://use.fontawesome.com/releases/v5.7.1/css/all.css".
       - `\\"` does not end a string, so a value like "say \\"hi\\" }" cannot end early and

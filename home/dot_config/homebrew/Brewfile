@@ -43,13 +43,10 @@ brew "pandoc"
 brew "poppler"                 # pdftotext, pdftoppm
 brew "tesseract"               # OCR
 brew "ffmpeg"
-# Homebrew ships hunspell with no dictionaries. It reads *.aff and *.dic from
-# ~/Library/Spelling and /Library/Spelling, and macOS puts none there, so until a dictionary
-# is installed `hunspell -D` lists no dictionary and every word reads as a miss.
+# Ships with no dictionaries; .chezmoiexternal.toml installs them.
 brew "hunspell"                # Spell checker and morphological analyzer
-# Grammar, which hunspell does not do at all: hunspell and cSpell both answer only
-# "is this a word". harper-ls is the editor half and needs an extension installed by
-# hand, the way Cursor itself does; harper-cli works from the shell with neither.
+# Grammar, which hunspell does not do at all. harper-ls is the editor half and needs an
+# extension installed by hand; harper-cli works from the shell with neither.
 brew "harper"                  # Grammar checker (harper-ls, harper-cli)
 
 # Cloud
@@ -57,10 +54,9 @@ brew "azure-cli"
 
 # Apps
 cask "iterm2"
-# No `cask "cursor"`. Cursor is auto_updates, so brew never upgrades it -- the entry only
-# recorded that it exists, and in exchange it could delete it. Adopting an existing
-# /Applications/Cursor.app means modifying an app Homebrew did not place there, which
-# macOS App Management refuses; the cask then rolls back by removing the app, and the
+# No `cask "cursor"`. Cursor is auto_updates, so brew never upgrades it anyway, and adopting
+# an existing /Applications/Cursor.app means modifying an app Homebrew did not place there,
+# which macOS App Management refuses; the cask then rolls back by removing the app, and the
 # failed script aborts the whole apply before a single dotfile is written. Install Cursor
 # by hand (docs/new-machine.md); it keeps itself up to date.
 cask "codex"                   # OpenAI Codex desktop app

@@ -38,8 +38,8 @@ of `main`.
   pre-commit as the gate, and a diff-cover summary on the job page.
 - `.github/dependabot.yml` for uv, GitHub Actions, pre-commit, and (with Docker) the
   Dockerfile and compose file.
-- `.claude/` with hooks (ruff on every edit, worktree setup), rules, reviewer agents, and
-  `.codex/` with the same agents in TOML.
+- `.claude/` with hooks (ruff on every edit; `setup-working-tree.sh` ships unwired, for the
+  project to call), rules, reviewer agents, and `.codex/` with the same agents in TOML.
 - `.vscode/settings.json` pinned to the project's `.venv` ruff and basedpyright.
 - `AGENTS.md` (and a `CLAUDE.md` that imports it), `docs/DEVELOPMENT.md`, `.env.example`.
 - With Docker: a Compose stack that builds, starts, and answers `/health` (FastAPI) or runs

@@ -3,22 +3,21 @@
 # declaration -- Finder, Dock, iTerm2 -- live in run_after_20-macos-managed-defaults.sh,
 # which runs every apply so a retired key can be retried.
 #
-# A small, curated set of macOS defaults. Re-runs after every OS upgrade because the
-# build version below changes (Apple resets some preferences on major updates).
+# Re-runs after every OS upgrade because the build version below changes (Apple resets
+# some preferences on major updates).
 # macOS build: {{ output "sw_vers" "--buildVersion" | trim }}
 set -euo pipefail
 
-# Keyboard: fast repeat, no press-and-hold accent popup (matters in editors).
+# Press-and-hold off so a held key repeats instead of opening the accent popup.
 defaults write NSGlobalDomain KeyRepeat -int 2
 defaults write NSGlobalDomain InitialKeyRepeat -int 15
 defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
 
-# Extensions always visible, and no .DS_Store on network shares. The path bar and hidden
-# files are Finder-domain keys, declared in run_after_20-macos-managed-defaults.sh.
+# The path bar and hidden files are Finder-domain keys, declared in
+# run_after_20-macos-managed-defaults.sh rather than here.
 defaults write NSGlobalDomain AppleShowAllExtensions -bool true
 defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true
 
-# Screenshots: PNG into ~/Screenshots, no window shadow.
 mkdir -p "$HOME/Screenshots"
 defaults write com.apple.screencapture location -string "$HOME/Screenshots"
 defaults write com.apple.screencapture type -string "png"

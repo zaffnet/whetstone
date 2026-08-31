@@ -39,8 +39,8 @@ From a fresh macOS install to a working shell, editor, and agents.
 5. Open a new terminal. Run `p10k configure` only if the prompt glyphs look wrong (the
    Nerd Font casks are in the Brewfile).
 6. Install Cursor from [cursor.com](https://www.cursor.com/) if you want it. It is not in
-   the Brewfile: it updates itself, so the cask never upgraded it, and adopting an app
-   already in `/Applications` fails under macOS App Management and takes the app with it.
+   the Brewfile: adopting an app already in `/Applications` fails under macOS App
+   Management and takes the app with it.
 7. Sign in: `gh auth login`, `claude`, `codex`, Cursor.
 
 ## Day-to-day
@@ -84,7 +84,7 @@ keeping, or this machine may simply be behind an applied template. Decide, then:
 none. Deleting a setting is two steps: remove it from the template, then remove it once from
 the live file, because an undeclared key is carried over as Claude Code's own.
 
-The Codex and Cursor configs are modify scripts too, but have no reporting pass yet. Edit
+The Codex and Cursor configs are modify scripts too, but have no reporting pass. Edit
 those in `home/`, or with `chezmoi edit`, rather than in `$HOME`.
 
 ## Cutting over a machine with an existing hand-rolled setup

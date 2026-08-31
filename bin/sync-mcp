@@ -41,7 +41,7 @@ TABLE_HEADER = re.compile(
 )
 ENV_PLACEHOLDER = re.compile(r"^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
 BEARER_PLACEHOLDER = re.compile(r"^Bearer \$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
-# env keys whose values are configuration, not credentials, and may be literal.
+# env keys exempt from the literal-secret refusal below: their values may be literal.
 PLAIN_ENV_KEYS = frozenset({"AWS_PROFILE", "AWS_REGION", "AWS_DEFAULT_REGION", "LOG_LEVEL"})
 PLAIN_ENV_SUFFIXES = ("_REGION", "_LOG_LEVEL")
 BACKUP_SUFFIX = ".bak-before-agents-sync-"
@@ -93,7 +93,6 @@ def refuse_literal_secrets(name: str, spec: dict) -> None:
 
 
 def is_plain_env_key(key: str) -> bool:
-    """Whether an env key carries configuration (region, profile, log level), not a secret."""
     return key in PLAIN_ENV_KEYS or key.endswith(PLAIN_ENV_SUFFIXES)
 
 
@@ -106,8 +105,7 @@ def backup(path: Path) -> None:
     delete the rest; the glob also collects the one fixed-name backup older versions left.
 
     Microseconds, not seconds: two runs in the same second collide on the name and the
-    second overwrites the first, which is the failure this replaced. The width is fixed, so
-    the names still sort oldest-first.
+    second overwrites the first. The width is fixed, so the names still sort oldest-first.
     """
     if not path.exists() or path.is_symlink():
         return

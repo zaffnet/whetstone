@@ -7,8 +7,7 @@
 # unsafe-first-match is required alongside it. uv's default first-index strategy
 # stops at whichever index first answers for a package, and a private index can
 # answer for names it cannot actually serve, so public packages would never
-# reach PyPI. unsafe-first-match keeps the private index's precedence for
-# internal names and falls through to PyPI for everything else.
+# reach PyPI.
 #
 # The trade-off: any name published to the private index wins over PyPI for every project
 # on this machine, so whoever can publish there can shadow a public package. It stays

@@ -34,9 +34,8 @@ HEADER = re.compile(r"^[ \t]*\[\[?((?:[^]\"']|\"(?:[^\"\\]|\\.)*\"|'[^']*')+)\]\
 BARE_KEY = re.compile(r'''^\s*("[^"]+"|'[^']+'|[A-Za-z0-9_.-]+)\s*=''')
 
 
-# TOML's escapes inside a basic string. A table name carrying one is rare, but decoding
-# half of them would put us back where comparing the raw text was: two spellings of one
-# name reading as two names.
+# TOML's escapes inside a basic string. A table name carrying one is rare, but decoding only
+# half of them leaves two spellings of one name reading as two names.
 ESCAPES = {"b": "\b", "t": "\t", "n": "\n", "f": "\f", "r": "\r", '"': '"', "\\": "\\"}
 
 
@@ -110,11 +109,11 @@ def scan_line(line, opener, depth):
     """The multiline delimiter and bracket depth still open at the end of `line`.
 
     A header or a key is only itself at the lexical top level: outside a multiline string
-    and outside an array. Both ways of getting that wrong ended the same, with an apply
-    writing a ~/.codex/config.toml that does not parse -- a `[tui]` line inside a preserved
-    value read as the managed table and dropped the rest of the string, and a `["tui"]`
-    element on its own line read as a table and orphaned the `custom = [` above it. There
-    is no guard downstream to catch either: system python3 on macOS is 3.9, no tomllib.
+    and outside an array. Either mistake writes a ~/.codex/config.toml that does not parse
+    -- a `[tui]` line inside a preserved value reads as the managed table and drops the rest
+    of the string, and a `["tui"]` element on its own line reads as a table and orphans the
+    `custom = [` above it. No guard downstream catches either: system python3 on macOS is
+    3.9, no tomllib.
     """
     index = 0
     length = len(line)
@@ -169,9 +168,9 @@ def headers(lines):
 
 
 # What the template declares. A table it declares wins outright. A table merely nested
-# under one does not: `[tui.model_availability_nux]` is Codex's own state, the old KEEP
-# allowlist named it for that reason, and the template declaring `[tui]` says nothing
-# about it. Only an exact match is managed; everything else is preserved.
+# under one does not: `[tui.model_availability_nux]` is Codex's own state, and the template
+# declaring `[tui]` says nothing about it. Only an exact match is managed; everything else
+# is preserved.
 managed_lines = managed.splitlines()
 managed_headers = list(headers(managed_lines))
 first_table = next(
@@ -207,8 +206,8 @@ for line, name, at_top in headers(current.splitlines()):
         # Only another key or a table header ends a capture. A blank or comment line can
         # sit inside a multiline value, so it has to be captured, not treated as the end.
         # Only at the top level: a `model = "inside"` line within a preserved multiline
-        # value is that value's text, not the managed key, and reading it as the key
-        # dropped the line and the closing delimiter with it.
+        # value is that value's text, not the managed key, and reading it as the key drops
+        # the line and the closing delimiter with it.
         key = key_name(line) if at_top else None
         if key is not None:
             keep_key = key not in managed_keys

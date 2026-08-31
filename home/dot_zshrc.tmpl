@@ -13,12 +13,11 @@ elif [[ -x /usr/local/bin/brew ]]; then
   eval "$(/usr/local/bin/brew shellenv)"
 fi
 
-# whetstone's own scripts, so a fix reaches every repository at once rather than being
-# copied into each. {{ .chezmoi.sourceDir }} is the source checkout's home/, so a clone
-# anywhere works. It must be the worktree [update] in .chezmoi.toml.tmpl insists on, which
-# is released main and nothing else: this line is read on every shell start rather than at
-# apply time, so anywhere else `git checkout` alone would change what these scripts do in
-# every open terminal.
+# whetstone's own scripts. {{ .chezmoi.sourceDir }} is the source checkout's home/, so a
+# clone anywhere works. It must be the worktree [update] in .chezmoi.toml.tmpl insists on,
+# which is released main and nothing else: this line is read on every shell start rather
+# than at apply time, so anywhere else `git checkout` alone would change what these scripts
+# do in every open terminal.
 export PATH="{{ .chezmoi.sourceDir | dir }}/bin:$PATH"
 
 # Language runtimes
@@ -133,9 +132,9 @@ prompt_ghpr() {
 export EDITOR="cursor -w"
 export CLAUDE_CODE_NO_FLICKER=1
 export CLAUDE_CODE_SCROLL_SPEED=3
-# Here rather than in ~/.claude/settings.json, which ADR 0008 keeps free of an `env` block.
-# Not ~/.zsh_secrets either: that file is unmanaged on
-# purpose, so anything in it reaches one machine and no other, and none of these is a secret.
+# Here rather than in ~/.claude/settings.json, which carries no `env` block. Not
+# ~/.zsh_secrets either: that file is unmanaged on purpose, so anything in it reaches one
+# machine and no other, and none of these is a secret.
 export MAX_THINKING_TOKENS=0
 export CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1
 export BASH_MAX_TIMEOUT_MS=300000

@@ -45,7 +45,6 @@ UNPAIRED_FIX = "put it in SAME if both halves must agree, or in {only} if this s
 
 
 def split_markdown(text: str) -> tuple[dict[str, str], str]:
-    """Frontmatter as a key -> value mapping, and the body."""
     match = FRONTMATTER.match(text)
     if match is None:
         msg = "missing frontmatter"
@@ -68,10 +67,10 @@ def agent_name(path: Path) -> str:
 def agent_gate(path: Path) -> str:
     """Return the Jinja conditional wrapped around the filename, or "" when there is none.
 
-    agent_name() strips it so a gated file pairs with its twin. That is what lets
-    ``{% if use_fastapi %}async-safety-reviewer.md{% endif %}.jinja`` find its TOML half --
-    and, until this was compared, what let two halves gated on *different* conditions pair
-    and report no problem, shipping half an agent.
+    agent_name() strips the conditional so a gated file pairs with its twin, which is what
+    lets ``{% if use_fastapi %}async-safety-reviewer.md{% endif %}.jinja`` find its TOML
+    half. Comparing the gates is then what stops two halves rendered under *different*
+    conditions from pairing silently and shipping half an agent.
     """
     return "".join(JINJA_NAME.findall(path.name))
 
