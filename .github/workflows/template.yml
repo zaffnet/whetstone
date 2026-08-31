@@ -10,6 +10,13 @@ permissions:
 
 jobs:
   render-and-check:
+    # The default label is positional — `render-and-check (true, false, 88)` gives no clue
+    # which axis is which. Name them.
+    name: >-
+      render-and-check
+      (docker=${{ matrix.use_docker }},
+      fastapi=${{ matrix.use_fastapi }},
+      line-length=${{ matrix.line_length }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -80,6 +87,7 @@ jobs:
   # and at the 88-character floor on line_length, the pair that leaves the least room.
   # Two variants, because __main__.py renders only without FastAPI and app.py only with it.
   longest-name:
+    name: longest-name (fastapi=${{ matrix.use_fastapi }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -110,7 +118,8 @@ jobs:
   # matrix values in the job name, so adding an axis renames every context: adding
   # line_length turned `render-and-check (true, true)` into
   # `render-and-check (true, true, 88)` and the ruleset sat waiting on four names that
-  # no longer exist. This name never changes, whatever the matrix does.
+  # no longer exist. Labelling the axes renames them again. This name never changes,
+  # whatever the matrix does.
   #
   # always() so a failed dependency still runs it. Without it the job is skipped, and a
   # skipped required check passes the ruleset.
