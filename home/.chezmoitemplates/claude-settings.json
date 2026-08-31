@@ -131,7 +131,7 @@
   "spinnerTipsEnabled": true,
   "alwaysThinkingEnabled": false,
   "effortLevel": "xhigh",
-  "plansDirectory": "./claude/plans",
+  "plansDirectory": "./.claude/plans",
   "showClearContextOnPlanAccept": false,
   "askUserQuestionTimeout": "never",
   "dialogExpiry": "never",
