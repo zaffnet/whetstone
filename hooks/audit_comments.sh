@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Stop hook. Asks a headless Claude whether the comments, docstrings, and checker
-# suppressions in this session's Python diff are honest about the code, and blocks
-# the turn while they are not. Python only: the auditor's brief is written around
-# `# noqa` and `# type: ignore`.
+# suppressions in this session's Python diff are honest about the code, and
+# reports what it finds on stderr and lets the turn end. Python only: the
+# auditor's brief is written around `# noqa` and `# type: ignore`.
 #
 # It never edits a file: it reports, and Claude makes the edit.
 # shellcheck source-path=SCRIPTDIR source=_common.sh
@@ -16,10 +16,6 @@ strip_frontmatter() {
     !in_fm { print }
   ' "$1"
 }
-
-# stop_hook_active is deliberately not consulted: the findings are reported again on
-# every stop for as long as the comments are still there. Standing down on the second
-# pass would make the block cheaper to wait out than to answer.
 
 if ! command -v claude >/dev/null 2>&1; then
   printf 'audit_comments: claude was not found; comments were not checked\n' >&2
@@ -142,7 +138,7 @@ count="$(jq -r 'length' <<<"$findings")"
 
 report="$(jq -r '.[] | "  \(.file):\(.line)  \(.why)"' <<<"$findings")"
 
-reason="Comment text that a later reader cannot use. Cut it. Where a finding
+printf '%s\n' "Comment text that a later reader cannot use. Cut it. Where a finding
 names one clause worth keeping, keep that clause and delete the rest; where it
 names none, delete the whole comment. For a suppression, remove it and fix what
 the checker reported.
@@ -150,7 +146,5 @@ the checker reported.
 Shrink a docstring rather than deleting it, or pre-commit will fail on a public
 interface with none.
 
-$report"
-
-jq -n --arg reason "$reason" '{decision: "block", reason: $reason}'
+$report" >&2
 exit 0

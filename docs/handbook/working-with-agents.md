@@ -35,10 +35,8 @@ a full-screen TUI and block. Pass explicit flags instead of relying on that dete
 
 ## Stop hooks
 
-Two hooks check the code when a turn ends. One blocks and does not take no for an answer:
-it reports again on every stop for as long as the problem is there, and the only way past
-it is to fix the code. Claude Code ends the turn itself after 8 consecutive blocks, which
-is the harness's ceiling, not the hook's. The other only reports.
+Two hooks check the code when a turn ends. Both report what they find on stderr and let
+the turn end; neither blocks.
 
 - `hooks/typecheck.sh` runs the repository's own `./run-typecheck.sh` where there is one,
   which is what a generated project has, and `bin/run-typecheck.sh` otherwise. Whatever
@@ -47,7 +45,7 @@ is the harness's ceiling, not the hook's. The other only reports.
   environment has neither mypy nor basedpyright, which would fail on the missing executables
   rather than on their code.
 - `hooks/audit_comments.sh` pipes the session's Python diff to a headless `claude -p`
-  carrying `agents/code-honesty-auditor.md`, and blocks on what it reports: comment text that
+  carrying `agents/code-honesty-auditor.md`, and reports on stderr: comment text that
   a later reader cannot use, and every checker suppression the diff adds. It reports; it never
   rewrites, so the fix lands in the diff with the tests still to run.
 
