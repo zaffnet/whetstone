@@ -15,7 +15,12 @@
       "NotebookEdit"
     ]
   },
-  "model": "opus[1m]",
+  "model": "claude-sonnet-5",
+  "modelSettings": {
+    "claude-sonnet-5": {
+      "effortLevel": "medium"
+    }
+  },
   "hooks": {
     "SessionStart": [
       {
@@ -140,7 +145,7 @@
   "outputStyle": "Concise",
   "spinnerTipsEnabled": true,
   "alwaysThinkingEnabled": false,
-  "effortLevel": "high",
+  "effortLevel": "medium",
   "plansDirectory": "./.claude/plans",
   "showClearContextOnPlanAccept": true,
   "askUserQuestionTimeout": "never",

@@ -39,9 +39,9 @@ else
 fi
 
 AGENT="claude" # "codex"
-CLAUDE_MODEL="${CLAUDE_MODEL:-opus}"
+CLAUDE_MODEL="${CLAUDE_MODEL:-sonnet}"
 CODEX_MODEL="${CODEX_MODEL:-gpt-5.6-sol}"
-EFFORT="high"
+EFFORT="medium"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -50,6 +50,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     codex | --codex)
       AGENT="codex"
+      ;;
+    --low)
+      EFFORT="low"
       ;;
     --medium)
       EFFORT="medium"
