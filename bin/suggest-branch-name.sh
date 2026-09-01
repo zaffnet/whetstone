@@ -6,7 +6,7 @@
 #   GIT_BRANCH_PREFIX  Prefix for the name, with trailing slash (default: the
 #                      GitHub login from `gh api user`, else the git user name,
 #                      lower-cased with spaces as hyphens).
-#   CODEX_MODEL        Overrides ~/.codex/config.toml's `model` (fallback: gpt-5.5).
+#   CODEX_MODEL        Overrides ~/.codex/config.toml's `model` (fallback: gpt-5.6-sol).
 #   CODEX_BASE_URL     Overrides ~/.codex/config.toml's `openai_base_url`, then OPENAI_BASE_URL;
 #                      OPENAI_API_KEY is the credential.
 set -euo pipefail

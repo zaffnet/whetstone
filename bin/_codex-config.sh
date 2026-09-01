@@ -71,7 +71,7 @@ codex_config_value() {
 # Precedence: explicit environment, then the Codex config, then the argument as a last
 # resort so a machine with no Codex config still runs.
 codex_model() {
-  local fallback=${1:-gpt-5.5}
+  local fallback=${1:-gpt-5.6-sol}
   local value=${CODEX_MODEL:-}
 
   [[ -n $value ]] || value=$(codex_config_value model)
