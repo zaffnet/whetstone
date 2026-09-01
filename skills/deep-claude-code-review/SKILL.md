@@ -5,7 +5,7 @@ description: >-
 
 disable-model-invocation: true
 user-invocable: true
-argument-hint: "[--non-interactive] <pr-url>"
+argument-hint: "[--non-interactive] [<pr-url>]"
 metadata:
   version: "2"
 ---
@@ -24,7 +24,7 @@ When the user gives no PR URL, review the current branch against `origin/main` (
 
 ## Post
 
-- Inline review comments only after showing them to the user and asking for confirmation, unless `--non-interactive` was passed — in that case skip confirmation and post every `act on` and `consider` finding directly. Show comments one by one, i.e., show a comment, ask for confirmation, show the next comment, and so on.
+- Inline review comments only after showing them to the user and asking for confirmation, unless `--non-interactive` was passed — in that case skip confirmation and post every `act on` and `consider` finding directly. In interactive mode, show comments one by one, i.e., show a comment, ask for confirmation, show the next comment, and so on.
 - If you are afraid the comment shown will be blocked by the question asked using AskUserQuestion, then you should make the comment part of the question so the user can read it. Along with the comment you want to post, also mention its severity, the reviewers that flagged it, and any other relevant metadata.
 - In both modes, never post `noted` or `dismissed` findings as comments.
 - Do not edit the PR branch, commit, or fix the code.
