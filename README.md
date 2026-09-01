@@ -92,17 +92,20 @@ subagents, and the hooks.
 
 - The template renders in eight combinations of `use_docker`, `use_fastapi`, and
   `line_length`, and each generated project runs its own pre-commit hooks, `pytest`, and
-  `actionlint`. Homebrew installs are the one thing CI does not exercise.
-- The Docker variants build, come up under Compose, and answer on `/health`.
-- The `home/` tree applies to a clean macOS runner for both roles, and the rendered config
-  is asserted with `jq -e` rather than eyeballed.
+  `actionlint`.
+- The Docker variants build at the default `line_length`; the FastAPI one comes up under
+  Compose and answers on `/health`, and the other runs its one-shot command.
+- The `home/` tree applies to a clean macOS runner for both roles. For `work`, the rendered
+  config is then asserted against the values that went in, not eyeballed.
+- Homebrew installs are not exercised, and the template run skips
+  `check-container-version` and `diff-cover`. `REVIEW.md` lists the rest of what CI cannot
+  see.
 - One repo covers more than one machine. Machine-specific values sit in `[data.work]` of
   the local chezmoi config.
 - Secrets stay in the environment, checked by gitleaks, a local denylist hook, and GitHub
   push protection (`docs/redaction.md`).
 
-`AGENTS.md` is the handbook agents and humans both read, and `REVIEW.md` says what a
-reviewer should flag here.
+`AGENTS.md` is the handbook agents and humans both read.
 
 ## Keeping it current
 
