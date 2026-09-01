@@ -5,6 +5,7 @@ description: >-
 
 disable-model-invocation: true
 user-invocable: true
+argument-hint: "[--non-interactive] [<pr-url>]"
 metadata:
   version: "2"
 ---
@@ -23,11 +24,12 @@ When the user gives no PR URL, review the current branch against `origin/main` (
 
 ## Post
 
-- Inline review comments only after showing them to the user and asking for confirmation. Show comments one by one, i.e., show a comment, ask for confirmation, show the next comment, and so on.
+- Inline review comments only after showing them to the user and asking for confirmation, unless `--non-interactive` was passed — in that case skip confirmation and post every `act on` and `consider` finding directly. In interactive mode, show comments one by one, i.e., show a comment, ask for confirmation, show the next comment, and so on.
 - If you are afraid the comment shown will be blocked by the question asked using AskUserQuestion, then you should make the comment part of the question so the user can read it. Along with the comment you want to post, also mention its severity, the reviewers that flagged it, and any other relevant metadata.
+- In both modes, never post `noted` or `dismissed` findings as comments.
 - Do not edit the PR branch, commit, or fix the code.
 - Prefix each comment with "`deep-pr-review` (AI) on behalf of @<handle>:", where `<handle>` is the output of `gh api user --jq .login`.
-- Based on the comments approved by the user, submit your review. The overall review should be a concise summary of the findings (only on the approved comments).
+- Based on the comments approved by the user, submit your review. The overall review should be a concise summary of the findings (only on the approved comments). With `--non-interactive`, submit the review the same way based on all auto-posted findings instead of an approved subset.
 - Event: `COMMENT`, `REQUEST_CHANGES`, or `APPROVE` based on your review.
 
 ## Placement
