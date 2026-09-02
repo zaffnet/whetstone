@@ -117,5 +117,5 @@ count="$(jq -r 'length' <<<"$findings")"
 
 report="$(jq -r '.[] | "  \(.file):\(.line)  \(.why)"' <<<"$findings")"
 
-printf '%s\n\n%s\n' "$HONESTY_LEAD" "$report" | hook_emit_system_message Stop
+printf '%s\n\n%s\n' "$HONESTY_LEAD" "$report" | hook_emit_system_message
 exit 0

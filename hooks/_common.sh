@@ -17,11 +17,13 @@ hook_field() {
 }
 
 # Findings on stdout as JSON, which is the only channel Claude reads: stderr from a
-# hook that exits 0 reaches the debug log and nothing else. Text on stdin, event name
-# in $1. jq -Rs does the escaping, so a finding may contain quotes and newlines.
+# hook that exits 0 reaches the debug log and nothing else. Text on stdin.
+#
+# systemMessage is top level, not under hookSpecificOutput, which holds a
+# per-event decision instead. Nested, it is silently discarded and nothing reaches
+# Claude. jq -Rs does the escaping, so a finding may contain quotes and newlines.
 hook_emit_system_message() {
-  jq -Rs --arg event "$1" \
-    '{hookSpecificOutput: {hookEventName: $event, systemMessage: .}}'
+  jq -Rs '{systemMessage: .}'
 }
 
 # NUL-separated paths of the files this turn changed, tracked and untracked, matching

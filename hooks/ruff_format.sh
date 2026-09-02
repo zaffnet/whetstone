@@ -21,6 +21,10 @@ format_one() {
     *) return 0 ;;
   esac
   [[ -f $file_path ]] || return 0
+  # Absolute before the cd below: the working tree names a file relative to the
+  # repository root, and in a monorepo the project that owns it is a directory
+  # further down, where that relative path does not resolve.
+  [[ $file_path == /* ]] || file_path="$PWD/$file_path"
 
   project_root="$(dirname -- "$file_path")"
   while [[ ! -f $project_root/pyproject.toml ]]; do
@@ -68,5 +72,5 @@ fi
 
 # What ruff could not fix itself, which is the part worth Claude's attention.
 [[ -n ${report//[[:space:]]/} ]] || exit 0
-printf '%s\n' "$report" | hook_emit_system_message PostToolUse
+printf '%s\n' "$report" | hook_emit_system_message
 exit 0

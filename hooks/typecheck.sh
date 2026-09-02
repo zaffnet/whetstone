@@ -51,5 +51,5 @@ output="$(bash "$checker" 2>&1)" || status=$?
 printf '%s\n' "The type checkers failed. The work is not done until they pass.
 Fix the root cause of every finding; do not silence a checker.
 
-$output" | hook_emit_system_message Stop
+$output" | hook_emit_system_message
 exit 0
