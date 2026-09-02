@@ -24,12 +24,6 @@ Follow `~/.agents/handbook/working-with-agents.md`. Color
 flags go on the command, never in the environment. Run independent reads in one turn. Ending
 a turn is a stop, not a wait.
 
-Modify files with Edit and Write, never with a shell redirect, `sed -i`, or a `write_text`
-heredoc. Edit reads the file first and fails on an ambiguous match; a shell write shows no
-diff and silently mangles what it rewrites instead. In Claude Code, auto mode also steers an
-agent off the three tools `permissions.ask` gates, so the prompt never fires. Reads and
-searches are Bash's to keep -- `cat`, `sed -n`, `grep`, `find`.
-
 ## Git
 
 Small PRs, one logical change each. Conventional commits, imperative mood, first line of
