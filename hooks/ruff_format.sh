@@ -11,6 +11,11 @@
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
 
+# How recently a file must have changed to count as this tool's work. Wide enough to
+# cover a slow command that writes early and exits late; a write older than this is
+# left to pre-commit rather than risking someone else's file.
+STALE_AFTER_SECONDS=30
+
 # Run ruff from the project that owns the file, so a file in another repository
 # (reachable through --add-dir) is formatted under its own pyproject.toml, not
 # this one's. No pyproject.toml above the file means no opinion: do nothing.
@@ -65,9 +70,13 @@ else
   root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || exit 0
   cd "$root" || exit 0
 
+  # Restricted to files the tool just wrote. The working-tree diff also holds work
+  # the user had in progress before the turn, and a read-only command like `ls`
+  # reaches this branch too: formatting everything uncommitted would rewrite a
+  # half-written file that nothing in this session touched.
   while IFS= read -r -d '' changed; do
     report+="$(format_one "$changed")"
-  done < <(hook_changed_files '*.py' '*.pyi')
+  done < <(hook_changed_files '*.py' '*.pyi' | hook_recently_modified "$STALE_AFTER_SECONDS")
 fi
 
 # What ruff could not fix itself, which is the part worth Claude's attention.

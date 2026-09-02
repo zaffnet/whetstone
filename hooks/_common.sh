@@ -42,6 +42,30 @@ hook_changed_files() {
   } | sort -zu
 }
 
+# NUL-separated subset of the NUL-separated paths on stdin that were modified within
+# the last $1 seconds. A file the tool that just finished wrote is necessarily fresh,
+# so this is what separates its writes from work the user already had in progress.
+#
+# perl's utime and bash's -nt, because `find -newermt` rejects a relative time on BSD
+# and `stat` spells the mtime differently on BSD and GNU.
+hook_recently_modified() {
+  local within=$1 reference path
+  reference="$(mktemp)" || return 0
+  perl -e 'utime(time() - $ARGV[0], time() - $ARGV[0], $ARGV[1]) or exit 1' \
+    "$within" "$reference" 2>/dev/null || {
+    # Without a reference there is no way to tell fresh from stale. Emitting nothing
+    # skips formatting, which is the safe direction: the alternative rewrites files
+    # this tool never touched.
+    rm -f "$reference"
+    return 0
+  }
+
+  while IFS= read -r -d '' path; do
+    [[ $path -nt $reference ]] && printf '%s\0' "$path"
+  done
+  rm -f "$reference"
+}
+
 # One patch covering this turn's changes to the pathspecs in "$@", tracked and
 # untracked. --no-color and no pager so a model reads the diff and not terminal
 # escapes. Untracked files have no diff, so they go through --no-index against
