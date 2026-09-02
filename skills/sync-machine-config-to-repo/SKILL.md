@@ -80,8 +80,10 @@ Put each survivor in exactly one bucket.
 
 **Never manage.** Machine-generated state, written by a tool, so a blanked copy teaches a
 new machine nothing: `~/.config/gh/hosts.yml`, `~/.docker/config.json`, `~/.claude.json`,
-`~/.codex/auth.json`, everything under `~/.ssh`. Read the file before deciding. A name is
-not evidence either way.
+`~/.codex/auth.json`, everything under `~/.ssh`. These are never-manage on the path alone;
+do not open them, since `~/.ssh` in particular holds private key material a read would
+expose for no classification benefit. For a survivor not on this list, read the file before
+deciding — a name is not evidence either way.
 
 **Example plus ignore.** The default for a credential file a human edits by hand:
 `~/.zsh_secrets`, `~/.aws/credentials`, `~/.lou/.env`. The variable names are the useful
@@ -97,7 +99,9 @@ Diff the live file's names against the example and add every name found only in 
 file. A missing name is a key the next machine will not know it needs.
 
 Strip everything right of `=`, and keep each line commented out so sourcing a half-filled
-file exports nothing empty.
+file exports nothing empty. A multiline value or a line continuation does not fit this
+pattern; read the file, and if a key's value spans more than one line, take the key name
+only and drop the value lines rather than copying any of them across.
 
 Rewrite the comments as well. Notes beside a key accumulate an internal host, a private
 URL, a workspace or asset id, a console link, a personal email, all of which
@@ -155,9 +159,13 @@ instead. `docs/redaction.md` is the rule and pre-commit enforces it.
 
 ## 6. Software
 
-Run `just sync` and read its Brewfile diff. Lines marked `>` are installed but absent from
-the Brewfile. For each, either add it under the right comment heading or leave it out as a
-one-off, a dependency of something already listed, or corp-installed.
+`just sync` starts with `chezmoi re-add` and `bin/sync-claude-settings`, both of which write
+to the source tree. HEAD is still `main` at this point, so do not run `just sync` itself.
+Instead run its last two lines directly: dump the live Brewfile to `/tmp` with `brew bundle
+dump --force`, then diff it against `home/dot_config/homebrew/Brewfile`. Both only read.
+Lines marked `>` are installed but absent from the Brewfile. For each, either add it under
+the right comment heading or leave it out as a one-off, a dependency of something already
+listed, or corp-installed.
 
 The Brewfile carries non-standard `uv "..."` and `npm "..."` lines that the `just sync`
 grep recognises. Preserve those line types; do not convert them to `brew` or `cask`.
@@ -167,9 +175,14 @@ scanners, telemetry and asset inventory agents, and the MDM enrolment apps thems
 personal machine must not install those, and a work machine gets them from MDM. Anything
 installed under `/Applications` that the user never chose is a candidate for this rule.
 
-`just sync` also runs `chezmoi re-add` and `bin/sync-claude-settings`. A change from either
-is drift in an already-managed file, not a new candidate. Report it separately in phase 12
-rather than folding it into this run.
+Under `--report-only`, stop here: phase 9 never runs, so there is no branch to run the
+mutating half of `just sync` on safely. Note in the report that `chezmoi re-add` drift was
+not checked this run.
+
+Off `--report-only`, run the mutating half — `chezmoi re-add` and `bin/sync-claude-settings`
+— only after phase 9 creates the branch, never before. A change from either is drift in an
+already-managed file, not a new candidate: report it separately in phase 12 rather than
+folding it into this run.
 
 ## 7. Ask
 
@@ -193,7 +206,9 @@ open, and skip it entirely under `--report-only`.
 
 ## 9. Apply
 
-Create the branch before the first edit, so no change ever sits on `main`.
+Create the branch before the first edit, so no change ever sits on `main`. Then run
+`chezmoi re-add` and `bin/sync-claude-settings`, the mutating half of `just sync` deferred
+from phase 6 — now safe, since any rewrite lands on the branch.
 
 Onboard each file with `chezmoi add`. `re-add` only touches already-managed files and does
 nothing at all for a new one. Pass `--template` when phase 5 chose `.tmpl`. Then Read the
