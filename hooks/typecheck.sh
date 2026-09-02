@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Stop hook. It reports what the type checkers found on stderr and lets the turn
-# end; the checkers also run in pre-commit and CI, so nothing here blocks.
-# Suppressions are audit_comments.sh's business, not this hook's.
+# Stop hook. It reports what the type checkers found and lets the turn end; the
+# checkers also run in pre-commit and CI, so nothing here blocks.
+# Suppressions are code_prose_honesty.sh's business, not this hook's.
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
 
@@ -14,17 +14,8 @@ cd "$root" || exit 0
 # No Python in the repository means no opinion.
 [[ -f pyproject.toml ]] || exit 0
 
-# Before the first commit there is no HEAD to diff against. The empty tree stands
-# in for the absent commit, so the check below reports whether anything changed
-# instead of that the command failed.
-base=HEAD
-git rev-parse --verify -q HEAD >/dev/null \
-  || base="$(git hash-object -t tree /dev/null)"
-
 # Nothing changed, nothing to check.
-git diff --quiet "$base" -- '*.py' '*.pyi' 2>/dev/null \
-  && [[ -z "$(git ls-files --others --exclude-standard -- '*.py' '*.pyi' 2>/dev/null)" ]] \
-  && exit 0
+[[ -n "$(hook_changed_files '*.py' '*.pyi')" ]] || exit 0
 
 # A repository's own script overrides the one shipped here, which is how it chooses
 # different tools or flags. Tested for readable rather than executable, and run through
@@ -60,5 +51,5 @@ output="$(bash "$checker" 2>&1)" || status=$?
 printf '%s\n' "The type checkers failed. The work is not done until they pass.
 Fix the root cause of every finding; do not silence a checker.
 
-$output" >&2
+$output" | hook_emit_system_message Stop
 exit 0

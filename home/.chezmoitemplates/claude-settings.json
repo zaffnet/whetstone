@@ -17,6 +17,17 @@
     }
   },
   "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit|Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.agents/hooks/ruff_format.sh\""
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "matcher": "",
@@ -71,7 +82,12 @@
           },
           {
             "type": "command",
-            "command": "bash \"$HOME/.agents/hooks/audit_comments.sh\"",
+            "command": "bash \"$HOME/.agents/hooks/code_prose_honesty.sh\"",
+            "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.agents/hooks/prose_honesty.sh\"",
             "timeout": 120
           },
           {

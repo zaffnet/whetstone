@@ -8,7 +8,28 @@
             "type": "command"
           }
         ],
-        "matcher": "Edit|Write"
+        "matcher": "Edit|Write|NotebookEdit|Bash|PowerShell"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/typecheck.sh\"",
+            "timeout": 600,
+            "type": "command"
+          },
+          {
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/code_prose_honesty.sh\"",
+            "timeout": 120,
+            "type": "command"
+          },
+          {
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/prose_honesty.sh\"",
+            "timeout": 120,
+            "type": "command"
+          }
+        ]
       }
     ]{% if use_graphify %},
     "PreToolUse": [

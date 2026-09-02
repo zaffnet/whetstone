@@ -33,9 +33,11 @@
         "./agents/async-safety-reviewer.md",
         "./agents/deceptive-test-hunter.md",
         "./agents/consumer-agnostic-client-reviewer.md",
-        "./agents/variant-extensibility-reviewer.md"
+        "./agents/variant-extensibility-reviewer.md",
+        "./agents/code-honesty-auditor.md",
+        "./agents/prose-honesty-auditor.md"
       ],
-      "description": "Reviewer subagents: async safety, deceptive tests, consumer-agnostic clients, variant extensibility.",
+      "description": "Reviewer subagents: async safety, deceptive tests, consumer-agnostic clients, variant extensibility, and the two honesty auditors the Stop hooks use.",
       "version": "0.1.0",
       "category": "Developer Tools",
       "keywords": [
@@ -52,7 +54,7 @@
       "source": "./",
       "strict": true,
       "hooks": "./hooks/hooks.json",
-      "description": "ruff on every edit and a worktree setup hook.",
+      "description": "ruff on every file change whatever wrote it, type and prose-honesty reports at the end of a turn, and a worktree setup hook.",
       "version": "0.1.0",
       "category": "Developer Tools",
       "keywords": [

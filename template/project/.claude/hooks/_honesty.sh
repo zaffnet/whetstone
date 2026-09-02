@@ -1,0 +1,1 @@
+../../../../hooks/_honesty.sh
