@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Registers graphify with Claude Code, Cursor, and Codex, and installs its git hooks
+# machine-wide. graphify is not an MCP server (sync-mcp does not touch it) and not a skill
+# (skills.txt does not list it); its own install/uninstall subcommands are the only
+# mechanism managing the product files they write.
+# Re-runs whenever the Brewfile changes (e.g. a graphifyy version bump); the install
+# commands are idempotent, so an unrelated Brewfile edit re-running this is harmless.
+# Brewfile hash: {{ include "dot_config/homebrew/Brewfile" | sha256sum }}
+set -euo pipefail
+
+if ! command -v graphify >/dev/null; then
+  echo "graphify: not installed, skipping" >&2
+  exit 0
+fi
+
+graphify install
+graphify claude install
+graphify cursor install
+graphify codex install
+graphify hook install

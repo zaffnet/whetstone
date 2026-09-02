@@ -16,6 +16,7 @@ jobs:
       render-and-check
       (docker=${{ matrix.use_docker }},
       fastapi=${{ matrix.use_fastapi }},
+      graphify=${{ matrix.use_graphify }},
       line-length=${{ matrix.line_length }})
     runs-on: ubuntu-latest
     strategy:
@@ -23,6 +24,7 @@ jobs:
       matrix:
         use_docker: ["false", "true"]
         use_fastapi: ["false", "true"]
+        use_graphify: ["false", "true"]
         # 88 is ruff's own default and the likeliest non-default answer. Rendering only the
         # default hid a template line that was 89 characters wide.
         line_length: ["100", "88"]
@@ -39,6 +41,7 @@ jobs:
         env:
           USE_DOCKER: ${{ matrix.use_docker }}
           USE_FASTAPI: ${{ matrix.use_fastapi }}
+          USE_GRAPHIFY: ${{ matrix.use_graphify }}
           LINE_LENGTH: ${{ matrix.line_length }}
         # --vcs-ref HEAD: copier defaults to the latest tag, which would test the last
         # release instead of this commit.
@@ -46,6 +49,7 @@ jobs:
           uvx copier copy --defaults --vcs-ref HEAD \
             -d project_name=demo-app -d description=Demo -d github_owner=octocat \
             -d "use_docker=$USE_DOCKER" -d "use_fastapi=$USE_FASTAPI" \
+            -d "use_graphify=$USE_GRAPHIFY" \
             -d "line_length=$LINE_LENGTH" . /tmp/demo
       - name: Check the generated project
         working-directory: /tmp/demo

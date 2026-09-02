@@ -1,0 +1,9 @@
+sandbox_mode = "workspace-write"
+
+[features]
+hooks = true
+memories = true
+{% if use_graphify %}
+[[hooks.pre_tool_use]]
+command = "graphify hook-check"
+{% endif -%}

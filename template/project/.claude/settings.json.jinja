@@ -10,7 +10,18 @@
         ],
         "matcher": "Edit|Write"
       }
-    ]
+    ]{% if use_graphify %},
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "graphify hook-guard",
+            "type": "command"
+          }
+        ],
+        "matcher": "Read|Glob|Grep|Bash"
+      }
+    ]{% endif %}
   },
   "plansDirectory": ".claude/plans"
 }

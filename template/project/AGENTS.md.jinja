@@ -38,7 +38,15 @@ Color flags per command, never via env:
 
 Never strip ANSI with regex after the fact.
 
-## Parallel tool calling in agent loops
+{% if use_graphify %}## Codebase graph
+
+This project has a graphify knowledge graph. Prefer `graphify query "<question>"` over
+grepping raw files or reading the codebase file by file. `graphify-out/GRAPH_REPORT.md`
+covers broad architecture questions. Rebuild after a large change: `/graphify .`. Sync after
+pulling: `graphify update .`. Git hooks that automate the rebuild are opt-in per clone:
+`graphify hook install`.
+
+{% endif %}## Parallel tool calling in agent loops
 
 When the next independent reads or checks are only implied by the task, list what you need next, then request every item that does not depend on another's result in one response.
 

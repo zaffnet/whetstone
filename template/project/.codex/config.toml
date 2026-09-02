@@ -1,5 +1,0 @@
-sandbox_mode = "workspace-write"
-
-[features]
-hooks = true
-memories = true

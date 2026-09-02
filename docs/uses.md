@@ -13,6 +13,7 @@
 - Git: `git-delta` for diffs, `gh` with the `gh-stack` extension for stacked PRs, commitlint
   for message format, `zdiff3` conflict style, `rerere` on.
 - Agents: Claude Code (statusline and theme in `home/dot_claude`), Codex CLI and desktop,
-  Cursor agent. Skills and MCP servers shared through `~/.agents`.
+  Cursor agent. Skills and MCP servers shared through `~/.agents`. Codebase knowledge graph
+  via graphify.
 - Utilities: fzf, ripgrep, jq, tmux, htop, tree, Caffeine, Maccy.
 - Data: Beekeeper Studio, DBeaver.

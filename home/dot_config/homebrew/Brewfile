@@ -75,6 +75,7 @@ uv "pyrefly"
 uv "ruff"
 uv "playwright"
 uv "it2"                       # iTerm2 CLI
+uv "graphifyy"                 # graphify: codebase knowledge graph (command is `graphify`)
 
 npm "corepack"
 npm "mermaid-filter"
