@@ -25,6 +25,24 @@
 # Brewfile hash: {{ include "dot_config/homebrew/Brewfile" | sha256sum }}
 set -euo pipefail
 
+# The Brewfile installs graphifyy as a uv tool, which lands in `uv tool dir --bin`
+# (~/.local/bin). Neither that directory nor Homebrew's own bin is on PATH during a first
+# apply: the first arrives via .zprofile, which no login shell has read yet, and the second
+# only inside 10-brew-bundle.sh's process (same gap 40-sync-mcp.sh handles). A miss here is
+# permanent, not retried -- the skip below exits 0, so chezmoi records this run_onchange_
+# script as done until the Brewfile changes again.
+if ! command -v uv >/dev/null; then
+  for brew_bin in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [[ -x $brew_bin ]]; then
+      eval "$("$brew_bin" shellenv)"
+      break
+    fi
+  done
+fi
+if ! command -v graphify >/dev/null && command -v uv >/dev/null; then
+  PATH="$(uv tool dir --bin):$PATH"
+fi
+
 if ! command -v graphify >/dev/null; then
   echo "graphify: not installed, skipping" >&2
   exit 0
