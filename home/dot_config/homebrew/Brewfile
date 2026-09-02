@@ -29,6 +29,7 @@ brew "just"
 brew "shellcheck"
 brew "shfmt"
 brew "actionlint"              # GitHub Actions workflow linter
+brew "bats-core"               # Bash test runner
 
 # Languages and runtimes
 brew "uv"                      # Python packaging; also manages Python versions
@@ -39,6 +40,8 @@ brew "ruby", link: false
 brew "nvm"                     # Node version manager
 
 # Documents and media
+tap "charmbracelet/tap"
+brew "charmbracelet/tap/freeze", trusted: true # Screenshots of code and terminal output
 brew "pandoc"
 brew "poppler"                 # pdftotext, pdftoppm
 brew "tesseract"               # OCR
@@ -76,6 +79,8 @@ uv "ruff"
 uv "playwright"
 uv "it2"                       # iTerm2 CLI
 uv "graphifyy"                 # graphify: codebase knowledge graph (command is `graphify`)
+uv "black"                     # Formats the odd repo that pins black rather than ruff
 
 npm "corepack"
 npm "mermaid-filter"
+npm "aws-cdk"                  # cdk CLI
