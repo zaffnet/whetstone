@@ -25,19 +25,23 @@ already tracks and never surfaces a new one. This is the other half.
 
 Terse operator mode. Report decisions and paths, do not teach.
 
-With `--report-only` in $ARGUMENTS, stop after phase 12 and change nothing: no branch, no
-edits, no deletions.
+With `--report-only` in $ARGUMENTS, run phases 1 through 8 and phase 12, skip phases 9
+through 11: no branch, no edits, no deletions, no PR.
 
 ## 1. Preflight
 
 Refuse and name the reason if any of these holds: the working tree is dirty, HEAD is not
 `main`, `main` is behind `origin/main`, `chezmoi` is not installed, `chezmoi source-path`
-is not this checkout, or `just diff` prints anything. Pending drift would be
-indistinguishable from this run's own change.
+is not `$(git rev-parse --show-toplevel)/home` (this repo sets `.chezmoiroot` to `home`, so
+source-path is never the checkout root itself), or `just diff` prints anything. Pending
+drift would be indistinguishable from this run's own change.
 
-Record `chezmoi managed --include=files` as the managed set. Every later question is "is
-this path in the managed set". Bare `chezmoi managed` counts directories too and overstates
-coverage, so do not use it.
+Record `chezmoi managed --include=files,symlinks` as the managed set. Every later question
+is "is this path in the managed set". Bare `chezmoi managed` counts directories too and
+overstates coverage; `--include=files` alone misses managed symlinks such as
+`.claude/CLAUDE.md`, so either omission returns already-managed paths as apparent new
+candidates. Pass `--source .` on every ad-hoc `chezmoi` call this skill makes outside
+`just`, so it never reads a different `sourceDir` than this checkout.
 
 Check `/Library/Managed Preferences`. If it is populated, this is an MDM machine: that path
 and the preferences it overrides are read-only ground truth. Never scan it, never manage
@@ -66,11 +70,13 @@ Drop these outright, with no question asked and no report line:
 `~/Downloads`, `~/Movies`, `~/Music`, `~/Pictures`, `~/Public`, `~/Screenshots`,
 `~/.Trash`, anything under `~/Library` outside the phase 2 allowlist,
 `/Library/Managed Preferences`, `node_modules`, `.venv`, `cdk.out`, `.git`, `__pycache__`,
-any path segment containing `cache` or `logs`, `.DS_Store`, `*.bak*`, `*backup*`, `*.zip`,
-`*.tar*`, `*.png`, `*.pem`, `.zcompdump*`, `*_history`, `.viminfo`, `~/.config/chezmoi`
-(it holds `[data.work]` and is never managed), generated receipts such as
-`~/.config/uv/uv-receipt.json`, and repo spill in `~` (`main.py`, `pyproject.toml`,
-`uv.lock`).
+any path segment containing `cache` or `logs`, `.DS_Store`, `*.zip`, `*.tar*`, `*.png`,
+`*.pem`, `*_history`, `.viminfo`, `~/.config/chezmoi` (it holds `[data.work]` and is never
+managed), generated receipts such as `~/.config/uv/uv-receipt.json`, and repo spill in `~`
+(`main.py`, `pyproject.toml`, `uv.lock`).
+
+`*.bak*`, `*backup*`, and `.zcompdump*` are not dropped here: they go to phase 8 as cruft,
+so the user sees the path and size before it is deleted.
 
 Then drop everything already in the managed set.
 
@@ -80,14 +86,16 @@ Put each survivor in exactly one bucket.
 
 **Never manage.** Machine-generated state, written by a tool, so a blanked copy teaches a
 new machine nothing: `~/.config/gh/hosts.yml`, `~/.docker/config.json`, `~/.claude.json`,
-`~/.codex/auth.json`, everything under `~/.ssh`. These are never-manage on the path alone;
-do not open them, since `~/.ssh` in particular holds private key material a read would
-expose for no classification benefit. For a survivor not on this list, read the file before
-deciding — a name is not evidence either way.
+`~/.codex/auth.json`, and key material under `~/.ssh` (`id_*`, `known_hosts`,
+`authorized_keys`). These are never-manage on the path alone; do not open them, since the
+`~/.ssh` key files in particular hold private key material a read would expose for no
+classification benefit. `~/.ssh/config` is not key material — it is hand-edited
+configuration, so classify it normally. For a survivor not on this list, read the file
+before deciding — a name is not evidence either way.
 
 **Example plus ignore.** The default for a credential file a human edits by hand:
-`~/.zsh_secrets`, `~/.aws/credentials`, `~/.lou/.env`. The variable names are the useful
-part. Manage those with every value empty, ignore the real path.
+`~/.zsh_secrets`, `~/.aws/credentials`. The variable names are the useful part. Manage
+those with every value empty, ignore the real path.
 `dot_zsh_secrets.example` and its two `.chezmoiignore` lines are the model:
 
 ```sh
@@ -116,10 +124,8 @@ detail.
 Auto-decide the clear cases. Auto-manage a hand-edited config for a tool already in the
 Brewfile or already present in `home/`, when it holds no credential. Send a hand-edited
 file whose contents show a credential to example plus ignore, and a tool-written one to
-never manage. Auto-cruft names matching the backup patterns. Auto-drop caches, MRU lists,
-window frames, and session state. Ask only about what is left.
-
-Read anything not obviously secret.
+never manage. Auto-cruft names matching the backup patterns from phase 8. Auto-drop caches,
+MRU lists, window frames, and session state. Ask only about what is left.
 
 ## 5. Route
 
@@ -128,6 +134,7 @@ Read anything not obviously secret.
 | Plain file in `home/` | Same bytes on every machine. |
 | `.tmpl` | Any part varies by machine, user, or role. Default when unsure. |
 | `symlink_` | The real content belongs in the repo working tree, as the agent config does. |
+| `modify_` | An application also writes this file at runtime. A plain file or `.tmpl` would let the next apply discard keys the app wrote; `modify_settings.json.tmpl:2-12` for Cursor is the working example, owning per top-level key and carrying over anything else. |
 | `.chezmoiscripts/` | The state is set by a command, not a file: `defaults write`, an installer. |
 | `.chezmoiignore` | Paired with an `.example`, or a file corp tooling rewrites. |
 | Brewfile | Software. See phase 6. |
@@ -159,10 +166,18 @@ instead. `docs/redaction.md` is the rule and pre-commit enforces it.
 
 ## 6. Software
 
-`just sync` starts with `chezmoi re-add` and `bin/sync-claude-settings`, both of which write
-to the source tree. HEAD is still `main` at this point, so do not run `just sync` itself.
-Instead run its last two lines directly: dump the live Brewfile to `/tmp` with `brew bundle
-dump --force`, then diff it against `home/dot_config/homebrew/Brewfile`. Both only read.
+`just sync` runs `chezmoi re-add`, then `bin/sync-claude-settings`, then a Brewfile dump and
+diff. Only `chezmoi re-add` writes to the source tree. `bin/sync-claude-settings` is
+read-only unless called with `--adopt`, which `just sync` does not pass: without it, a
+declared key that differs is printed and left alone. HEAD is still `main` at this point, so
+do not run `chezmoi re-add` yet, but the rest of `just sync` is safe to run directly:
+
+- `python3 bin/sync-claude-settings`, read-only, reports drift in `~/.claude/settings.json`.
+- Dump the live Brewfile with `brew bundle dump --force --file=/tmp/whetstone-brewfile`,
+  then diff it against `home/dot_config/homebrew/Brewfile`, the same comparison `just sync`
+  runs: filter both to lines starting `brew`, `cask`, `tap`, `uv`, `npm`, or `go`, strip
+  trailing comments, sort, and diff.
+
 Lines marked `>` are installed but absent from the Brewfile. For each, either add it under
 the right comment heading or leave it out as a one-off, a dependency of something already
 listed, or corp-installed.
@@ -175,14 +190,12 @@ scanners, telemetry and asset inventory agents, and the MDM enrolment apps thems
 personal machine must not install those, and a work machine gets them from MDM. Anything
 installed under `/Applications` that the user never chose is a candidate for this rule.
 
-Under `--report-only`, stop here: phase 9 never runs, so there is no branch to run the
-mutating half of `just sync` on safely. Note in the report that `chezmoi re-add` drift was
-not checked this run.
+Under `--report-only`, this phase's reads already ran above; there is nothing further to
+defer. Note in the report any `bin/sync-claude-settings` drift found.
 
-Off `--report-only`, run the mutating half — `chezmoi re-add` and `bin/sync-claude-settings`
-— only after phase 9 creates the branch, never before. A change from either is drift in an
-already-managed file, not a new candidate: report it separately in phase 12 rather than
-folding it into this run.
+Off `--report-only`, run `chezmoi re-add` only after phase 9 creates the branch, never
+before. A change it makes is drift in an already-managed file, not a new candidate: report
+it separately in phase 12 rather than folding it into this run.
 
 ## 7. Ask
 
@@ -191,29 +204,37 @@ editors, agents, cloud, version managers, macOS defaults. Put the file path in t
 and the phase 5 routes in the options. Include "leave unmanaged" in every group.
 
 There is no ledger, so a declined item is asked again on the next run. That is the accepted
-cost. If a class of item gets declined twice, propose adding it to the phase 3 drop list in
-this file as part of the same PR.
+cost.
 
 ## 8. Cruft
 
-Report every item with its exact path and size. Group by kind: Claude config backups,
-shell-rc backups, whetstone pre-apply tarballs, zcompdumps, leftover plists. Ask once per
-group.
+Find `*.bak*`, `*backup*`, and `.zcompdump*` matches from phase 3, and any other stale copy
+noticed while scanning. Report every item with its exact path and size. Group by kind:
+Claude config backups, shell-rc backups, whetstone pre-apply tarballs, zcompdumps, leftover
+plists. Ask once per group.
 
 Delete only approved groups, with `rm` on the exact paths the user saw. Never a glob they
 did not see. Cruft deletion is a machine change, not a repo change: do it after the PR is
-open, and skip it entirely under `--report-only`.
+open, and skip the deletion step under `--report-only` — report the groups either way.
 
 ## 9. Apply
 
 Create the branch before the first edit, so no change ever sits on `main`. Then run
-`chezmoi re-add` and `bin/sync-claude-settings`, the mutating half of `just sync` deferred
-from phase 6 — now safe, since any rewrite lands on the branch.
+`chezmoi re-add`, the mutating half of `just sync` deferred from phase 6 — now safe, since
+any rewrite lands on the branch.
 
-Onboard each file with `chezmoi add`. `re-add` only touches already-managed files and does
-nothing at all for a new one. Pass `--template` when phase 5 chose `.tmpl`. Then Read the
-added file under `home/` and Edit it: strip machine specifics, add the `$work` guards, and
-add a comment where a setting's reason is not obvious.
+For every route except example plus ignore: onboard the file with `chezmoi add`. `re-add`
+only touches already-managed files and does nothing at all for a new one. Pass `--template`
+when phase 5 chose `.tmpl`. Then Read the added file under `home/` and Edit it: strip
+machine specifics, add the `$work` guards, and add a comment where a setting's reason is
+not obvious.
+
+For the example plus ignore bucket, do not run `chezmoi add` on the live path at all —
+`chezmoi add` copies live bytes verbatim, so the secret values would sit in the source tree,
+reachable by `git add` and inside gitleaks' scan root, until the Edit that blanks them.
+Instead: add the `.chezmoiignore` line for the live path first, then Write the `.example`
+directly from the names read out of the live file in phase 4. No copy of the live file, or
+its values, is ever created.
 
 Two ways an apply destroys data. Handle both before running one:
 
@@ -233,7 +254,10 @@ In order, stopping at the first failure:
 
 1. `just diff`, reading every hunk. Expect only the added files. A hunk that deletes a
    file, replaces a directory with a symlink, or rewrites an untouched file is a stop:
-   `git restore` that source file and report it instead of applying.
+   these files were just staged by `chezmoi add` in phase 9, so `git restore` either
+   no-ops (untracked) or leaves the file in place (staged) instead of undoing it. Run
+   `chezmoi forget` on the offending source path — the inverse of `chezmoi add` — or, if it
+   is already staged, `git rm --cached` followed by `rm`. Report it instead of applying.
 2. `just lint`. `check-skills-doc.py` fails here if `docs/skills.md` lacks the row for this
    skill; gitleaks and `forbid-private-patterns` fail here on a leaked string. Fix the
    cause, never suppress the checker.
@@ -263,13 +287,14 @@ comment into a managed file.
 
 In this order:
 
-1. What was adopted: path, route, commit.
+1. What was adopted: path, route, commit. Off `--report-only` only.
 2. Every variable name added to an `.example`, and any name held back because its comment
    could not be rewritten without the private detail.
 3. What was left unmanaged as tool-written state: exact path, one line on what it holds.
 4. What was skipped by choice, and why.
 5. The literal `[data.work]` lines to paste into `~/.config/chezmoi/chezmoi.toml`, stating
    that this run did not write that file.
-6. The cruft list with paths and sizes, and which groups were deleted.
-7. Drift `just sync` found in already-managed files.
-8. Any item that stopped at verification.
+6. The cruft list with paths and sizes, and which groups were deleted. Under
+   `--report-only`, list the groups found instead of which were deleted.
+7. Drift `bin/sync-claude-settings` and the Brewfile diff found in already-managed files.
+8. Any item that stopped at verification. Off `--report-only` only.
