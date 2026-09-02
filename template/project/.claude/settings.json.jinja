@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/ruff_format.sh\"",
+            "type": "command"
+          }
+        ],
+        "matcher": "Edit|Write"
+      }
+    ]{% if use_graphify %},
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "graphify hook-guard search",
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash|Grep"
+      },
+      {
+        "hooks": [
+          {
+            "command": "graphify hook-guard read",
+            "type": "command"
+          }
+        ],
+        "matcher": "Read|Glob"
+      }
+    ]{% endif %}
+  },
+  "plansDirectory": ".claude/plans"
+}

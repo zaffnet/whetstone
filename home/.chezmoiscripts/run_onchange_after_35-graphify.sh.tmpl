@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Installs the graphify skill machine-wide. graphify is not an MCP server (sync-mcp does not
+# touch it) and not a skill in skills.txt; `graphify install` is the only mechanism managing
+# the product files it writes.
+#
+# --platform agents, not the default: the skill lands in ~/.agents/skills/graphify, which is
+# where this repo keeps every skill and what ~/.claude/skills links to, and that target
+# writes no CLAUDE.md. The default platform is claude, which appends a registration to
+# ~/.claude/CLAUDE.md -- a symlink into the whetstone working tree
+# (dot_claude/symlink_CLAUDE.md.tmpl), so the default would edit the source checkout on
+# every triggered apply. AGENTS.md carries the guidance instead.
+#
+# Deliberately not run here:
+#   claude install  same CLAUDE.md write as the default platform, plus a PreToolUse hook.
+#   codex install   writes .codex/hooks.json, which .chezmoiremove deletes on every apply
+#                   while this script only re-runs on a Brewfile change. AGENTS.md again.
+#   cursor install  writes a relative .cursor/rules/graphify.mdc, so from an apply it lands
+#                   in whatever the current directory happens to be. The template emits that
+#                   rule per project instead.
+#   hook install    installs post-commit/post-checkout hooks in the *current* git repo;
+#                   there is no machine-wide git hook install. Per-clone and opt-in.
+#
+# Re-runs whenever the Brewfile changes (e.g. a graphifyy version bump); the install is
+# idempotent, so an unrelated Brewfile edit re-running this is harmless.
+# Brewfile hash: {{ include "dot_config/homebrew/Brewfile" | sha256sum }}
+set -euo pipefail
+
+# The Brewfile installs graphifyy as a uv tool, which lands in `uv tool dir --bin`
+# (~/.local/bin). Neither that directory nor Homebrew's own bin is on PATH during a first
+# apply: the first arrives via .zprofile, which no login shell has read yet, and the second
+# only inside 10-brew-bundle.sh's process (same gap 40-sync-mcp.sh handles). A miss here is
+# permanent, not retried -- the skip below exits 0, so chezmoi records this run_onchange_
+# script as done until the Brewfile changes again.
+if ! command -v uv >/dev/null; then
+  for brew_bin in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [[ -x $brew_bin ]]; then
+      eval "$("$brew_bin" shellenv)"
+      break
+    fi
+  done
+fi
+if ! command -v graphify >/dev/null && command -v uv >/dev/null; then
+  PATH="$(uv tool dir --bin):$PATH"
+fi
+
+if ! command -v graphify >/dev/null; then
+  echo "graphify: not installed, skipping" >&2
+  exit 0
+fi
+
+graphify install --platform agents

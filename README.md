@@ -90,9 +90,9 @@ subagents, and the hooks.
 
 ## How it's tested
 
-- The template renders in eight combinations of `use_docker`, `use_fastapi`, and
-  `line_length`, and each generated project runs its own pre-commit hooks, `pytest`, and
-  `actionlint`.
+- The template renders in sixteen combinations of `use_docker`, `use_fastapi`,
+  `use_graphify`, and `line_length`, and each generated project runs its own pre-commit
+  hooks, `pytest`, and `actionlint`.
 - The Docker variants build at the default `line_length`; the FastAPI one comes up under
   Compose and answers on `/health`, and the other runs its one-shot command.
 - The `home/` tree applies to a clean macOS runner for both roles. For `work`, the rendered

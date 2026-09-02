@@ -97,6 +97,11 @@ use_fastapi:
   help: FastAPI, uvicorn, pydantic-settings, httpx2, pytest-asyncio, and the async-safety reviewer agent
   default: false
 
+use_graphify:
+  type: bool
+  help: graphify codebase knowledge graph, with query-first guidance for Claude, Codex, and Cursor
+  default: false
+
 license:
   type: str
   help: License

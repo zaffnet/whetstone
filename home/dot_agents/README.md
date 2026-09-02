@@ -66,3 +66,20 @@ Remove:
 Do not also add a plugin-provided server to `mcp.json`.
 
 Product-locked plugins stay in one product: Codex Computer Use / Chrome, Cursor Canvas, Claude output styles.
+
+## Graphify
+
+Not an MCP server (`sync-mcp` never touches it) and not a skill (`skills.txt` never lists
+it). It is a standalone CLI, `graphify`, from the `graphifyy` package pinned in the Brewfile.
+`home/.chezmoiscripts/run_onchange_after_35-graphify.sh.tmpl` runs `graphify install` on
+every apply that changes the Brewfile; that subcommand is graphify's own, and this doc does
+not reproduce what files it writes.
+
+The per-product registrations graphify also offers are deliberately left out of that script,
+because each one writes to a path this repo already owns or to the current directory. The
+script's own comment lists them and why. Claude and Codex get their graph guidance from
+`AGENTS.md`, and generated projects get the Cursor rule from the template.
+
+Building and updating a project's graph is manual, per repo: `/graphify .` inside the
+assistant, `graphify update .` after a pull. Git hooks that automate the rebuild are opt-in
+per clone (`graphify hook install`), per graphify's own docs.

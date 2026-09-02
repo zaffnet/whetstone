@@ -23,6 +23,7 @@ of `main`.
 | `line_length` | ruff and editor rulers |
 | `use_docker` | Adds `Dockerfile`, `docker-compose.yaml`, `docker-compose.override.example.yaml`, `.dockerignore`, the image-version pre-commit hook, and the image build job in CI |
 | `use_fastapi` | Adds FastAPI, uvicorn, pydantic-settings, and httpx2; a `/health` app with a test; the async-safety reviewer agent |
+| `use_graphify` | Adds query-first graphify guidance to `AGENTS.md`, `PreToolUse` hooks in `.claude/settings.json`, and `.cursor/rules/graphify.mdc`. Codex reads the same `AGENTS.md` guidance |
 | `license` | `LICENSE` text (MIT or Apache-2.0) and the `license` field; `Proprietary` writes neither |
 | `author` | Copyright holder named in `LICENSE`; asked only when a license text is written |
 
