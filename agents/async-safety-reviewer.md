@@ -2,7 +2,7 @@
 name: async-safety-reviewer
 description: Reviews changed Python for async-safety defects in an asyncio stack (FastAPI, asyncpg, httpx AsyncClient, SQLModel AsyncSession). Use after changing any .py file in the project's Python packages. Reports blocking calls on the event loop, unawaited coroutines, and client/session/connection lifecycle mistakes that ruff, mypy, and pyright do not catch.
 tools: Bash, Read, Grep, Glob
-model: opus
+model: opus[1m]
 effort: high
 ---
 

@@ -10,10 +10,10 @@
   "permissions": {
     "defaultMode": "auto"
   },
-  "model": "claude-sonnet-5",
+  "model": "opus[1m]",
   "modelSettings": {
-    "claude-sonnet-5": {
-      "effortLevel": "medium"
+    "opus[1m]": {
+      "effortLevel": "high"
     }
   },
   "hooks": {
@@ -140,7 +140,7 @@
   "outputStyle": "Concise",
   "spinnerTipsEnabled": true,
   "alwaysThinkingEnabled": false,
-  "effortLevel": "medium",
+  "effortLevel": "high",
   "plansDirectory": "./.claude/plans",
   "showClearContextOnPlanAccept": true,
   "askUserQuestionTimeout": "never",

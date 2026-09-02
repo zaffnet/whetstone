@@ -2,7 +2,7 @@
 name: deceptive-test-hunter
 description: Audits test changes for deceptive or redundant tests. Use after writing or changing any *_test.py file. Reports tests that only assert their own mock's canned value or that re-check what ruff, mypy, or basedpyright already enforce.
 tools: Bash, Read, Grep, Glob
-model: opus
+model: opus[1m]
 effort: high
 ---
 
