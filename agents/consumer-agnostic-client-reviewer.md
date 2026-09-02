@@ -2,7 +2,7 @@
 name: consumer-agnostic-client-reviewer
 description: Reviews client libraries (thin wrappers over upstream APIs) and their design docs for consumer coupling: assumptions about who calls them. Use after changing any client source or client design doc. Reports caller-typed parameters, wrong-direction imports, leaves that own credentials or a transport lifecycle, and policy methods that belong to the consuming application: coupling that ruff, mypy, and pyright do not catch. Edit the placeholders in the body to name your client packages and docs.
 tools: Bash, Read, Grep, Glob
-model: opus
+model: opus[1m]
 effort: high
 ---
 

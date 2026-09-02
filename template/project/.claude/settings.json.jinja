@@ -8,9 +8,9 @@
             "type": "command"
           }
         ],
-        "matcher": "Edit|Write"
+        "matcher": "Edit|Write|NotebookEdit|Bash|PowerShell"
       }
-    ]{% if use_graphify %},
+    ],{% if use_graphify %}
     "PreToolUse": [
       {
         "hooks": [
@@ -30,7 +30,28 @@
         ],
         "matcher": "Read|Glob"
       }
-    ]{% endif %}
+    ],{% endif %}
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/typecheck.sh\"",
+            "timeout": 600,
+            "type": "command"
+          },
+          {
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/code_prose_honesty.sh\"",
+            "timeout": 120,
+            "type": "command"
+          },
+          {
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/prose_honesty.sh\"",
+            "timeout": 120,
+            "type": "command"
+          }
+        ]
+      }
+    ]
   },
   "plansDirectory": ".claude/plans"
 }

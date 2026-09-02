@@ -35,24 +35,30 @@ a full-screen TUI and block. Pass explicit flags instead of relying on that dete
 
 ## Stop hooks
 
-Two hooks check the code when a turn ends. Both report what they find on stderr and let
-the turn end; neither blocks.
+Three hooks check the work when a turn ends. Each reports through the `systemMessage`
+field of its JSON output, which is the only channel Claude reads: stderr from a hook that
+exits 0 reaches the debug log and nothing else. None of them blocks.
 
 - `hooks/typecheck.sh` runs the repository's own `./run-typecheck.sh` where there is one,
   which is what a generated project has, and `bin/run-typecheck.sh` otherwise. Whatever
-  fails, the code or a missing virtualenv or `uvx`, is reported on stderr without
-  blocking, since the same checkers run in pre-commit and CI. It skips repositories whose
-  environment has neither mypy nor basedpyright, which would fail on the missing executables
-  rather than on their code.
-- `hooks/audit_comments.sh` pipes the session's Python diff to a headless `claude -p`
-  carrying `agents/code-honesty-auditor.md`, and reports on stderr: comment text that
-  a later reader cannot use, and every checker suppression the diff adds. It reports; it never
-  rewrites, so the fix lands in the diff with the tests still to run.
+  fails, the code or a missing virtualenv or `uvx`, is reported without blocking, since
+  the same checkers run in pre-commit and CI. It skips repositories whose environment has
+  neither mypy nor basedpyright, which would fail on the missing executables rather than
+  on their code.
+- `hooks/code_prose_honesty.sh` pipes the turn's Python diff to a headless `claude -p`
+  carrying `agents/code-honesty-auditor.md`, and reports comment text that a later reader
+  cannot use, plus every checker suppression the diff adds.
+- `hooks/prose_honesty.sh` does the same for markdown and text files, carrying
+  `agents/prose-honesty-auditor.md`.
 
-The audit judges every sentence and clause on its own, against a high bar: a comment holds
+Both auditors report; neither rewrites, so the fix lands in the diff with the tests still
+to run. `hooks/_honesty.sh` holds the body they share; each caller supplies the brief, the
+pathspecs, and the wording of the report.
+
+An audit judges every sentence and clause on its own, against a high bar: a comment holds
 its space only by supplying what the code cannot express. A comment carrying one useful
 clause and three of padding is reported for the padding. The aim is the largest honest
-reduction in comment text, so expect the check to ask for deletions rather than rewordings.
+reduction in text, so expect the check to ask for deletions rather than rewordings.
 
 The call is confined: `--max-turns 1`, no tools, and `--setting-sources ""` with
 `--strict-mcp-config`, which keeps this machine's settings, MCP servers, and CLAUDE.md out

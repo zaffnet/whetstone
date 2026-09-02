@@ -8,20 +8,26 @@
   },
   "includeGitInstructions": false,
   "permissions": {
-    "defaultMode": "auto",
-    "ask": [
-      "Edit",
-      "Write",
-      "NotebookEdit"
-    ]
+    "defaultMode": "auto"
   },
-  "model": "claude-sonnet-5",
+  "model": "opus[1m]",
   "modelSettings": {
-    "claude-sonnet-5": {
-      "effortLevel": "medium"
+    "opus[1m]": {
+      "effortLevel": "high"
     }
   },
   "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit|Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.agents/hooks/ruff_format.sh\""
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "matcher": "",
@@ -76,7 +82,12 @@
           },
           {
             "type": "command",
-            "command": "bash \"$HOME/.agents/hooks/audit_comments.sh\"",
+            "command": "bash \"$HOME/.agents/hooks/code_prose_honesty.sh\"",
+            "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.agents/hooks/prose_honesty.sh\"",
             "timeout": 120
           },
           {
@@ -145,7 +156,7 @@
   "outputStyle": "Concise",
   "spinnerTipsEnabled": true,
   "alwaysThinkingEnabled": false,
-  "effortLevel": "medium",
+  "effortLevel": "high",
   "plansDirectory": "./.claude/plans",
   "showClearContextOnPlanAccept": true,
   "askUserQuestionTimeout": "never",

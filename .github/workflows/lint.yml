@@ -37,8 +37,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Template hooks match hooks/
         run: |
-          for f in _common.sh ruff_format.sh setup-working-tree.sh; do
-            diff -u "hooks/$f" "template/project/.claude/hooks/$f"
+          # The name sets first, in both directions: a template hook that is deleted
+          # rather than changed would otherwise drop out of the comparison and pass.
+          # worktree_create.sh is root-only on purpose -- it has no fallback and fails
+          # inside the Claude desktop app's session sandbox.
+          names() { (cd "$1" && for f in ./*.sh; do basename "$f"; done); }
+          diff <(names hooks | grep -vFx worktree_create.sh) \
+            <(names template/project/.claude/hooks)
+          for f in template/project/.claude/hooks/*.sh; do
+            diff -u "hooks/$(basename "$f")" "$f"
           done
       - name: Reviewer subagents match between Claude markdown and Codex TOML
         run: python3 tools/check-agents-sync.py

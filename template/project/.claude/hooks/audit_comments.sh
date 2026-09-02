@@ -1,1 +1,0 @@
-../../../../hooks/audit_comments.sh

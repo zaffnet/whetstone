@@ -245,9 +245,6 @@ Two ways an apply destroys data. Handle both before running one:
   known cases. Prefer managing individual files, and if a new `symlink_` covers a path that
   is a real directory today, extend that script's loop in the same commit.
 
-Files change with Edit and Write only. Never a shell redirect, `sed -i`, or a heredoc.
-Reads and searches stay in Bash.
-
 ## 10. Verify
 
 In order, stopping at the first failure:
