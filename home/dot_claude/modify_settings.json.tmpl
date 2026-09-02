@@ -4,9 +4,8 @@
 # rewritten from it; every other key belongs to Claude Code and is carried over, so an apply
 # never undoes a choice made inside the product.
 #
-# RUNTIME exempts one key by name: `model` is picked per machine in the model picker, so the
-# template's value seeds a machine that has none and then steps aside. Every other key the
-# template names, it owns.
+# `model` is declared, so the template owns it: an apply overrides a pick made in the model
+# picker. Choosing a different model per machine means dropping it from the template.
 #
 # A key dropped from the template stops being declared, so it is carried over as Claude
 # Code's instead of leaving the machine. Removing a setting is two steps -- delete it from
@@ -23,7 +22,6 @@ import json
 import os
 import sys
 
-RUNTIME = ("model",)
 managed = json.loads(os.environ["MANAGED"])
 try:
     current = json.loads(os.environ["CURRENT"] or "{}")
@@ -34,9 +32,6 @@ except json.JSONDecodeError:
     )
     current = {}
 
-for key in RUNTIME:
-    if key in current:
-        managed[key] = current[key]
 # Kept after the declared keys, so `chezmoi diff` shows what the product added rather than
 # interleaving it. Named on stderr because JSON has no comment to label the block with.
 undeclared = [key for key in current if key not in managed]

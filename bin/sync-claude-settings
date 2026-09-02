@@ -29,12 +29,6 @@ REPO = Path(__file__).resolve().parent.parent
 TEMPLATE = REPO / "home" / ".chezmoitemplates" / "claude-settings.json"
 LIVE = Path.home() / ".claude" / "settings.json"
 
-# Byte for byte the RUNTIME tuple in home/dot_claude/modify_settings.json.tmpl, and it has
-# to stay that way: that script hands these keys back to the product on every apply, so a
-# value pulled here would be committed and then lose to the next apply regardless. Nothing
-# checks that the two agree, so a key added there has to be added here by hand.
-RUNTIME = ("model",)
-
 
 def merged(template_value: Any, live_value: Any) -> Any:  # noqa: ANN401 -- arbitrary JSON
     """Live value, except that dict keys only in the template survive."""
@@ -61,11 +55,7 @@ def main() -> None:
     # Against the merge, not against live: a nested key live lacks always compares
     # unequal, so testing live directly would report drift forever and rewrite the file
     # byte-identically on every run.
-    drift = [
-        k
-        for k in template
-        if k not in RUNTIME and k in live and merged(template[k], live[k]) != template[k]
-    ]
+    drift = [k for k in template if k in live and merged(template[k], live[k]) != template[k]]
     if not drift:
         print("sync-claude-settings: no declared key differs from the template")  # noqa: T201 -- CLI report
         return

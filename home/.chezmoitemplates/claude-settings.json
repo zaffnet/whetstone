@@ -8,12 +8,7 @@
   },
   "includeGitInstructions": false,
   "permissions": {
-    "defaultMode": "auto",
-    "ask": [
-      "Edit",
-      "Write",
-      "NotebookEdit"
-    ]
+    "defaultMode": "auto"
   },
   "model": "claude-sonnet-5",
   "modelSettings": {
