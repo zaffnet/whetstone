@@ -30,6 +30,7 @@ Source: `skills/<name>/SKILL.md`.
 | `deslop` | Strips AI slop and off-style code from the branch diff. |
 | `prose-honesty` | Judges every sentence an agent writes against what a later reader needs. |
 | `simplify-english` | Rewrites Markdown prose into plain English, structure intact. |
+| `sync-machine-config-to-repo` | Scans the machine for configs and packages whetstone does not manage, then adds the worthwhile ones on a branch. |
 | `teach-me` | Teaches a topic one chunk at a time, quizzing between chunks. |
 | `writing-whip` | Kills AI writing tropes at generation time. |
 
