@@ -52,6 +52,7 @@ From a fresh macOS install to a working shell, editor, and agents.
 | Pull edits made directly in `$HOME` back into the repo | `just sync` (see below) |
 | Re-run the Brewfile after editing it | `just apply` (the script re-runs on Brewfile change) |
 | Update the repo from GitHub and apply | `chezmoi update` |
+| Find configs and packages the repo does not manage yet | `/sync-machine-config-to-repo`, run every couple of months |
 
 ## When a config changes locally
 
