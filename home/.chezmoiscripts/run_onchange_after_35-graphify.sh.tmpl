@@ -3,10 +3,15 @@
 # touch it) and not a skill in skills.txt; `graphify install` is the only mechanism managing
 # the product files it writes.
 #
+# --platform agents, not the default: the skill lands in ~/.agents/skills/graphify, which is
+# where this repo keeps every skill and what ~/.claude/skills links to, and that target
+# writes no CLAUDE.md. The default platform is claude, which appends a registration to
+# ~/.claude/CLAUDE.md -- a symlink into the whetstone working tree
+# (dot_claude/symlink_CLAUDE.md.tmpl), so the default would edit the source checkout on
+# every triggered apply. AGENTS.md carries the guidance instead.
+#
 # Deliberately not run here:
-#   claude install  writes a section into ~/.claude/CLAUDE.md, which this repo symlinks into
-#                   the whetstone working tree (dot_claude/symlink_CLAUDE.md.tmpl), so an
-#                   apply would edit the source checkout. AGENTS.md carries the guidance.
+#   claude install  same CLAUDE.md write as the default platform, plus a PreToolUse hook.
 #   codex install   writes .codex/hooks.json, which .chezmoiremove deletes on every apply
 #                   while this script only re-runs on a Brewfile change. AGENTS.md again.
 #   cursor install  writes a relative .cursor/rules/graphify.mdc, so from an apply it lands
@@ -15,8 +20,8 @@
 #   hook install    installs post-commit/post-checkout hooks in the *current* git repo;
 #                   there is no machine-wide git hook install. Per-clone and opt-in.
 #
-# Re-runs whenever the Brewfile changes (e.g. a graphifyy version bump); `graphify install`
-# is idempotent, so an unrelated Brewfile edit re-running this is harmless.
+# Re-runs whenever the Brewfile changes (e.g. a graphifyy version bump); the install is
+# idempotent, so an unrelated Brewfile edit re-running this is harmless.
 # Brewfile hash: {{ include "dot_config/homebrew/Brewfile" | sha256sum }}
 set -euo pipefail
 
@@ -25,4 +30,4 @@ if ! command -v graphify >/dev/null; then
   exit 0
 fi
 
-graphify install
+graphify install --platform agents
