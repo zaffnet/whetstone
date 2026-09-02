@@ -1,10 +1,22 @@
 #!/usr/bin/env bash
-# Registers graphify with Claude Code, Cursor, and Codex, and installs its git hooks
-# machine-wide. graphify is not an MCP server (sync-mcp does not touch it) and not a skill
-# (skills.txt does not list it); its own install/uninstall subcommands are the only
-# mechanism managing the product files they write.
-# Re-runs whenever the Brewfile changes (e.g. a graphifyy version bump); the install
-# commands are idempotent, so an unrelated Brewfile edit re-running this is harmless.
+# Installs the graphify skill machine-wide. graphify is not an MCP server (sync-mcp does not
+# touch it) and not a skill in skills.txt; `graphify install` is the only mechanism managing
+# the product files it writes.
+#
+# Deliberately not run here:
+#   claude install  writes a section into ~/.claude/CLAUDE.md, which this repo symlinks into
+#                   the whetstone working tree (dot_claude/symlink_CLAUDE.md.tmpl), so an
+#                   apply would edit the source checkout. AGENTS.md carries the guidance.
+#   codex install   writes .codex/hooks.json, which .chezmoiremove deletes on every apply
+#                   while this script only re-runs on a Brewfile change. AGENTS.md again.
+#   cursor install  writes a relative .cursor/rules/graphify.mdc, so from an apply it lands
+#                   in whatever the current directory happens to be. The template emits that
+#                   rule per project instead.
+#   hook install    installs post-commit/post-checkout hooks in the *current* git repo;
+#                   there is no machine-wide git hook install. Per-clone and opt-in.
+#
+# Re-runs whenever the Brewfile changes (e.g. a graphifyy version bump); `graphify install`
+# is idempotent, so an unrelated Brewfile edit re-running this is harmless.
 # Brewfile hash: {{ include "dot_config/homebrew/Brewfile" | sha256sum }}
 set -euo pipefail
 
@@ -14,7 +26,3 @@ if ! command -v graphify >/dev/null; then
 fi
 
 graphify install
-graphify claude install
-graphify cursor install
-graphify codex install
-graphify hook install

@@ -15,11 +15,20 @@
       {
         "hooks": [
           {
-            "command": "graphify hook-guard",
+            "command": "graphify hook-guard search",
             "type": "command"
           }
         ],
-        "matcher": "Read|Glob|Grep|Bash"
+        "matcher": "Bash|Grep"
+      },
+      {
+        "hooks": [
+          {
+            "command": "graphify hook-guard read",
+            "type": "command"
+          }
+        ],
+        "matcher": "Read|Glob"
       }
     ]{% endif %}
   },

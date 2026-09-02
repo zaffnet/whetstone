@@ -71,11 +71,15 @@ Product-locked plugins stay in one product: Codex Computer Use / Chrome, Cursor 
 
 Not an MCP server (`sync-mcp` never touches it) and not a skill (`skills.txt` never lists
 it). It is a standalone CLI, `graphify`, from the `graphifyy` package pinned in the Brewfile.
-`home/.chezmoiscripts/run_onchange_after_35-graphify.sh.tmpl` runs `graphify install`,
-`graphify claude install`, `graphify cursor install`, `graphify codex install`, and
-`graphify hook install` on every apply that changes the Brewfile; those subcommands are
-graphify's own, and this doc does not reproduce what files they write.
+`home/.chezmoiscripts/run_onchange_after_35-graphify.sh.tmpl` runs `graphify install` on
+every apply that changes the Brewfile; that subcommand is graphify's own, and this doc does
+not reproduce what files it writes.
+
+The per-product registrations graphify also offers are deliberately left out of that script,
+because each one writes to a path this repo already owns or to the current directory. The
+script's own comment lists them and why. Claude and Codex get their graph guidance from
+`AGENTS.md`, and generated projects get the Cursor rule from the template.
 
 Building and updating a project's graph is manual, per repo: `/graphify .` inside the
-assistant, `graphify update .` after a pull. `graphify hook install` from that script covers
-only the machine-wide default; per-clone git hooks are still opt-in per graphify's own docs.
+assistant, `graphify update .` after a pull. Git hooks that automate the rebuild are opt-in
+per clone (`graphify hook install`), per graphify's own docs.
