@@ -5,17 +5,45 @@
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
 
+# How recently a file must have changed to count as this turn's work, matching
+# ruff_format.sh. The working-tree diff alone cannot tell an edit from a branch
+# switch: `git checkout` or `git reset` moves HEAD, and every file that differs
+# across the two commits then reads as changed, which pointed the checkers at a
+# whole repository nobody had touched.
+STALE_AFTER_SECONDS=30
+
+# Lines of checker output to report. The full run of a large diff reached six
+# figures of bytes, past the point where the harness inlines a systemMessage: it
+# spilled to a file and Claude saw a truncated head, so the findings it was meant
+# to act on never arrived. A bounded report is one that survives intact.
+MAX_REPORT_LINES=200
+
 cwd="$(hook_field '.cwd // empty')"
 [[ -n $cwd ]] || cwd="$PWD"
 
 root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || exit 0
 cd "$root" || exit 0
 
+# Cleared as ruff_format.sh clears it: the inherited value belongs to whichever
+# project the session started in, and every `uv run` below warns about the mismatch
+# when the checked repository is a different one.
+unset VIRTUAL_ENV
+
 # No Python in the repository means no opinion.
 [[ -f pyproject.toml ]] || exit 0
 
-# Nothing changed, nothing to check.
-[[ -n "$(hook_changed_files '*.py' '*.pyi')" ]] || exit 0
+# The files to check: this turn's writes, not everything that differs from HEAD.
+# Restricted to recent writes for the reason STALE_AFTER_SECONDS gives, and kept as
+# a list rather than spent as a yes/no gate, because the list is what the checkers
+# below are pointed at. Nothing written recently means nothing to check.
+#
+# Read in a loop rather than with `mapfile -d`, which needs bash 4: macOS ships
+# bash 3.2, and this hook runs there.
+changed=()
+while IFS= read -r -d '' file; do
+  changed+=("$file")
+done < <(hook_changed_files '*.py' '*.pyi' | hook_recently_modified "$STALE_AFTER_SECONDS")
+((${#changed[@]})) || exit 0
 
 # A repository's own script overrides the one shipped here, which is how it chooses
 # different tools or flags. Tested for readable rather than executable, and run through
@@ -43,13 +71,28 @@ fi
 
 # Interleaved into one stream: a checker's complaint is on stdout or stderr
 # depending on the tool, and the report needs both.
+#
+# The changed files are passed as arguments. Without them the checkers default to the
+# repository root, so one edited file put every file in the tree through five tools
+# and reported on code this turn never touched -- including, through
+# `ruff format --check`, files that are not Python at all.
+#
+# The checker's status is captured before the output is trimmed, not after. Piping
+# straight into head would report head's status, which is 0 even when a checker
+# failed, and a pipeline substitution cannot reach the outer PIPESTATUS to recover
+# it. So the full output goes to a file, and the trimming reads back from there.
 output=""
 status=0
-output="$(bash "$checker" 2>&1)" || status=$?
+report="$(mktemp)" || exit 0
+trap 'rm -f "$report"' EXIT
+bash "$checker" "${changed[@]}" >"$report" 2>&1 || status=$?
 ((status != 0)) || exit 0
+output="$(head -n "$MAX_REPORT_LINES" "$report")"
 
-printf '%s\n' "The type checkers failed. The work is not done until they pass.
-Fix the root cause of every finding; do not silence a checker.
+# Reported, not enforced: this hook exits 0 either way, and pre-commit and CI are the
+# gates. Wording that claimed otherwise described a block that does not happen here.
+printf '%s\n' "The type checkers reported findings on the files this turn changed.
+Fix the root cause of each; do not silence a checker.
 
 $output" | hook_emit_system_message
 exit 0
