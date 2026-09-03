@@ -149,9 +149,12 @@ report="$(jq -r '.[] | "  \(.file):\(.line)  \(.why)"' <<<"$findings")"
 # hook_emit_system_message cannot build, and the quarter allows for the four bytes a
 # character can take. The marker prints because a report trimmed silently reads as
 # the complete list.
+# The marker is part of the budget, not an addition to it: appended after a full-width
+# trim it put the result over the cap by its own length.
+honesty_truncation_marker='  [report truncated; findings above are the first of more]'
 if (($(printf '%s' "$report" | wc -c) > HONESTY_MAX_REPORT_BYTES)); then
-  report="${report:0:$((HONESTY_MAX_REPORT_BYTES / 4))}
-  [report truncated; findings above are the first of more]"
+  report="${report:0:$(((HONESTY_MAX_REPORT_BYTES - ${#honesty_truncation_marker} - 1) / 4))}
+$honesty_truncation_marker"
 fi
 
 printf '%s\n\n%s\n' "$HONESTY_LEAD" "$report" | hook_emit_system_message

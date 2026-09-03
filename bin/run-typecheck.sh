@@ -72,7 +72,24 @@ ruff_check=(
 )
 run "${ruff_check[@]}" "${targets[@]}"
 
-run uv run --no-sync mypy --strict --num-workers "$workers" "${targets[@]}"
+# A module and its stub are one module to mypy: given both it reports a duplicate and
+# stops having checked nothing, so only one may be a target. The stub wins, the
+# precedence a repository-wide run already gives it. Scoped to this invocation because
+# the other tools do not collide and do report findings the stub alone cannot carry.
+#
+# A stub absent from the target list is not substituted in: it was not asked for, and
+# for a caller passing explicit paths that would check something it never named.
+mypy_targets=()
+for target in "${targets[@]}"; do
+  if [[ $target == *.py ]]; then
+    stub="${target%.py}.pyi"
+    for other in "${targets[@]}"; do
+      [[ $other == "$stub" ]] && continue 2
+    done
+  fi
+  mypy_targets+=("$target")
+done
+run uv run --no-sync mypy --strict --num-workers "$workers" "${mypy_targets[@]}"
 
 # --threads takes an optional count. A bare `--threads <path>` treats the path as
 # the count and crashes. Pass the same cap mypy uses.

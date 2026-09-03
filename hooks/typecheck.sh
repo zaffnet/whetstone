@@ -48,25 +48,17 @@ while IFS= read -r -d '' file; do
 done < <(hook_changed_files '*.py' '*.pyi' | hook_recently_modified "$STALE_AFTER_SECONDS")
 ((${#candidates[@]})) || exit 0
 
-# A module and its stub are one module to mypy: given both it reports a duplicate and
-# stops without checking anything, so only one may be a target. The stub wins, the
-# precedence a repository-wide run already gives it.
+# Every candidate is a target. A module and its stub collide only for mypy, and the
+# runner drops the implementation for that one invocation: ruff and basedpyright
+# report real findings on the .py -- an unused import, a return type -- and report
+# nothing when handed only the .pyi, so dropping it here would lose them.
 #
-# Tested against the other candidates rather than against the filesystem. A stub that
-# exists but was not written this turn is not a target, and dropping the
-# implementation for it would leave nothing to check.
+# Prefixed with ./ because these paths go to the checkers as arguments, and git tracks
+# a name like `--version.py`: bare, every one of the four reads it as an option and
+# checks nothing. Verified on all four; `--` would fix the leading dash too, but
+# basedpyright rejects the separator itself.
 changed=()
 for file in "${candidates[@]}"; do
-  if [[ $file == *.py ]]; then
-    stub="${file%.py}.pyi"
-    for other in "${candidates[@]}"; do
-      [[ $other == "$stub" ]] && continue 2
-    done
-  fi
-  # Prefixed with ./ because these paths go to the checkers as arguments, and git
-  # tracks a name like `--version.py`: bare, every one of the four reads it as an
-  # option and checks nothing. Verified on all four; `--` would fix the leading dash
-  # too, but not every tool here accepts it before its paths.
   changed+=("./$file")
 done
 
@@ -118,9 +110,13 @@ output="$(head -n "$MAX_REPORT_LINES" "$report")"
 # counts per line and so bounds nothing on a multi-line report. ${var:0:n} counts
 # characters, keeping the result valid UTF-8 where a byte count would split one, and
 # the quarter allows for the four bytes a character can take.
+#
+# The marker is part of the budget, not an addition to it: appended after a full-width
+# trim it put the result over the cap by its own length.
+truncation_marker='[report truncated; run the checkers directly for the rest]'
 if (($(printf '%s' "$output" | wc -c) > MAX_REPORT_BYTES)); then
-  output="${output:0:$((MAX_REPORT_BYTES / 4))}
-[report truncated; run the checkers directly for the rest]"
+  output="${output:0:$(((MAX_REPORT_BYTES - ${#truncation_marker} - 1) / 4))}
+$truncation_marker"
 fi
 
 # Reported, not enforced: this hook exits 0 either way, and pre-commit and CI are the
