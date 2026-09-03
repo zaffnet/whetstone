@@ -143,13 +143,14 @@ report="$(jq -r '.[] | "  \(.file):\(.line)  \(.why)"' <<<"$findings")"
 # text it objects to, so one verbose finding can carry the whole report past the
 # inline limit and reach Claude cut off mid-word.
 #
-# `cut -c` and not `head -c`, because a byte count splits a multi-byte character and
-# leaves invalid UTF-8, which breaks the JSON `hook_emit_system_message` builds.
-# Counting characters keeps it valid at the cost of allowing up to four bytes each,
-# so the ceiling is applied to a quarter of the count to stay under it whatever the
-# text holds. The marker prints because a report trimmed silently reads as complete.
+# Bash's substring operator, not `cut -c`, which counts per line and so bounds
+# nothing on a multi-line report. ${var:0:n} counts characters, keeping the result
+# valid UTF-8 where a byte count would split one and leave JSON that
+# hook_emit_system_message cannot build, and the quarter allows for the four bytes a
+# character can take. The marker prints because a report trimmed silently reads as
+# the complete list.
 if (($(printf '%s' "$report" | wc -c) > HONESTY_MAX_REPORT_BYTES)); then
-  report="$(printf '%s' "$report" | cut -c "1-$((HONESTY_MAX_REPORT_BYTES / 4))")
+  report="${report:0:$((HONESTY_MAX_REPORT_BYTES / 4))}
   [report truncated; findings above are the first of more]"
 fi
 

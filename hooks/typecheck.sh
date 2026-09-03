@@ -104,7 +104,20 @@ report="$(mktemp)" || exit 0
 trap 'rm -f "$report"' EXIT
 bash "$checker" "${changed[@]}" >"$report" 2>&1 || status=$?
 ((status != 0)) || exit 0
-output="$(head -n "$MAX_REPORT_LINES" "$report" | head -c "$MAX_REPORT_BYTES")"
+# Trimmed in two steps rather than one pipeline. Piping `head -n` into `head -c`
+# makes the first receive SIGPIPE when the second closes early, and under the
+# `set -o pipefail` and `set -e` of _common.sh the assignment then aborts the hook --
+# silently dropping exactly the oversized report the byte cap exists to trim.
+output="$(head -n "$MAX_REPORT_LINES" "$report")"
+
+# Then the byte ceiling, in bash's own substring operator rather than `cut`, which
+# counts per line and so bounds nothing on a multi-line report. ${var:0:n} counts
+# characters, keeping the result valid UTF-8 where a byte count would split one, and
+# the quarter allows for the four bytes a character can take.
+if (($(printf '%s' "$output" | wc -c) > MAX_REPORT_BYTES)); then
+  output="${output:0:$((MAX_REPORT_BYTES / 4))}
+[report truncated; run the checkers directly for the rest]"
+fi
 
 # Reported, not enforced: this hook exits 0 either way, and pre-commit and CI are the
 # gates.
