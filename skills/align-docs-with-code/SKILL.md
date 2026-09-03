@@ -33,10 +33,14 @@ Run `git fetch origin` first. Refuse and name the reason if the working tree is 
 are found in phase 2, or if `gh` is missing and `--report-only` was not passed. Uncommitted work
 would be indistinguishable from this run's own change.
 
-Resolve the base branch rather than assuming `main`: `gh repo view --json defaultBranchRef
---jq .defaultBranchRef.name`, falling back to `git symbolic-ref refs/remotes/origin/HEAD`. Do not
-require HEAD to be that branch; a docs pass on top of a feature branch is legitimate. Do record
-which branch this run targets, because phase 10 must never push to it.
+Record the base this run targets. It is the current branch when HEAD is not the repository
+default, so a docs pass on top of a feature branch reviews against that feature branch rather than
+dragging its commits into this PR. Otherwise it is the default branch, from `gh repo view --json
+defaultBranchRef --jq .defaultBranchRef.name`, falling back to
+`git symbolic-ref refs/remotes/origin/HEAD`.
+
+Everything downstream depends on this one value: phase 7 cuts the docs branch from it, phase 9
+diffs against it, and phase 10 opens the PR against it and never pushes to it.
 
 ## 2. Locate the docs and the code
 
@@ -45,9 +49,15 @@ at the root. `--docs <dir>` replaces `docs/` when a project keeps them elsewhere
 generated or vendored: `node_modules`, `.venv`, `site/`, `build/`, `target/`, and any directory a
 site generator writes.
 
-Take the code roots from the project's own manifest, not from a guess: `pyproject.toml`
-(`[project]`, `[tool.setuptools]`, `[tool.hatch.build]`), `package.json` (`workspaces`, `main`),
-`Cargo.toml`, `go.mod`. A monorepo has several; record each one.
+Find the code roots from the project's own manifests: `pyproject.toml`, `package.json`,
+`Cargo.toml`, `go.mod`. **The directory containing a manifest is the root.** A monorepo has
+several; record each one.
+
+Do not narrow a root from a manifest field. PEP 621's `[project]` has no source-directory key at
+all, and `package.json`'s `main` usually points at build output, so trusting either can drop a
+real `src/` package from every shard and report stale docs as consistent. Treat
+`[tool.setuptools]`, `[tool.hatch.build]`, and `workspaces` as hints about where to look first,
+never as the boundary of what to search.
 
 Stop and report if the doc set is empty. There is nothing for this skill to do.
 
@@ -86,8 +96,10 @@ repeating one wrong sentence is one finding with two sites, not corroboration.
 Tell every subagent it must not edit, write, or commit anything. The fan-out reads; the main agent
 writes. That is what keeps two agents off the same file.
 
-Each finding comes back as: the `doc-path:line`, the claim as written, the `code-path:line` that
-contradicts it, and the smallest edit that would make it true.
+Each finding comes back as: the `doc-path:line`, the claim as written, the evidence, and the
+smallest edit that would make it true. The evidence is normally a `code-path:line`. For a finding
+that a ground-truth fact refutes, the evidence is that fact, quoted; there is no code to cite, and
+such a finding is fixed in phase 7 like any other rather than dropped.
 
 What counts as a contradiction: a named function, flag, environment variable, endpoint, or file
 that does not exist or is spelled differently; a default, limit, or timeout whose value differs; a
@@ -101,12 +113,14 @@ Drop, with a line in the report:
 - A finding whose real fault is in the code. Report it as a code bug and leave both alone; this
   skill does not fix code.
 - A finding evidenced only by another doc.
-- A contradiction a ground-truth fact already settles.
 - Deliberately aspirational prose: a roadmap, a "planned", a dated design doc describing what was
   true when written. A design doc is a record of a decision, not a description of current code.
   Check whether the doc dates or scopes itself before calling it wrong.
 
 ## 7. Fix
+
+Create the docs branch from the base recorded in phase 1 before the first edit, so no change ever
+sits on the base. Skip this under `--report-only`, which makes no edits at all.
 
 Apply the survivors with Edit, one doc at a time. Aim for the smallest positive diff, and prefer a
 net-negative one: deleting a sentence that is wrong beats rewriting it, and a claim that no longer
@@ -118,8 +132,14 @@ finding.
 
 ## 8. Prose pass
 
-Load `writing-whip`, `writing-clearly-and-concisely`, `simplify-english`, and `prose-honesty`, then
-re-read every hunk against all four. None is optional.
+Load `writing-whip`, `writing-clearly-and-concisely`, `simplify-english`, and `prose-honesty`,
+then re-read every hunk against all four.
+
+`writing-whip`, `simplify-english`, and `prose-honesty` ship with this skill. The other two do
+not: `writing-clearly-and-concisely` and `discernment-nudge` are third-party, installed
+separately, so a plugin consumer may not have them. Load each one that is available and name any
+that is missing in the report. Never skip the pass because one is absent, and never treat a
+missing skill as a reason to leave prose unreviewed.
 
 Only for a doc that is a design doc, also apply
 <https://refactoringenglish.com/excerpts/write-an-effective-design-doc/>: lead with the problem,
@@ -136,17 +156,20 @@ Discover the project's checks; do not assume they exist. In order, stopping at t
 1. Whatever the repo runs itself: a `lint` recipe in a `justfile`, `Makefile`, or `package.json`,
    or `pre-commit run --all-files` when `.pre-commit-config.yaml` is present. Fix the cause, never
    suppress the checker.
-2. `git diff` in full. Every hunk traces to a phase 5 finding, or it comes out.
-3. Confirm no code file is in the diff. If one is, this run overstepped: revert it and report.
+2. The full PR diff, not just uncommitted work: `git diff <base>...HEAD` against the base
+   recorded in phase 1, plus `git diff` for anything unstaged. Every hunk traces to a phase 5
+   finding, or it comes out.
+3. Confirm no code file is in that diff. If one is, this run overstepped or the branch was cut
+   from the wrong base: revert it and report.
 
 ## 10. Commit, push, PR
 
 One commit per logical group, not per file. Conventional commits, imperative mood, first line 72
 characters or fewer, scope `docs`.
 
-Push the branch and open the PR with `gh pr create`. Request a Copilot review if the project uses
-it. Never push to the base branch recorded in phase 1, never merge, and never comment
-`@codex review`.
+Open the PR against the base recorded in phase 1: `gh pr create --base <base>`. The branch was
+already cut from it in phase 7, so no unrelated commit rides along. Request a Copilot review if the project uses it. Never push to the
+base, never merge, and never comment `@codex review`.
 
 The PR body names each doc corrected and the code that proves it, so a reviewer can check a
 finding without rerunning the search. Load `writing-whip` before writing it.
@@ -161,4 +184,5 @@ In this order:
 4. Stale-caveat sentences left alone for want of a ground-truth fact, with their paths.
 5. Docs read and found consistent, as a count and a path list.
 
-Load `discernment-nudge` before handing back.
+Load `discernment-nudge` before handing back if it is installed, and say so in the report if it
+is not.
