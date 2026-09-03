@@ -33,12 +33,17 @@ HONESTY_GLOBS=(
   # because these are identified by their name alone, unlike the scripts below.
   # Each carries a leading '*': a bare name is a pathspec anchored to the
   # repository root, so it would miss home/dot_zprofile and the rest.
-  '*Brewfile' '*dot_zprofile' '*dot_zshenv' '*config/git/ignore'
+  '*Brewfile' '*dot_zprofile' '*dot_zshenv'
   # Config whose whole name is its format, comment syntax included. The rendered
   # names as well as the templates: a generated project's CODEOWNERS and
   # .env.example carry no .jinja suffix once written.
-  '*.gitignore' '*.shellcheckrc' '*.worktreeinclude'
-  '*.chezmoiignore' '*.chezmoiremove' '*dot_zsh_secrets.example'
+  #
+  # One '*ignore' rather than a name apiece: every ignore file this repository
+  # writes takes '#' comments, and the set keeps growing -- .gitignore,
+  # .cursorignore, .chezmoiignore, git's bare config/git/ignore -- so a per-name
+  # list is a list that goes stale silently.
+  '*ignore' '*.shellcheckrc' '*.worktreeinclude'
+  '*.chezmoiremove' '*dot_zsh_secrets.example'
   '*CODEOWNERS' '*.env.example'
 )
 
