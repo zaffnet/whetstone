@@ -5,11 +5,19 @@
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
 
-# How recently a file must have changed to count as this turn's work, matching
-# ruff_format.sh. The working-tree diff alone cannot tell an edit from a branch
-# switch: `git checkout` or `git reset` moves HEAD, and every file that differs
-# across the two commits then reads as changed, which pointed the checkers at a
-# whole repository nobody had touched.
+# How recently a file must have changed to count as this turn's work. The
+# working-tree diff alone cannot tell an edit from a branch switch: `git checkout`
+# or `git reset` moves HEAD, and every file that differs across the two commits
+# then reads as changed, which pointed the checkers at a whole repository nobody
+# had touched. A checkout restamps the mtime of every file it rewrites, so the
+# window has to be short enough to have closed by the time the turn ends.
+#
+# The tradeoff this cannot escape: a Stop hook, unlike ruff_format.sh's
+# PostToolUse, has no bounded delay from the write, so an edit followed by a long
+# test run falls outside the window and goes unreported. Under-reporting is the
+# safe direction. The checkers still run in pre-commit and CI, which are the
+# gates; over-reporting sent five tools across a whole repository and produced a
+# message too large for Claude to receive at all.
 STALE_AFTER_SECONDS=30
 
 # Lines of checker output to report. The full run of a large diff reached six
