@@ -1,14 +1,28 @@
 #!/usr/bin/env bash
 # Stop hook. Asks a headless Claude whether the comments, docstrings, and checker
-# suppressions in this turn's Python diff are honest about the code, reports what it
-# finds, and lets the turn end. Python only: the brief is written around `# noqa` and
-# `# type: ignore`. Markdown and text files are prose_honesty.sh's business.
+# suppressions in this turn's code diff are honest about the code, reports what it
+# finds, and lets the turn end. Markdown and text files are prose_honesty.sh's
+# business.
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
 
 HONESTY_NAME=code_prose_honesty
 HONESTY_BRIEF=agents/code-honesty-auditor.md
-HONESTY_GLOBS=('*.py' '*.pyi')
+# Every language whose comments this audits. A shell script's comments went
+# unaudited while this listed Python alone: prose_honesty.sh takes only markdown and
+# text, so anything absent here is checked by neither hook.
+HONESTY_GLOBS=(
+  '*.py' '*.pyi'
+  '*.sh' '*.bash' '*.zsh'
+  '*.js' '*.jsx' '*.mjs' '*.cjs' '*.ts' '*.tsx'
+  '*.java' '*.kt' '*.kts'
+  '*.go' '*.rs' '*.rb' '*.php' '*.swift' '*.scala' '*.cs'
+  '*.c' '*.h' '*.cc' '*.cpp' '*.hpp'
+  '*.sql' '*.vue' '*.svelte'
+  '*.tf' '*.hcl'
+  '*.yaml' '*.yml' '*.toml'
+  'justfile' 'Justfile' 'Makefile' 'Dockerfile' '*.mk'
+)
 HONESTY_LEAD="Comment text that a later reader cannot use. Cut it. Where a finding
 names one clause worth keeping, keep that clause and delete the rest; where it
 names none, delete the whole comment. For a suppression, remove it and fix what

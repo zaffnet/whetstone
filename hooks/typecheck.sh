@@ -5,25 +5,20 @@
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
 
-# How recently a file must have changed to count as this turn's work. The
-# working-tree diff alone cannot tell an edit from a branch switch: `git checkout`
-# or `git reset` moves HEAD, and every file that differs across the two commits
-# then reads as changed, which pointed the checkers at a whole repository nobody
-# had touched. A checkout restamps the mtime of every file it rewrites, so the
-# window has to be short enough to have closed by the time the turn ends.
+# How recently a file must have changed to count as this turn's work. Paired with
+# the working-tree diff below, which alone cannot tell an edit from a `git checkout`
+# or `git reset`: those move HEAD, and every file differing across the two commits
+# reads as changed. A checkout also restamps the mtime of what it rewrites, so this
+# window must have closed by the time the turn ends.
 #
-# The tradeoff this cannot escape: a Stop hook, unlike ruff_format.sh's
-# PostToolUse, has no bounded delay from the write, so an edit followed by a long
-# test run falls outside the window and goes unreported. Under-reporting is the
-# safe direction. The checkers still run in pre-commit and CI, which are the
-# gates; over-reporting sent five tools across a whole repository and produced a
-# message too large for Claude to receive at all.
+# The cost is that a Stop hook has no bounded delay from the write, so an edit
+# followed by a long test run goes unreported. That is the safe direction: pre-commit
+# and CI are the gates.
 STALE_AFTER_SECONDS=30
 
-# Lines of checker output to report. The full run of a large diff reached six
-# figures of bytes, past the point where the harness inlines a systemMessage: it
-# spilled to a file and Claude saw a truncated head, so the findings it was meant
-# to act on never arrived. A bounded report is one that survives intact.
+# Lines of checker output to report. A systemMessage past the harness's inline limit
+# is spilled to a file and reaches Claude truncated, so an unbounded report loses the
+# findings it exists to deliver.
 MAX_REPORT_LINES=200
 
 cwd="$(hook_field '.cwd // empty')"
@@ -32,21 +27,17 @@ cwd="$(hook_field '.cwd // empty')"
 root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || exit 0
 cd "$root" || exit 0
 
-# Cleared as ruff_format.sh clears it: the inherited value belongs to whichever
-# project the session started in, and every `uv run` below warns about the mismatch
-# when the checked repository is a different one.
+# The inherited value belongs to whichever project the session started in, and every
+# `uv run` below warns about the mismatch when the checked repository is another one.
 unset VIRTUAL_ENV
 
 # No Python in the repository means no opinion.
 [[ -f pyproject.toml ]] || exit 0
 
-# The files to check: this turn's writes, not everything that differs from HEAD.
-# Restricted to recent writes for the reason STALE_AFTER_SECONDS gives, and kept as
-# a list rather than spent as a yes/no gate, because the list is what the checkers
-# below are pointed at. Nothing written recently means nothing to check.
+# The files to check, kept as a list rather than spent as a yes/no gate: it is what
+# the checkers below are pointed at. Nothing written recently means nothing to check.
 #
-# Read in a loop rather than with `mapfile -d`, which needs bash 4: macOS ships
-# bash 3.2, and this hook runs there.
+# Read in a loop because `mapfile -d` needs bash 4 and macOS ships bash 3.2.
 changed=()
 while IFS= read -r -d '' file; do
   changed+=("$file")
@@ -80,15 +71,11 @@ fi
 # Interleaved into one stream: a checker's complaint is on stdout or stderr
 # depending on the tool, and the report needs both.
 #
-# The changed files are passed as arguments. Without them the checkers default to the
-# repository root, so one edited file put every file in the tree through five tools
-# and reported on code this turn never touched -- including, through
-# `ruff format --check`, files that are not Python at all.
+# The changed files are passed as arguments, or the checkers default to the repository
+# root and report on code this turn never touched.
 #
-# The checker's status is captured before the output is trimmed, not after. Piping
-# straight into head would report head's status, which is 0 even when a checker
-# failed, and a pipeline substitution cannot reach the outer PIPESTATUS to recover
-# it. So the full output goes to a file, and the trimming reads back from there.
+# Output goes to a file so the status is captured before the trimming: piping into
+# head would report head's status, which is 0 even when a checker failed.
 output=""
 status=0
 report="$(mktemp)" || exit 0
