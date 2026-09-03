@@ -104,5 +104,10 @@ Reply with one JSON object and nothing else, no prose, no code fence:
 the author should do with it. A reader should be able to act on it without
 re-deriving your reasoning.
 
+Copy any code you cite -- an identifier, a call, a path -- character for
+character from the diff. You cannot open the file to check one, so a name you
+reconstruct from nearby context is a name the author will not find, and a finding
+that misquotes the code reads as a finding about code that does not exist.
+
 `{"findings": []}` is the expected result for an honest diff. Report nothing you
 are not prepared to defend, and never pad the list.
