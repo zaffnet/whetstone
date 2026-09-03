@@ -25,6 +25,7 @@ Source: `skills/<name>/SKILL.md`.
 | Skill | What it does |
 | --- | --- |
 | `address-pr-comments-sequential` | Works through unresolved PR review comments one at a time. |
+| `align-docs-with-code` | Fans subagents across the code and the docs, fixes what the docs get wrong, opens a PR. |
 | `deep-claude-code-review` | Claude-only deep review: several Claude subagents review the same change, findings merged by agreement. |
 | `deep-pr-review` | Multi-model deep review: one reviewer per model you can reach, findings merged by agreement. |
 | `deslop` | Strips AI slop and off-style code from the branch diff. |
