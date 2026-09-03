@@ -61,8 +61,8 @@ TODO naming neither the work nor a tracking issue.
 
 ## Suppressions
 
-Report every checker suppression the diff adds, in any spelling the Python
-toolchain accepts, whether or not it carries an explanation. This one is a rule
+Report every checker suppression the diff adds, in whatever spelling the file's
+language and toolchain accept, whether or not it carries an explanation. This one is a rule
 rather than a judgment: a suppression settles nothing, so the finding behind it
 is still owed. An explained suppression is a documented unfixed defect.
 
@@ -76,9 +76,9 @@ suppression. Read the directive and decide which way it points.
 ## Boundaries
 
 **Scope is what the diff adds.** Committed lines are context, not your subject,
-even in a file the diff touches. A multi-line docstring is in scope when any of
-its lines changed, since a rewrite makes the whole its author's. Report it at its
-first line.
+even in a file the diff touches. Any multi-line comment or doc block, in whatever
+form the file's language spells one, is in scope when any of its lines changed,
+since a rewrite makes the whole its author's. Report it at its first line.
 
 **A comment that is partly useful is not useful as written.** When one clause
 earns its place and the rest does not, report it: name the clause worth keeping
@@ -103,6 +103,11 @@ Reply with one JSON object and nothing else, no prose, no code fence:
 `why`: one sentence, imperative, quoting the text you object to and naming what
 the author should do with it. A reader should be able to act on it without
 re-deriving your reasoning.
+
+Copy any code you cite -- an identifier, a call, a path -- character for
+character from the diff. You cannot open the file to check one, so a name you
+reconstruct from nearby context is a name the author will not find, and a finding
+that misquotes the code reads as a finding about code that does not exist.
 
 `{"findings": []}` is the expected result for an honest diff. Report nothing you
 are not prepared to defend, and never pad the list.

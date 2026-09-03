@@ -66,9 +66,10 @@ exits 0 reaches the debug log and nothing else. None of them blocks.
   the same checkers run in pre-commit and CI. It skips repositories whose environment has
   neither mypy nor basedpyright, which would fail on the missing executables rather than
   on their code.
-- `hooks/code_prose_honesty.sh` pipes the turn's Python diff to a headless `claude -p`
+- `hooks/code_prose_honesty.sh` pipes the turn's code diff to a headless `claude -p`
   carrying `agents/code-honesty-auditor.md`, and reports comment text that a later reader
-  cannot use, plus every checker suppression the diff adds.
+  cannot use, plus every checker suppression the diff adds. Its `HONESTY_GLOBS` names the
+  languages it covers; a language absent from that list is audited by neither hook.
 - `hooks/prose_honesty.sh` does the same for markdown and text files, carrying
   `agents/prose-honesty-auditor.md`.
 

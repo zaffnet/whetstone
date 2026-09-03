@@ -1,19 +1,30 @@
 #!/usr/bin/env bash
 # Shared body for the two Stop hooks that ask a headless Claude whether the prose in
-# this turn's diff is honest: code_prose_honesty.sh for Python comments, docstrings,
-# and checker suppressions, prose_honesty.sh for markdown and text files.
+# this turn's diff is honest: code_prose_honesty.sh for comments, docstrings, and
+# checker suppressions, prose_honesty.sh for markdown and text files.
 #
-# A caller sets three variables and sources this file after _common.sh:
+# A caller sets four variables and sources this file after _common.sh:
 #
 #   HONESTY_NAME    this hook's name, for the diagnostics it prints
 #   HONESTY_BRIEF   basename of the markdown brief, resolved against the plugin root,
 #                   the project's .claude, and this directory's siblings
 #   HONESTY_LEAD    the instruction printed above the findings
 #   HONESTY_GLOBS   array of pathspecs the diff is limited to
+#   HONESTY_SHEBANG_GLOBS  optional; pathspecs whose matches are kept only when the
+#                   file opens with a shebang. For extensionless code, where the
+#                   suffix cannot say whether a path is a script or a fixture.
 #
 # Neither hook edits a file: they report, and Claude makes the edit.
 # Nothing here blocks. A checker that cannot run must not hold a turn, but must not
 # pass as a clean audit either, so every failure path says so and exits 0.
+
+# How recently a file must have changed to count as this turn's work, matching the
+# typecheck hook. Short because a checkout restamps the mtime of what it rewrites, so
+# the window must have closed by the time the turn ends.
+HONESTY_STALE_AFTER_SECONDS=30
+
+# Ceiling on the findings report, matching the typecheck hook's.
+HONESTY_MAX_REPORT_BYTES=16384
 
 # Diagnostics go to stderr, which reaches the debug log and not Claude. That is the
 # right place for "the auditor could not run": it is not a finding about the code.
@@ -42,7 +53,31 @@ for candidate in \
 done
 [[ -n ${brief:-} ]] || exit 0
 
-diff_text="$(hook_changed_diff "${HONESTY_GLOBS[@]}")"
+# Narrowed to this turn's writes before the diff is built, not after. The
+# working-tree diff against HEAD cannot tell an edit from a `git checkout` or
+# `git reset`: those move HEAD, and every file differing across the two commits
+# reads as changed, which would send a whole repository's comments to the auditor
+# or overrun the line limit below and skip the audit altogether.
+# :(literal), because these are filenames going back to git as pathspecs: a name
+# holding pathspec metacharacters is otherwise read as a pattern, and `a[1].py`
+# then matches `a1.py` as well.
+recent=()
+while IFS= read -r -d '' file; do
+  recent+=(":(literal)$file")
+done < <(hook_changed_files "${HONESTY_GLOBS[@]}" | hook_recently_modified "$HONESTY_STALE_AFTER_SECONDS")
+
+# Then the shebang-gated pathspecs, whose matches carry no suffix to judge them by:
+# `bin/sync-mcp` is a script and a test fixture in the same directory would not be.
+# Read the first two bytes rather than trusting the name.
+if [[ -n ${HONESTY_SHEBANG_GLOBS+x} ]] && ((${#HONESTY_SHEBANG_GLOBS[@]})); then
+  while IFS= read -r -d '' file; do
+    [[ -f $file && $(head -c 2 -- "$file" 2>/dev/null) == '#!' ]] || continue
+    recent+=(":(literal)$file")
+  done < <(hook_changed_files "${HONESTY_SHEBANG_GLOBS[@]}" | hook_recently_modified "$HONESTY_STALE_AFTER_SECONDS")
+fi
+((${#recent[@]})) || exit 0
+
+diff_text="$(hook_changed_diff "${recent[@]}")"
 [[ -n $diff_text ]] || exit 0
 
 # A rewrite this large is reviewed by a person rather than by this.
@@ -116,6 +151,28 @@ count="$(jq -r 'length' <<<"$findings")"
 ((count > 0)) || exit 0
 
 report="$(jq -r '.[] | "  \(.file):\(.line)  \(.why)"' <<<"$findings")"
+
+# Bounded in bytes, which is the unit the harness truncates on: a finding quotes the
+# text it objects to, so one verbose finding can carry the whole report past the
+# inline limit and reach Claude cut off mid-word.
+#
+# Bash's substring operator, not `cut -c`, which counts per line and so bounds
+# nothing on a multi-line report. ${var:0:n} counts characters, keeping the result
+# valid UTF-8 where a byte count would split one and leave JSON that
+# hook_emit_system_message cannot build, and the quarter allows for the four bytes a
+# character can take. The marker prints because a report trimmed silently reads as
+# the complete list.
+# The marker and HONESTY_LEAD are part of the budget, not additions to it. The cap is
+# on the whole systemMessage, so trimming the report to the full ceiling and then
+# prepending the lead put the emitted message over it again.
+honesty_truncation_marker='  [report truncated; findings above are the first of more]'
+
+# The three newlines that join the lead to the report and end it, counted too.
+honesty_overhead=$((${#HONESTY_LEAD} + ${#honesty_truncation_marker} + 3))
+if (($(printf '%s' "$report" | wc -c) > HONESTY_MAX_REPORT_BYTES - honesty_overhead)); then
+  report="${report:0:$(((HONESTY_MAX_REPORT_BYTES - honesty_overhead) / 4))}
+$honesty_truncation_marker"
+fi
 
 printf '%s\n\n%s\n' "$HONESTY_LEAD" "$report" | hook_emit_system_message
 exit 0
