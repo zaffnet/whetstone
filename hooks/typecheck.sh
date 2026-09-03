@@ -111,18 +111,23 @@ output="$(head -n "$MAX_REPORT_LINES" "$report")"
 # characters, keeping the result valid UTF-8 where a byte count would split one, and
 # the quarter allows for the four bytes a character can take.
 #
-# The marker is part of the budget, not an addition to it: appended after a full-width
-# trim it put the result over the cap by its own length.
+# The marker and the lead are part of the budget, not additions to it. The cap is on
+# the whole systemMessage, so trimming the report to the full ceiling and then
+# prepending the lead put the emitted message over it again.
 truncation_marker='[report truncated; run the checkers directly for the rest]'
-if (($(printf '%s' "$output" | wc -c) > MAX_REPORT_BYTES)); then
-  output="${output:0:$(((MAX_REPORT_BYTES - ${#truncation_marker} - 1) / 4))}
-$truncation_marker"
-fi
 
 # Reported, not enforced: this hook exits 0 either way, and pre-commit and CI are the
 # gates.
-printf '%s\n' "The type checkers reported findings on the files this turn changed.
+lead="The type checkers reported findings on the files this turn changed.
 Fix the root cause of each; do not silence a checker.
+"
 
-$output" | hook_emit_system_message
+# The two newlines that join the lead to the report, counted with everything else.
+overhead=$((${#lead} + ${#truncation_marker} + 2))
+if (($(printf '%s' "$output" | wc -c) > MAX_REPORT_BYTES - overhead)); then
+  output="${output:0:$(((MAX_REPORT_BYTES - overhead) / 4))}
+$truncation_marker"
+fi
+
+printf '%s\n%s\n' "$lead" "$output" | hook_emit_system_message
 exit 0

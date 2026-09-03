@@ -22,12 +22,13 @@ HONESTY_GLOBS=(
   '*.tf' '*.hcl'
   '*.yaml' '*.yml' '*.toml'
   'justfile' 'Justfile' 'Makefile' 'Dockerfile' '*.mk'
-  # Every template, whatever it renders to. Not '*.py.jinja' and siblings: a
-  # template's name can carry a Jinja conditional -- `settings.py{% endif %}.jinja`
-  # -- so the inner extension is not a suffix to match on. A '*.md.jinja' lands
-  # here rather than with prose_honesty.sh, which is the right side of the line: a
-  # template is code the moment its name or body holds Jinja.
-  '*.jinja'
+  # Every template, whatever it renders to. Not '*.py.jinja' and siblings: the inner
+  # extension is not a suffix to match on, because a name can carry a Jinja
+  # conditional (`settings.py{% endif %}.jinja`) or a chezmoi attribute prefix
+  # (`run_after_40-sync-mcp.sh.tmpl`). A '*.md.jinja' therefore lands here rather
+  # than with prose_honesty.sh: a template is code once its name or body holds
+  # template syntax.
+  '*.jinja' '*.tmpl'
 )
 HONESTY_LEAD="Comment text that a later reader cannot use. Cut it. Where a finding
 names one clause worth keeping, keep that clause and delete the rest; where it
