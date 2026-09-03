@@ -37,17 +37,30 @@ unset VIRTUAL_ENV
 # The files to check, kept as a list rather than spent as a yes/no gate: it is what
 # the checkers below are pointed at. Nothing written recently means nothing to check.
 #
-# A module and its stub are one module to mypy, which reports a duplicate and stops
-# without checking anything, so the stub wins and the implementation is dropped --
-# the same precedence a repository-wide run gives it.
-#
 # Read in a loop because `mapfile -d` needs bash 4 and macOS ships bash 3.2.
-changed=()
+candidates=()
 while IFS= read -r -d '' file; do
-  [[ $file == *.py && -e ${file%.py}.pyi ]] && continue
-  changed+=("$file")
+  candidates+=("$file")
 done < <(hook_changed_files '*.py' '*.pyi' | hook_recently_modified "$STALE_AFTER_SECONDS")
-((${#changed[@]})) || exit 0
+((${#candidates[@]})) || exit 0
+
+# A module and its stub are one module to mypy: given both it reports a duplicate and
+# stops without checking anything, so only one may be a target. The stub wins, the
+# precedence a repository-wide run already gives it.
+#
+# Tested against the other candidates rather than against the filesystem. A stub that
+# exists but was not written this turn is not a target, and dropping the
+# implementation for it would leave nothing to check.
+changed=()
+for file in "${candidates[@]}"; do
+  if [[ $file == *.py ]]; then
+    stub="${file%.py}.pyi"
+    for other in "${candidates[@]}"; do
+      [[ $other == "$stub" ]] && continue 2
+    done
+  fi
+  changed+=("$file")
+done
 
 # A repository's own script overrides the one shipped here, which is how it chooses
 # different tools or flags. Tested for readable rather than executable, and run through
