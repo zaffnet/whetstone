@@ -20,6 +20,9 @@
 # the window must have closed by the time the turn ends.
 HONESTY_STALE_AFTER_SECONDS=30
 
+# Ceiling on the findings report, matching the typecheck hook's.
+HONESTY_MAX_REPORT_BYTES=16384
+
 # Diagnostics go to stderr, which reaches the debug log and not Claude. That is the
 # right place for "the auditor could not run": it is not a finding about the code.
 honesty_note() {
@@ -135,6 +138,20 @@ count="$(jq -r 'length' <<<"$findings")"
 ((count > 0)) || exit 0
 
 report="$(jq -r '.[] | "  \(.file):\(.line)  \(.why)"' <<<"$findings")"
+
+# Bounded in bytes, which is the unit the harness truncates on: a finding quotes the
+# text it objects to, so one verbose finding can carry the whole report past the
+# inline limit and reach Claude cut off mid-word.
+#
+# `cut -c` and not `head -c`, because a byte count splits a multi-byte character and
+# leaves invalid UTF-8, which breaks the JSON `hook_emit_system_message` builds.
+# Counting characters keeps it valid at the cost of allowing up to four bytes each,
+# so the ceiling is applied to a quarter of the count to stay under it whatever the
+# text holds. The marker prints because a report trimmed silently reads as complete.
+if (($(printf '%s' "$report" | wc -c) > HONESTY_MAX_REPORT_BYTES)); then
+  report="$(printf '%s' "$report" | cut -c "1-$((HONESTY_MAX_REPORT_BYTES / 4))")
+  [report truncated; findings above are the first of more]"
+fi
 
 printf '%s\n\n%s\n' "$HONESTY_LEAD" "$report" | hook_emit_system_message
 exit 0

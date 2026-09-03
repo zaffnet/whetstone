@@ -22,14 +22,20 @@ HONESTY_GLOBS=(
   '*.tf' '*.hcl'
   '*.yaml' '*.yml' '*.toml'
   'justfile' 'Justfile' 'Makefile' 'Dockerfile' '*.mk'
+  # Every template, whatever it renders to. Not '*.py.jinja' and siblings: a
+  # template's name can carry a Jinja conditional -- `settings.py{% endif %}.jinja`
+  # -- so the inner extension is not a suffix to match on. A '*.md.jinja' lands
+  # here rather than with prose_honesty.sh, which is the right side of the line: a
+  # template is code the moment its name or body holds Jinja.
+  '*.jinja'
 )
 HONESTY_LEAD="Comment text that a later reader cannot use. Cut it. Where a finding
 names one clause worth keeping, keep that clause and delete the rest; where it
 names none, delete the whole comment. For a suppression, remove it and fix what
 the checker reported.
 
-Shrink a docstring rather than deleting it, or pre-commit will fail on a public
-interface with none."
+Where the language requires a doc comment on a public interface and a checker
+enforces it, shrink that comment rather than deleting it."
 
 # shellcheck source-path=SCRIPTDIR source=_honesty.sh
 source "${BASH_SOURCE[0]%/*}/_honesty.sh"
