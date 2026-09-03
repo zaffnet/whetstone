@@ -34,6 +34,12 @@ HONESTY_GLOBS=(
   # Each carries a leading '*': a bare name is a pathspec anchored to the
   # repository root, so it would miss home/dot_zprofile and the rest.
   '*Brewfile' '*dot_zprofile' '*dot_zshenv' '*config/git/ignore'
+  # Config whose whole name is its format, comment syntax included. The rendered
+  # names as well as the templates: a generated project's CODEOWNERS and
+  # .env.example carry no .jinja suffix once written.
+  '*.gitignore' '*.shellcheckrc' '*.worktreeinclude'
+  '*.chezmoiignore' '*.chezmoiremove' '*dot_zsh_secrets.example'
+  '*CODEOWNERS' '*.env.example'
 )
 
 # Extensionless code, kept only when the file opens with a shebang: the whole of

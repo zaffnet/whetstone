@@ -109,8 +109,12 @@ output="$(head -n "$MAX_REPORT_LINES" "$report")"
 # Whether the line trim dropped anything. Tracked because that trim is otherwise
 # silent: short lines stay under the byte ceiling below, so a long report of them
 # ended mid-findings and read as the complete list.
+#
+# awk counts records, not the newline bytes `wc -l` counts. A checker whose last line
+# carries no trailing newline is one record that `wc -l` does not see, so 201 such
+# lines read as 200 and the report was trimmed with no marker.
 truncated=no
-(($(wc -l <"$report") > MAX_REPORT_LINES)) && truncated=yes
+(($(awk 'END {print NR}' "$report") > MAX_REPORT_LINES)) && truncated=yes
 
 # Then the byte ceiling, in bash's own substring operator rather than `cut`, which
 # counts per line and so bounds nothing on a multi-line report. ${var:0:n} counts
