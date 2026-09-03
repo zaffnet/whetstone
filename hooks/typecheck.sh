@@ -106,6 +106,12 @@ bash "$checker" "${changed[@]}" >"$report" 2>&1 || status=$?
 # silently dropping exactly the oversized report the byte cap exists to trim.
 output="$(head -n "$MAX_REPORT_LINES" "$report")"
 
+# Whether the line trim dropped anything. Tracked because that trim is otherwise
+# silent: short lines stay under the byte ceiling below, so a long report of them
+# ended mid-findings and read as the complete list.
+truncated=no
+(($(wc -l <"$report") > MAX_REPORT_LINES)) && truncated=yes
+
 # Then the byte ceiling, in bash's own substring operator rather than `cut`, which
 # counts per line and so bounds nothing on a multi-line report. ${var:0:n} counts
 # characters, keeping the result valid UTF-8 where a byte count would split one, and
@@ -125,9 +131,11 @@ Fix the root cause of each; do not silence a checker.
 # The two newlines that join the lead to the report, counted with everything else.
 overhead=$((${#lead} + ${#truncation_marker} + 2))
 if (($(printf '%s' "$output" | wc -c) > MAX_REPORT_BYTES - overhead)); then
-  output="${output:0:$(((MAX_REPORT_BYTES - overhead) / 4))}
-$truncation_marker"
+  output="${output:0:$(((MAX_REPORT_BYTES - overhead) / 4))}"
+  truncated=yes
 fi
+[[ $truncated == yes ]] && output="$output
+$truncation_marker"
 
 printf '%s\n%s\n' "$lead" "$output" | hook_emit_system_message
 exit 0
