@@ -52,9 +52,12 @@ done
 # `git reset`: those move HEAD, and every file differing across the two commits
 # reads as changed, which would send a whole repository's comments to the auditor
 # or overrun the line limit below and skip the audit altogether.
+# :(literal), because these are filenames going back to git as pathspecs: a name
+# holding pathspec metacharacters is otherwise read as a pattern, and `a[1].py`
+# then matches `a1.py` as well.
 recent=()
 while IFS= read -r -d '' file; do
-  recent+=("$file")
+  recent+=(":(literal)$file")
 done < <(hook_changed_files "${HONESTY_GLOBS[@]}" | hook_recently_modified "$HONESTY_STALE_AFTER_SECONDS")
 ((${#recent[@]})) || exit 0
 

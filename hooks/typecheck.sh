@@ -21,6 +21,10 @@ STALE_AFTER_SECONDS=30
 # findings it exists to deliver.
 MAX_REPORT_LINES=200
 
+# And a byte ceiling, because the limit that truncates is on bytes, not lines, and a
+# single line can pass it on its own.
+MAX_REPORT_BYTES=16384
+
 cwd="$(hook_field '.cwd // empty')"
 [[ -n $cwd ]] || cwd="$PWD"
 
@@ -100,10 +104,10 @@ report="$(mktemp)" || exit 0
 trap 'rm -f "$report"' EXIT
 bash "$checker" "${changed[@]}" >"$report" 2>&1 || status=$?
 ((status != 0)) || exit 0
-output="$(head -n "$MAX_REPORT_LINES" "$report")"
+output="$(head -n "$MAX_REPORT_LINES" "$report" | head -c "$MAX_REPORT_BYTES")"
 
 # Reported, not enforced: this hook exits 0 either way, and pre-commit and CI are the
-# gates. Wording that claimed otherwise described a block that does not happen here.
+# gates.
 printf '%s\n' "The type checkers reported findings on the files this turn changed.
 Fix the root cause of each; do not silence a checker.
 

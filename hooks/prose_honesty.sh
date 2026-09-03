@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stop hook. Asks a headless Claude whether the prose in this turn's markdown and text
 # diff -- READMEs, design docs, ADRs, handbook pages -- is honest, reports what it
-# finds, and lets the turn end. Comments and docstrings in Python are
+# finds, and lets the turn end. Comments and docstrings in code are
 # code_prose_honesty.sh's business.
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
