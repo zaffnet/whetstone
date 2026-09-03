@@ -63,7 +63,11 @@ for file in "${candidates[@]}"; do
       [[ $other == "$stub" ]] && continue 2
     done
   fi
-  changed+=("$file")
+  # Prefixed with ./ because these paths go to the checkers as arguments, and git
+  # tracks a name like `--version.py`: bare, every one of the four reads it as an
+  # option and checks nothing. Verified on all four; `--` would fix the leading dash
+  # too, but not every tool here accepts it before its paths.
+  changed+=("./$file")
 done
 
 # A repository's own script overrides the one shipped here, which is how it chooses
