@@ -10,6 +10,9 @@
 #                   the project's .claude, and this directory's siblings
 #   HONESTY_LEAD    the instruction printed above the findings
 #   HONESTY_GLOBS   array of pathspecs the diff is limited to
+#   HONESTY_SHEBANG_GLOBS  optional; pathspecs whose matches are kept only when the
+#                   file opens with a shebang. For extensionless code, where the
+#                   suffix cannot say whether a path is a script or a fixture.
 #
 # Neither hook edits a file: they report, and Claude makes the edit.
 # Nothing here blocks. A checker that cannot run must not hold a turn, but must not
@@ -62,6 +65,16 @@ recent=()
 while IFS= read -r -d '' file; do
   recent+=(":(literal)$file")
 done < <(hook_changed_files "${HONESTY_GLOBS[@]}" | hook_recently_modified "$HONESTY_STALE_AFTER_SECONDS")
+
+# Then the shebang-gated pathspecs, whose matches carry no suffix to judge them by:
+# `bin/sync-mcp` is a script and a test fixture in the same directory would not be.
+# Read the first two bytes rather than trusting the name.
+if [[ -n ${HONESTY_SHEBANG_GLOBS+x} ]] && ((${#HONESTY_SHEBANG_GLOBS[@]})); then
+  while IFS= read -r -d '' file; do
+    [[ -f $file && $(head -c 2 -- "$file" 2>/dev/null) == '#!' ]] || continue
+    recent+=(":(literal)$file")
+  done < <(hook_changed_files "${HONESTY_SHEBANG_GLOBS[@]}" | hook_recently_modified "$HONESTY_STALE_AFTER_SECONDS")
+fi
 ((${#recent[@]})) || exit 0
 
 diff_text="$(hook_changed_diff "${recent[@]}")"

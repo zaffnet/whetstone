@@ -29,7 +29,16 @@ HONESTY_GLOBS=(
   # than with prose_honesty.sh: a template is code once its name or body holds
   # template syntax.
   '*.jinja' '*.tmpl'
+  # Extensionless config, which no suffix pattern reaches. Named individually
+  # because these are identified by their name alone, unlike the scripts below.
+  # Each carries a leading '*': a bare name is a pathspec anchored to the
+  # repository root, so it would miss home/dot_zprofile and the rest.
+  '*Brewfile' '*dot_zprofile' '*dot_zshenv' '*config/git/ignore'
 )
+
+# Extensionless code, kept only when the file opens with a shebang: the whole of
+# bin/ is scripts today, and a suffix cannot tell a future fixture from a script.
+HONESTY_SHEBANG_GLOBS=('bin/*' 'home/*')
 HONESTY_LEAD="Comment text that a later reader cannot use. Cut it. Where a finding
 names one clause worth keeping, keep that clause and delete the rest; where it
 names none, delete the whole comment. For a suppression, remove it and fix what
