@@ -37,9 +37,14 @@ unset VIRTUAL_ENV
 # The files to check, kept as a list rather than spent as a yes/no gate: it is what
 # the checkers below are pointed at. Nothing written recently means nothing to check.
 #
+# A module and its stub are one module to mypy, which reports a duplicate and stops
+# without checking anything, so the stub wins and the implementation is dropped --
+# the same precedence a repository-wide run gives it.
+#
 # Read in a loop because `mapfile -d` needs bash 4 and macOS ships bash 3.2.
 changed=()
 while IFS= read -r -d '' file; do
+  [[ $file == *.py && -e ${file%.py}.pyi ]] && continue
   changed+=("$file")
 done < <(hook_changed_files '*.py' '*.pyi' | hook_recently_modified "$STALE_AFTER_SECONDS")
 ((${#changed[@]})) || exit 0

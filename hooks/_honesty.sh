@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Shared body for the two Stop hooks that ask a headless Claude whether the prose in
-# this turn's diff is honest: code_prose_honesty.sh for Python comments, docstrings,
-# and checker suppressions, prose_honesty.sh for markdown and text files.
+# this turn's diff is honest: code_prose_honesty.sh for comments, docstrings, and
+# checker suppressions, prose_honesty.sh for markdown and text files.
 #
-# A caller sets three variables and sources this file after _common.sh:
+# A caller sets four variables and sources this file after _common.sh:
 #
 #   HONESTY_NAME    this hook's name, for the diagnostics it prints
 #   HONESTY_BRIEF   basename of the markdown brief, resolved against the plugin root,
@@ -14,6 +14,11 @@
 # Neither hook edits a file: they report, and Claude makes the edit.
 # Nothing here blocks. A checker that cannot run must not hold a turn, but must not
 # pass as a clean audit either, so every failure path says so and exits 0.
+
+# How recently a file must have changed to count as this turn's work, matching the
+# typecheck hook. Short because a checkout restamps the mtime of what it rewrites, so
+# the window must have closed by the time the turn ends.
+HONESTY_STALE_AFTER_SECONDS=30
 
 # Diagnostics go to stderr, which reaches the debug log and not Claude. That is the
 # right place for "the auditor could not run": it is not a finding about the code.
@@ -42,7 +47,18 @@ for candidate in \
 done
 [[ -n ${brief:-} ]] || exit 0
 
-diff_text="$(hook_changed_diff "${HONESTY_GLOBS[@]}")"
+# Narrowed to this turn's writes before the diff is built, not after. The
+# working-tree diff against HEAD cannot tell an edit from a `git checkout` or
+# `git reset`: those move HEAD, and every file differing across the two commits
+# reads as changed, which would send a whole repository's comments to the auditor
+# or overrun the line limit below and skip the audit altogether.
+recent=()
+while IFS= read -r -d '' file; do
+  recent+=("$file")
+done < <(hook_changed_files "${HONESTY_GLOBS[@]}" | hook_recently_modified "$HONESTY_STALE_AFTER_SECONDS")
+((${#recent[@]})) || exit 0
+
+diff_text="$(hook_changed_diff "${recent[@]}")"
 [[ -n $diff_text ]] || exit 0
 
 # A rewrite this large is reviewed by a person rather than by this.

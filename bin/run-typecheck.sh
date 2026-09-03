@@ -44,7 +44,11 @@ run() {
 # --check, so this reports rather than rewrites: it runs as a Stop hook, and a gate
 # that edited the tree would change code nobody reviewed. Stable mode, not --preview,
 # so a pass here is a pass at pre-commit.
-run uv run --no-sync ruff format --check --color always "${targets[@]}"
+#
+# --force-exclude, because ruff checks a path named on the command line even when the
+# project excludes it. Without it a caller passing explicit targets reports findings
+# on generated code that a repository-wide run skips.
+run uv run --no-sync ruff format --check --force-exclude --color always "${targets[@]}"
 
 # explicit-preview-rules keeps --preview + ALL from enabling every preview rule;
 # E266 is the one preview rule opted into.
@@ -62,6 +66,7 @@ ruff_check=(
   --per-file-ignores "*_test.py:PLR2004"
   --per-file-ignores "*.pyi:ANN401"
   --config "lint.explicit-preview-rules = true"
+  --force-exclude
   --preview
   --color always
 )
