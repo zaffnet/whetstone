@@ -132,8 +132,10 @@ lead="The type checkers reported findings on the files this turn changed.
 Fix the root cause of each; do not silence a checker.
 "
 
-# The two newlines that join the lead to the report, counted with everything else.
-overhead=$((${#lead} + ${#truncation_marker} + 2))
+# Three newlines, not two: printf writes one after the lead and one at the end, and
+# the marker below is preceded by its own. Reserving two left the message one byte
+# over when the line trim added the marker to a report the byte check had not sliced.
+overhead=$((${#lead} + ${#truncation_marker} + 3))
 if (($(printf '%s' "$output" | wc -c) > MAX_REPORT_BYTES - overhead)); then
   output="${output:0:$(((MAX_REPORT_BYTES - overhead) / 4))}"
   truncated=yes
