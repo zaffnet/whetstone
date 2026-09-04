@@ -11,7 +11,9 @@
 # every triggered apply. AGENTS.md carries the guidance instead.
 #
 # Deliberately not run here:
-#   claude install  same CLAUDE.md write as the default platform, plus a PreToolUse hook.
+#   claude install  same CLAUDE.md write as the default platform, which is the reason not to
+#                   run it. The PreToolUse hook it would also install is worth having, so it
+#                   is declared by hand in home/.chezmoitemplates/claude-settings.json.
 #   codex install   writes .codex/hooks.json, which .chezmoiremove deletes on every apply
 #                   while this script only re-runs on a Brewfile change. AGENTS.md again.
 #   cursor install  writes a relative .cursor/rules/graphify.mdc, so from an apply it lands
