@@ -33,11 +33,17 @@ Run `git fetch origin` first. Refuse and name the reason if the working tree is 
 are found in phase 2, or if `gh` is missing and `--report-only` was not passed. Uncommitted work
 would be indistinguishable from this run's own change.
 
-Record the base this run targets. It is the current branch when HEAD is not the repository
-default, so a docs pass on top of a feature branch reviews against that feature branch rather than
-dragging its commits into this PR. Otherwise it is the default branch, from `gh repo view --json
-defaultBranchRef --jq .defaultBranchRef.name`, falling back to
-`git symbolic-ref refs/remotes/origin/HEAD`.
+Record the base this run targets, always as a plain branch name such as `main`, never as a ref
+path. It is the current branch when HEAD is not the repository default, so a docs pass on top of a
+feature branch reviews against that feature branch rather than dragging its commits into this PR.
+Otherwise it is the default branch, from `gh repo view --json defaultBranchRef --jq
+.defaultBranchRef.name`, falling back to `git symbolic-ref --short refs/remotes/origin/HEAD` with
+the leading `origin/` stripped. `gh pr create --base` takes a branch name and rejects
+`refs/remotes/origin/main`.
+
+Refuse if that branch is not in sync with `origin/<base>`, naming the commits that differ. GitHub
+diffs the PR against the remote branch while phase 9 diffs against the local one, so an unpushed
+commit on the base is invisible to phase 9 and still lands in the PR.
 
 Everything downstream depends on this one value: phase 7 cuts the docs branch from it, phase 9
 diffs against it, and phase 10 opens the PR against it and never pushes to it.
@@ -171,14 +177,15 @@ Open the PR against the base recorded in phase 1: `gh pr create --base <base>`. 
 already cut from it in phase 7, so no unrelated commit rides along. Request a Copilot review if the project uses it. Never push to the
 base, never merge, and never comment `@codex review`.
 
-The PR body names each doc corrected and the code that proves it, so a reviewer can check a
-finding without rerunning the search. Load `writing-whip` before writing it.
+The PR body names each doc corrected and the evidence that proves it, the `code-path:line` or the
+quoted ground-truth fact, so a reviewer can check a finding without rerunning the search. Load
+`writing-whip` before writing it.
 
 ## 11. Report
 
 In this order:
 
-1. Docs fixed: `doc-path:line`, the claim, the `code-path:line` that disproved it.
+1. Docs fixed: `doc-path:line`, the claim, the evidence that disproved it.
 2. Findings dropped, by which phase 6 rule.
 3. Code bugs found, reported and not fixed.
 4. Stale-caveat sentences left alone for want of a ground-truth fact, with their paths.
