@@ -124,6 +124,10 @@ Drop, with a line in the report:
 
 ## 7. Fix
 
+If triage left no survivors, stop here and go to phase 11: the docs agree with the code, which is
+a result, not a failure. Cut no branch, and skip phases 8 through 10 rather than opening an empty
+PR.
+
 Create the docs branch from the base recorded in phase 1 before the first edit, so no change ever
 sits on the base. Skip this under `--report-only`, which makes no edits at all.
 
