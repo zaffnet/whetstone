@@ -7,7 +7,6 @@ description: >-
 disable-model-invocation: true
 user-invocable: true
 argument-hint: "[--report-only] [--docs <dir>] [--ground-truth <fact>]..."
-tools: Read Edit Write Glob Grep Bash AskUserQuestion
 effort: high
 metadata:
   version: "1"
