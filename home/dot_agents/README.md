@@ -75,11 +75,17 @@ it). It is a standalone CLI, `graphify`, from the `graphifyy` package pinned in 
 every apply that changes the Brewfile; that subcommand is graphify's own, and this doc does
 not reproduce what files it writes.
 
-The per-product registrations graphify also offers are deliberately left out of that script,
-because each one writes to a path this repo already owns or to the current directory. The
-script's own comment lists them and why. Claude and Codex get their graph guidance from
-`AGENTS.md`, and generated projects get the Cursor rule from the template.
+The per-product registrations graphify also offers are left out of that script, because each
+one writes to a path this repo already owns or to the current directory. The script's own
+comment lists them and why. The exception is Claude's `PreToolUse` hook, which nudges an
+agent towards the graph on Bash, Grep, Read, and Glob: that hook is declared by hand in
+`home/.chezmoitemplates/claude-settings.json`, so every repo on this machine gets it. What
+`graphify claude install` is still refused for is its `~/.claude/CLAUDE.md` write. Codex gets
+its graph guidance from `AGENTS.md`, and generated projects get the Cursor rule from the
+template.
 
 Building and updating a project's graph is manual, per repo: `/graphify .` inside the
-assistant, `graphify update .` after a pull. Git hooks that automate the rebuild are opt-in
-per clone (`graphify hook install`), per graphify's own docs.
+assistant, `graphify update .` after a pull. The git hooks that automate the rebuild are a
+different mechanism from the `PreToolUse` hook above: `graphify hook install` writes
+`post-commit` and `post-checkout` into one clone, so it is opt-in per clone, and where
+`core.hooksPath` points at a managed directory it cannot be installed at all.
