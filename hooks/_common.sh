@@ -16,14 +16,40 @@ hook_field() {
   printf '%s' "$HOOK_INPUT" | jq -r "$1"
 }
 
-# Findings on stdout as JSON, which is the only channel Claude reads: stderr from a
-# hook that exits 0 reaches the debug log and nothing else. Text on stdin.
+# Findings on stdout as JSON, for a hook the harness waits for. Text on stdin.
+# A backgrounded hook reaches Claude through hook_emit_rewake below instead.
 #
 # systemMessage is top level, not under hookSpecificOutput, which holds a
 # per-event decision instead. Nested, it is silently discarded and nothing reaches
 # Claude. jq -Rs does the escaping, so a finding may contain quotes and newlines.
 hook_emit_system_message() {
   jq -Rs '{systemMessage: .}'
+}
+
+# Findings from a hook configured with "asyncRewake": true, which the harness runs in
+# the background and stops waiting for. Text on stdin; this function ends the script.
+#
+# Two details of that path decide the shape of this function, both read from the
+# CLI at 2.1.261:
+#
+# Exit 2 is the only code that delivers anything. The harness builds the message
+# from the completed process only under `if (code === 2)`; exit 0 drops the registry
+# entry and Claude is told nothing. That is what keeps every failure path in these
+# hooks on `exit 0` -- a checker that could not run stays in the debug log, and does
+# not read as a clean audit either.
+#
+# The text comes from stderr, falling back to stdout, and reaches Claude as plain
+# text: the harness does not parse systemMessage on this path. Stdout would also
+# arrive, but it is where the harness scans for a leading `{` to detect an async
+# marker, so a bare report there is matched against JSON first and delivered by a
+# fallback. Stderr has no such branch.
+#
+# Exit 2 from a hook the harness *is* waiting for means "refuse to let the turn
+# end". So a caller of this function must be configured with asyncRewake; dropping
+# that field turns these reports into blocked turns.
+hook_emit_rewake() {
+  cat >&2
+  exit 2
 }
 
 # NUL-separated paths of the files this turn changed, tracked and untracked, matching

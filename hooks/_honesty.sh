@@ -15,6 +15,11 @@
 #                   suffix cannot say whether a path is a script or a fixture.
 #
 # Neither hook edits a file: they report, and Claude makes the edit.
+#
+# Both are configured with "asyncRewake": true, so the harness backgrounds them and the
+# turn ends without waiting for the headless call below. Findings reach Claude at the
+# start of the next turn, through stderr and exit 2 -- see hook_emit_rewake.
+#
 # Nothing here blocks. A checker that cannot run must not hold a turn, but must not
 # pass as a clean audit either, so every failure path says so and exits 0.
 
@@ -26,8 +31,13 @@ HONESTY_STALE_AFTER_SECONDS=30
 # Ceiling on the findings report, matching the typecheck hook's.
 HONESTY_MAX_REPORT_BYTES=16384
 
-# Diagnostics go to stderr, which reaches the debug log and not Claude. That is the
-# right place for "the auditor could not run": it is not a finding about the code.
+# Added lines a diff needs before it is worth a model call. Five, so that a typo fix, a
+# renamed identifier, or a reflowed sentence passes without one.
+HONESTY_MIN_ADDED_LINES=5
+
+# Diagnostics go to stderr and are paired with exit 0, which is what keeps them out of
+# Claude's context: the rewake path reads stderr, but only from a hook that exits 2. That
+# is the right place for "the auditor could not run": it is not a finding about the code.
 honesty_note() {
   printf '%s: %s\n' "$HONESTY_NAME" "$1" >&2
 }
@@ -83,6 +93,23 @@ diff_text="$(hook_changed_diff "${recent[@]}")"
 # A rewrite this large is reviewed by a person rather than by this.
 if (($(wc -l <<<"$diff_text") > 4000)); then
   honesty_note 'diff over 4000 lines; not audited'
+  exit 0
+fi
+
+# And a floor, because the audit costs a model call whatever the diff's size: a typo fix
+# or a one-line tweak is not worth one.
+#
+# Added lines only, matched with a leading + and one more character so the +++ header
+# does not count, and removed lines not at all: deleting prose is the outcome an audit
+# asks for, so a diff that only deletes has nothing left to judge. Counted rather than
+# taken from `wc -l` on the whole patch, which is dominated by context lines -- a
+# one-word change inside a large file reads as a large diff.
+#
+# `|| true` because grep exits 1 when it matches nothing, which under `set -e` ends the
+# hook at the assignment -- skipping the audit for exactly the pure-deletion diff this
+# is meant to let through, and saying nothing about why.
+added="$(grep -c '^+.' <<<"$diff_text" || true)"
+if ((added < HONESTY_MIN_ADDED_LINES)); then
   exit 0
 fi
 
@@ -157,13 +184,12 @@ report="$(jq -r '.[] | "  \(.file):\(.line)  \(.why)"' <<<"$findings")"
 # inline limit and reach Claude cut off mid-word.
 #
 # Bash's substring operator, not `cut -c`, which counts per line and so bounds
-# nothing on a multi-line report. ${var:0:n} counts characters, keeping the result
-# valid UTF-8 where a byte count would split one and leave JSON that
-# hook_emit_system_message cannot build, and the quarter allows for the four bytes a
-# character can take. The marker prints because a report trimmed silently reads as
-# the complete list.
+# nothing on a multi-line report. ${var:0:n} counts characters, so the result stays
+# valid UTF-8 where a byte count would split one, and the quarter allows for the four
+# bytes a character can take. The marker prints because a report trimmed silently
+# reads as the complete list.
 # The marker and HONESTY_LEAD are part of the budget, not additions to it. The cap is
-# on the whole systemMessage, so trimming the report to the full ceiling and then
+# on the whole emitted message, so trimming the report to the full ceiling and then
 # prepending the lead put the emitted message over it again.
 honesty_truncation_marker='  [report truncated; findings above are the first of more]'
 
@@ -174,5 +200,4 @@ if (($(printf '%s' "$report" | wc -c) > HONESTY_MAX_REPORT_BYTES - honesty_overh
 $honesty_truncation_marker"
 fi
 
-printf '%s\n\n%s\n' "$HONESTY_LEAD" "$report" | hook_emit_system_message
-exit 0
+printf '%s\n\n%s\n' "$HONESTY_LEAD" "$report" | hook_emit_rewake
