@@ -99,16 +99,24 @@ fi
 # And a floor, because the audit costs a model call whatever the diff's size: a typo fix
 # or a one-line tweak is not worth one.
 #
-# Added lines only, matched with a leading + and one more character so the +++ header
-# does not count, and removed lines not at all: deleting prose is the outcome an audit
+# Added lines only, and removed lines not at all: deleting prose is the outcome an audit
 # asks for, so a diff that only deletes has nothing left to judge. Counted rather than
 # taken from `wc -l` on the whole patch, which is dominated by context lines -- a
 # one-word change inside a large file reads as a large diff.
 #
-# `|| true` because grep exits 1 when it matches nothing, which under `set -e` ends the
-# hook at the assignment -- skipping the audit for exactly the pure-deletion diff this
-# is meant to let through, and saying nothing about why.
-added="$(grep -c '^+.' <<<"$diff_text" || true)"
+# Counted inside hunks only, tracked by the @@ header. A `+` pattern alone also matches
+# the `+++ b/<path>` header that opens every file's section, so a pure-deletion diff
+# scored one added line per file touched and reached this floor on five files -- calling
+# the model for exactly the diff the floor exists to skip. `+++` appears only in that
+# header, never inside a hunk, so the state flag is what separates them.
+added="$(
+  awk '
+    /^@@/ { in_hunk = 1; next }
+    /^diff --git / { in_hunk = 0 }
+    in_hunk && /^\+/ { n++ }
+    END { print n + 0 }
+  ' <<<"$diff_text"
+)"
 if ((added < HONESTY_MIN_ADDED_LINES)); then
   exit 0
 fi

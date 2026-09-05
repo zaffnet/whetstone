@@ -91,5 +91,5 @@ Source: the `enabledPlugins` and `[plugins.*]` entries above.
 
 | Skill | Plugin | Products | What it does |
 | --- | --- | --- | --- |
-| `claude-md-improver` | `claude-md-management@claude-plugins-official` | Claude Code, Codex | Audits and improves a repo's `CLAUDE.md` files. |
+| `claude-md-improver` | `claude-md-management@claude-plugins-official` | Codex | Audits and improves a repo's `CLAUDE.md` files. The plugin is off in Claude Code, which had no recorded usage of it. |
 | its own set, versioned upstream | `superpowers@claude-plugins-official` (`obra/superpowers`) | Codex | Not enumerated here; read the plugin's own `skills/`. `verification-before-completion` is also in `skills.txt`, so Codex sees it twice; Claude Code, where the plugin is off, gets it only from `skills.txt`. |
