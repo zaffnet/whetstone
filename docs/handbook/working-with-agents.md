@@ -56,9 +56,27 @@ nothing, so the report only appears when there is something to answer.
 
 ## Stop hooks
 
-Three hooks check the work when a turn ends. Each reports through the `systemMessage`
-field of its JSON output, which is the only channel Claude reads: stderr from a hook that
-exits 0 reaches the debug log and nothing else. None of them blocks.
+Three hooks check the work when a turn ends. None of them delays it: each is configured
+with `"asyncRewake": true`, so the harness starts the hook, stops waiting, and ends the
+turn. The checks run on their own and their findings arrive at the start of the next turn.
+
+That timing is the reason each report says which turn it describes and that its line
+numbers may have moved. The hook reads the diff when the turn ends, so an edit made in
+between leaves a finding pointing at a line that has since shifted.
+
+Two exit codes carry the whole protocol. Exit 2 delivers what the hook wrote to stderr;
+it is the only code that reaches Claude at all. Exit 0 delivers nothing, which is what
+every failure path uses: a checker that could not run says so on stderr, where it reaches
+the debug log, and does not read as a clean audit. `hook_emit_rewake` in
+`hooks/_common.sh` is the one place that writes stderr and exits 2.
+
+Exit 2 from a hook the harness *is* waiting for means "refuse to let the turn end", so
+these scripts and the `asyncRewake` field belong together. Dropping the field from a
+settings file without changing the scripts turns their reports into blocked turns. The
+field is declared in four places -- the chezmoi template for this machine, `hooks.json`
+for plugin users, the project template for generated projects, and each generated
+project's own checked-in copy -- and a project that has not run `uvx copier update` since
+this landed is the case to watch.
 
 - `hooks/typecheck.sh` runs the repository's own `./run-typecheck.sh` where there is one,
   which is what a generated project has, and `bin/run-typecheck.sh` otherwise. Whatever
@@ -84,11 +102,16 @@ reduction in text, so expect the check to ask for deletions rather than rewordin
 
 The call is confined: `--max-turns 1`, no tools, and `--setting-sources ""` with
 `--strict-mcp-config`, which keeps this machine's settings, MCP servers, and CLAUDE.md out
-of the subprocess and cuts the cost roughly threefold. Diffs over 4000 lines are skipped. A
-`claude` that is absent, fails, or answers in prose is named on stderr, where it reaches the
-debug log rather than Claude, and does not block: a checker that cannot run must not hold a
-turn hostage, and must not pass as a clean audit either. Findings are the only thing worth
-Claude's attention, so they are the only thing on stdout.
+of the subprocess and cuts the cost roughly threefold.
+
+Both ends of the size range are skipped. Diffs over 4000 lines go to a person instead.
+Diffs adding fewer than five lines are not worth a model call, so a typo fix or a
+reflowed sentence passes without one; deleted lines are not counted, because deleting
+prose is what an audit asks for.
+
+A `claude` that is absent, fails, or answers in prose is named on stderr with exit 0,
+which reaches the debug log rather than Claude, and does not block: a checker that cannot
+run must not hold a turn hostage, and must not pass as a clean audit either.
 
 Shrink a docstring rather than deleting it: pre-commit fails on a public interface without
 one.

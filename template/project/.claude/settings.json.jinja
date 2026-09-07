@@ -35,16 +35,19 @@
       {
         "hooks": [
           {
+            "asyncRewake": true,
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/typecheck.sh\"",
             "timeout": 600,
             "type": "command"
           },
           {
+            "asyncRewake": true,
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/code_prose_honesty.sh\"",
             "timeout": 120,
             "type": "command"
           },
           {
+            "asyncRewake": true,
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/prose_honesty.sh\"",
             "timeout": 120,
             "type": "command"

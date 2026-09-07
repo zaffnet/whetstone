@@ -17,16 +17,19 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/typecheck.sh\"",
+            "asyncRewake": true,
             "timeout": 600
           },
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/code_prose_honesty.sh\"",
+            "asyncRewake": true,
             "timeout": 120
           },
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/prose_honesty.sh\"",
+            "asyncRewake": true,
             "timeout": 120
           }
         ]

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Stop hook. It reports what the type checkers found and lets the turn end; the
-# checkers also run in pre-commit and CI, so nothing here blocks.
+# Stop hook, backgrounded through "asyncRewake": true. It reports what the type
+# checkers found without delaying the turn: the harness stops waiting, and the
+# findings reach Claude at the start of the next turn. The checkers also run in
+# pre-commit and CI, so nothing here blocks.
 # Suppressions are code_prose_honesty.sh's business, not this hook's.
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
@@ -16,8 +18,8 @@ source "${BASH_SOURCE[0]%/*}/_common.sh"
 # and CI are the gates.
 STALE_AFTER_SECONDS=30
 
-# Lines of checker output to report. A systemMessage past the harness's inline limit
-# is spilled to a file and reaches Claude truncated, so an unbounded report loses the
+# Lines of checker output to report. Hook output past the harness's inline limit is
+# spilled to a file and reaches Claude truncated, so an unbounded report loses the
 # findings it exists to deliver.
 MAX_REPORT_LINES=200
 
@@ -122,14 +124,19 @@ truncated=no
 # the quarter allows for the four bytes a character can take.
 #
 # The marker and the lead are part of the budget, not additions to it. The cap is on
-# the whole systemMessage, so trimming the report to the full ceiling and then
-# prepending the lead put the emitted message over it again.
+# the whole emitted message, so trimming the report to the full ceiling and then
+# prepending the lead put it over again.
 truncation_marker='[report truncated; run the checkers directly for the rest]'
 
-# Reported, not enforced: this hook exits 0 either way, and pre-commit and CI are the
-# gates.
-lead="The type checkers reported findings on the files this turn changed.
+# Reported, not enforced: pre-commit and CI are the gates.
+#
+# "the turn that just ended", not "this turn": the hook is backgrounded, so the
+# checkers run after the turn is over and this report arrives at the start of the
+# next one. Naming the shifted line numbers is what stops a hunt through a diff that
+# has moved on.
+lead="The type checkers reported findings on the files the turn that just ended changed.
 Fix the root cause of each; do not silence a checker.
+Line numbers are from that turn and may have shifted; re-read before editing.
 "
 
 # Three newlines, not two: printf writes one after the lead and one at the end, and
@@ -143,5 +150,4 @@ fi
 [[ $truncated == yes ]] && output="$output
 $truncation_marker"
 
-printf '%s\n%s\n' "$lead" "$output" | hook_emit_system_message
-exit 0
+printf '%s\n%s\n' "$lead" "$output" | hook_emit_rewake

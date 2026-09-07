@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Stop hook. Asks a headless Claude whether the comments, docstrings, and checker
-# suppressions in this turn's code diff are honest about the code, reports what it
-# finds, and lets the turn end. Markdown and text files are prose_honesty.sh's
-# business.
+# Stop hook, backgrounded through "asyncRewake": true. Asks a headless Claude whether
+# the comments, docstrings, and checker suppressions in the ending turn's code diff are
+# honest about the code, and reports what it finds at the start of the next turn without
+# delaying this one. Markdown and text files are prose_honesty.sh's business.
 # shellcheck source-path=SCRIPTDIR source=_common.sh
 source "${BASH_SOURCE[0]%/*}/_common.sh"
 
@@ -50,13 +50,15 @@ HONESTY_GLOBS=(
 # Extensionless code, kept only when the file opens with a shebang: the whole of
 # bin/ is scripts today, and a suffix cannot tell a future fixture from a script.
 HONESTY_SHEBANG_GLOBS=('bin/*' 'home/*')
-HONESTY_LEAD="Comment text that a later reader cannot use. Cut it. Where a finding
-names one clause worth keeping, keep that clause and delete the rest; where it
-names none, delete the whole comment. For a suppression, remove it and fix what
-the checker reported.
+HONESTY_LEAD="Comment text that a later reader cannot use, in what the turn that just
+ended changed. Cut it. Where a finding names one clause worth keeping, keep that clause
+and delete the rest; where it names none, delete the whole comment. For a suppression,
+remove it and fix what the checker reported.
 
 Where the language requires a doc comment on a public interface and a checker
-enforces it, shrink that comment rather than deleting it."
+enforces it, shrink that comment rather than deleting it.
+
+Line numbers are from that turn and may have shifted; re-read before editing."
 
 # shellcheck source-path=SCRIPTDIR source=_honesty.sh
 source "${BASH_SOURCE[0]%/*}/_honesty.sh"

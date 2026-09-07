@@ -7,16 +7,22 @@
 # playwright is disabled in both products because it launches its own Chrome profile.
 # typescript-lsp is off in Claude Code only: nothing on this machine is TypeScript and the
 # plugin had no recorded usage. Left on in Codex, which has not been checked the same way.
+# claude-md-management is off in Claude Code only, on the same evidence: no plugin usage
+# recorded, and its two skills together had eight uses across 1985 startups. Left on in
+# Codex for the same reason as typescript-lsp.
+# code-review is off because the built-in /code-review covers it and the plugin had no
+# recorded usage.
 
 claude_code:
   enabled:
     - github@claude-plugins-official
     - pyright-lsp@claude-plugins-official
-    - claude-md-management@claude-plugins-official
   disabled:
     - chrome-devtools-mcp@claude-plugins-official
     - playwright@claude-plugins-official
     - typescript-lsp@claude-plugins-official
+    - claude-md-management@claude-plugins-official
+    - code-review@claude-code-plugins
 
 codex:
   enabled:

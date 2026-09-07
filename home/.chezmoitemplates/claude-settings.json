@@ -98,16 +98,19 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.agents/hooks/typecheck.sh\"",
+            "asyncRewake": true,
             "timeout": 600
           },
           {
             "type": "command",
             "command": "bash \"$HOME/.agents/hooks/code_prose_honesty.sh\"",
+            "asyncRewake": true,
             "timeout": 120
           },
           {
             "type": "command",
             "command": "bash \"$HOME/.agents/hooks/prose_honesty.sh\"",
+            "asyncRewake": true,
             "timeout": 120
           },
           {
@@ -151,7 +154,8 @@
     "playwright@claude-plugins-official": false,
     "pyright-lsp@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": false,
-    "claude-md-management@claude-plugins-official": true
+    "claude-md-management@claude-plugins-official": false,
+    "code-review@claude-code-plugins": false
   },
   "extraKnownMarketplaces": {
     "chrome-devtools-plugins": {
