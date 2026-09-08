@@ -83,3 +83,39 @@ codex_base_url() {
   from_config=$(codex_config_value openai_base_url)
   printf '%s' "${CODEX_BASE_URL:-${from_config:-${OPENAI_BASE_URL:-}}}"
 }
+
+# The API rejects an oversized request rather than truncating it, so a prompt that embeds a
+# diff has to bound it first. One generated lockfile or vendored JSON tree exceeds this alone.
+CODEX_MAX_INPUT_CHARS=1048576
+
+# The diff is the only part of a prompt that scales with the change; the rest is small and
+# bounded, so half the limit is a generous share.
+CODEX_MAX_DIFF_CHARS=$((CODEX_MAX_INPUT_CHARS / 2))
+
+# The limit counts characters, but bytes are the unit most transports measure, so the result
+# stays under whichever is stricter.
+#
+# ${var:0:n} slices characters, not bytes, in a UTF-8 locale; `cut -c` counts per line and so
+# bounds nothing on a multi-line diff. The loop covers mostly multi-byte text, where a
+# character slice still leaves too many bytes.
+#
+# Without the marker a truncated diff reads as the whole change, and the model names a branch
+# or writes a message for the part it saw.
+codex_bound_diff() {
+  local diff=$1
+  local limit=${2:-$CODEX_MAX_DIFF_CHARS}
+  local marker='[diff truncated; the file list above is complete]'
+  local budget=$((limit - ${#marker} - 1))
+
+  if (($(printf '%s' "$diff" | wc -m) <= limit)) \
+    && (($(printf '%s' "$diff" | wc -c) <= limit)); then
+    printf '%s' "$diff"
+    return
+  fi
+
+  diff=${diff:0:budget}
+  while (($(printf '%s' "$diff" | wc -c) > budget)); do
+    diff=${diff:0:$((${#diff} - ($(printf '%s' "$diff" | wc -c) - budget)))}
+  done
+  printf '%s\n%s' "$diff" "$marker"
+}

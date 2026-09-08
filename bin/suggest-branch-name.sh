@@ -89,6 +89,11 @@ if [[ -n "$CODEX_BASE_URL" ]]; then
   )
 fi
 
+# The prompt sends --stat as well, so the changed paths it asks for are still there when
+# this diff is cut.
+DIFF="$(codex_bound_diff "$(git diff HEAD)")"
+readonly DIFF
+
 PROMPT=$(
   cat <<PROMPT
 Suggest one git branch name for these working-tree changes. Do not run
@@ -104,8 +109,11 @@ script, update, changes, wip.
 git status -sb:
 $(git status -sb)
 
+git diff --stat HEAD:
+$(git diff --stat HEAD)
+
 git diff HEAD:
-$(git diff HEAD)
+$DIFF
 PROMPT
 )
 readonly PROMPT
