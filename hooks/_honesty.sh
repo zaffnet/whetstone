@@ -31,9 +31,9 @@ HONESTY_STALE_AFTER_SECONDS=30
 # Ceiling on the findings report, matching the typecheck hook's.
 HONESTY_MAX_REPORT_BYTES=16384
 
-# Added lines a diff needs before it is worth a model call. Five, so that a typo fix, a
-# renamed identifier, or a reflowed sentence passes without one.
-HONESTY_MIN_ADDED_LINES=5
+# Added lines a diff needs before it is worth a model call. One: a single added comment
+# line is what this audit exists to catch, and a higher floor let those through.
+HONESTY_MIN_ADDED_LINES=1
 
 # Diagnostics go to stderr and are paired with exit 0, which is what keeps them out of
 # Claude's context: the rewake path reads stderr, but only from a hook that exits 2. That
@@ -96,19 +96,16 @@ if (($(wc -l <<<"$diff_text") > 4000)); then
   exit 0
 fi
 
-# And a floor, because the audit costs a model call whatever the diff's size: a typo fix
-# or a one-line tweak is not worth one.
-#
 # Added lines only, and removed lines not at all: deleting prose is the outcome an audit
 # asks for, so a diff that only deletes has nothing left to judge. Counted rather than
 # taken from `wc -l` on the whole patch, which is dominated by context lines -- a
 # one-word change inside a large file reads as a large diff.
 #
 # Counted inside hunks only, tracked by the @@ header. A `+` pattern alone also matches
-# the `+++ b/<path>` header that opens every file's section, so a pure-deletion diff
-# scored one added line per file touched and reached this floor on five files -- calling
-# the model for exactly the diff the floor exists to skip. `+++` appears only in that
-# header, never inside a hunk, so the state flag is what separates them.
+# the `+++ b/<path>` header that opens every file's section, which would score a
+# pure-deletion diff as one added line per file touched -- calling the model for exactly
+# the diff this skips. `+++` appears only in that header, never inside a hunk, so the
+# state flag is what separates them, and a deletion-only diff scores zero.
 added="$(
   awk '
     /^@@/ { in_hunk = 1; next }

@@ -104,10 +104,8 @@ The call is confined: `--max-turns 1`, no tools, and `--setting-sources ""` with
 `--strict-mcp-config`, which keeps this machine's settings, MCP servers, and CLAUDE.md out
 of the subprocess and cuts the cost roughly threefold.
 
-Both ends of the size range are skipped. Diffs over 4000 lines go to a person instead.
-Diffs adding fewer than five lines are not worth a model call, so a typo fix or a
-reflowed sentence passes without one; deleted lines are not counted, because deleting
-prose is what an audit asks for.
+Diffs over 4000 lines go to a person instead. A diff that adds no lines is skipped, and
+deleted lines are not counted, because deleting prose is what an audit asks for.
 
 A `claude` that is absent, fails, or answers in prose is named on stderr with exit 0,
 which reaches the debug log rather than Claude, and does not block: a checker that cannot
