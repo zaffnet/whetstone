@@ -113,9 +113,10 @@ only and drop the value lines rather than copying any of them across.
 
 Rewrite the comments as well. Notes beside a key accumulate an internal host, a private
 URL, a workspace or asset id, a console link, a personal email, none of which may enter
-this public repo, and which pre-commit catches. Say what the key is for in generic
-terms, or drop the comment. Report any name you cannot describe without the private
-detail.
+this public repo. No checker catches these -- gitleaks matches secret shapes, not arbitrary
+private strings -- so reading each comment is the only thing standing between one of these
+and a public commit. Say what the key is for in generic terms, or drop the comment. Report
+any name you cannot describe without the private detail.
 
 **Manage.** Route it in phase 5.
 
@@ -177,7 +178,12 @@ Machine-specific values live outside the repo instead, in files `.chezmoiignore`
 | API keys | `~/.zsh_secrets` |
 
 A template writes `{{ .chezmoi.homeDir }}` and a script writes `$HOME`, never a literal
-home path. gitleaks runs in pre-commit and CI and is the remaining automated check.
+home path.
+
+gitleaks runs in pre-commit and CI, but it matches known secret shapes -- API keys, tokens,
+private keys -- plus a few generic patterns in `.gitleaks.toml`. It does not catch an
+arbitrary private hostname, internal URL, IAM role name, team name, or handle. Nothing does
+since `bin/forbid-private-patterns` was removed, so for that class this list is the check.
 
 ## 6. Software
 
