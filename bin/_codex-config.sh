@@ -83,3 +83,90 @@ codex_base_url() {
   from_config=$(codex_config_value openai_base_url)
   printf '%s' "${CODEX_BASE_URL:-${from_config:-${OPENAI_BASE_URL:-}}}"
 }
+
+# The API rejects an oversized request rather than truncating it, so a prompt that embeds a
+# diff has to bound it first. One generated lockfile or vendored JSON tree exceeds this alone.
+CODEX_MAX_INPUT_CHARS=1048576
+
+# The diff is the only part of a prompt that scales with the change; the rest is small and
+# bounded, so half the limit is a generous share.
+CODEX_MAX_DIFF_CHARS=$((CODEX_MAX_INPUT_CHARS / 2))
+
+# Without the marker a truncated diff reads as the whole change, and the model names a branch
+# or writes a message for the part it saw.
+CODEX_DIFF_TRUNCATION_MARKER='[diff truncated; the file list above is complete]'
+CODEX_PROMPT_TRUNCATION_MARKER='[prompt truncated; the file list above is complete]'
+
+# Write path $1 to stdout, cut to $2 characters and bytes (whichever is stricter) with
+# marker $3 appended when cut. Reads the path; does not pass contents as argv.
+codex_bound_file() {
+  local file=$1
+  local limit=$2
+  local marker=$3
+  local budget=$((limit - ${#marker} - 1))
+
+  if ((budget < 0)); then
+    budget=0
+  fi
+
+  if (($(wc -m <"$file") <= limit)) && (($(wc -c <"$file") <= limit)); then
+    cat "$file"
+    return
+  fi
+
+  # head -c is bytes. Git diffs are ASCII-heavy; the byte cap is the stricter of the two.
+  head -c "$budget" "$file"
+  printf '\n%s' "$marker"
+}
+
+# Replace path $1 in place when it exceeds $2 (default: CODEX_MAX_INPUT_CHARS), using
+# marker $3 (default: CODEX_PROMPT_TRUNCATION_MARKER).
+codex_cap_file() {
+  local file=$1
+  local limit=${2:-$CODEX_MAX_INPUT_CHARS}
+  local marker=${3:-$CODEX_PROMPT_TRUNCATION_MARKER}
+  local tmp
+
+  if (($(wc -m <"$file") <= limit)) && (($(wc -c <"$file") <= limit)); then
+    return
+  fi
+
+  tmp=$(mktemp "${file}.XXXXXX")
+  codex_bound_file "$file" "$limit" "$marker" >"$tmp"
+  mv "$tmp" "$file"
+}
+
+codex_bound_diff_from_file() {
+  local file=$1
+  local limit=${2:-$CODEX_MAX_DIFF_CHARS}
+
+  codex_bound_file "$file" "$limit" "$CODEX_DIFF_TRUNCATION_MARKER"
+}
+
+# The limit counts characters, but bytes are the unit most transports measure, so the result
+# stays under whichever is stricter.
+#
+# ${var:0:n} slices characters, not bytes, in a UTF-8 locale; `cut -c` counts per line and so
+# bounds nothing on a multi-line diff. The loop covers mostly multi-byte text, where a
+# character slice still leaves too many bytes.
+#
+# A ~2MB string as $1 hits ARG_MAX. Callers with a file must use
+# codex_bound_diff_from_file instead of wrapping this in command substitution.
+codex_bound_diff() {
+  local diff=$1
+  local limit=${2:-$CODEX_MAX_DIFF_CHARS}
+  local marker=$CODEX_DIFF_TRUNCATION_MARKER
+  local budget=$((limit - ${#marker} - 1))
+
+  if (($(printf '%s' "$diff" | wc -m) <= limit)) \
+    && (($(printf '%s' "$diff" | wc -c) <= limit)); then
+    printf '%s' "$diff"
+    return
+  fi
+
+  diff=${diff:0:budget}
+  while (($(printf '%s' "$diff" | wc -c) > budget)); do
+    diff=${diff:0:$((${#diff} - ($(printf '%s' "$diff" | wc -c) - budget)))}
+  done
+  printf '%s\n%s' "$diff" "$marker"
+}
