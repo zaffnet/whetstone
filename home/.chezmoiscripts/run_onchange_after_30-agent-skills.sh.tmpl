@@ -1,17 +1,12 @@
 #!/usr/bin/env bash
-# Installs the third-party agent skills listed in ~/.agents/skills.txt (npx skills add, global
-# scope). Hand-written skills are linked by 25-link-skills.sh. Re-runs when skills.txt changes.
 # skills.txt hash: {{ include "dot_agents/skills.txt" | sha256sum }}
 set -euo pipefail
 
 list="{{ .chezmoi.homeDir }}/.agents/skills.txt"
 if command -v npx >/dev/null; then
-  # npx skills add reads stdin even with -y; fed from the loop it would swallow the rest
-  # of the list after the first repo, so each call gets /dev/null.
   while read -r repo skills || [[ -n $repo ]]; do
     [[ -z $repo || $repo == \#* ]] && continue
     if [[ -n $skills ]]; then
-      # One -s flag per skill; the tool does not split a comma list.
       flags=()
       for skill in $skills; do flags+=(-s "$skill"); done
       npx -y skills@latest add "$repo" -g -y -a claude-code "${flags[@]}" </dev/null \

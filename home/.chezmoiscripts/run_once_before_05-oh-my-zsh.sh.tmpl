@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# Installs Oh My Zsh, Powerlevel10k, and zsh-autosuggestions into ~/.oh-my-zsh.
-# `run_once_`: runs on the first `chezmoi apply` on a machine, never again, so a failed
-# download must abort the apply rather than be recorded as done.
-#
-# The installers are fetched from each project's default branch, unpinned, which is the
-# install method each project documents. Pinning them would break as soon as they move.
 set -euo pipefail
 
 zsh_dir="$HOME/.oh-my-zsh"

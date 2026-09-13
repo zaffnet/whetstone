@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
-# Installs Homebrew if missing, then converges on the Brewfile. The Brewfile is inlined
-# here at render time, so this works on the first apply (before any file is written)
-# and re-runs whenever the Brewfile changes (`run_onchange_` hashes the rendered script).
 set -euo pipefail
 
 if ! command -v brew >/dev/null; then
-  # Fetched from Homebrew's default branch on purpose; it is the documented install method.
   installer="$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   NONINTERACTIVE=1 /bin/bash -c "$installer"
   if [[ -x /opt/homebrew/bin/brew ]]; then

@@ -1,14 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Removes build and tool detritus from a working tree.
-#
-# Matches an allowlist of names that are junk by construction. It never consults
-# git: .git/info/exclude and .gitignore often hide valuable untracked files
-# (local notes, agent config, reference data), so "ignored" is not "disposable".
-#
-# Lists what it would remove and exits without deleting unless given --apply.
-
 usage() {
   cat <<'USAGE'
 Usage: clean.sh [--apply] [--venv] [PATH...]
@@ -94,16 +86,10 @@ for i in "${!roots[@]}"; do
     printf 'clean.sh: refusing to clean %s\n' "$resolved" >&2
     exit 2
   fi
-  # The empty-parent sweep below compares dirname output against the root, and
-  # dirname never emits a trailing slash; tab completion always does.
   root=${root%/}
   roots[i]=${root:-/}
 done
 
-# Builds "( -name A -o -name B ... )" in name_group. Every pattern stays quoted:
-# an unquoted -name *.pyc would be glob-expanded against the invoking directory
-# before find ever saw it. The result lands in a global because bash 3.2, the
-# version macOS ships, has neither namerefs nor a way to return an array.
 name_group=()
 build_name_group() {
   local pattern
@@ -115,9 +101,6 @@ build_name_group() {
   name_group+=(')')
 }
 
-# Directories every find pass refuses to enter. .venv moves from the protected
-# list to the junk list under --venv, so it is deleted whole rather than walked:
-# descending into it would strip caches out of site-packages instead.
 protected_names=('.git')
 if ((clean_venv == 1)); then
   junk_dirs+=('.venv')
@@ -133,10 +116,6 @@ dir_group=("${name_group[@]}")
 build_name_group "${junk_files[@]}"
 file_group=("${name_group[@]}")
 
-# Junk directories are pruned as well as printed, so a doomed tree is named once
-# and never descended into. Under logs/ only log-shaped files are junk: notes,
-# fixtures, and anything else someone parked there are kept, and the logs/
-# directory itself survives.
 select_junk() {
   local root=$1
 
@@ -145,9 +124,6 @@ select_junk() {
     "${dir_group[@]}" -type d -prune -print0 -o \
     "${file_group[@]}" -type f -print0
 
-  # Prunes the same junk directories so a log inside one is not named twice:
-  # under --apply the first pass has already removed it by the time this pass
-  # would reach it.
   find "$root" "${protect[@]}" -o \
     "${dir_group[@]}" -type d -prune -o \
     -path '*/logs/*' -type f \( -name '*.log' -o -name '*.log.*' \) \
@@ -188,10 +164,6 @@ for root in "${roots[@]}"; do
   done < <(select_junk "$root")
 done
 
-# Removing __pycache__ can leave a directory holding nothing else. Only the
-# parents of paths removed above are candidates; a directory that was already
-# empty before the run (tests/fixtures/, a mount point) is left alone. Each
-# candidate is removed while empty, then its parent, stopping at the root.
 if ((apply == 1)); then
   for entry in ${parents[@]+"${parents[@]}"}; do
     dir=${entry%|*}

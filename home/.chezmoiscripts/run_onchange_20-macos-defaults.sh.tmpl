@@ -1,20 +1,11 @@
 #!/usr/bin/env bash
-# One-off macOS defaults that nothing else owns. The keys this repository manages by
-# declaration -- Finder, Dock, iTerm2 -- live in run_after_20-macos-managed-defaults.sh,
-# which runs every apply so a retired key can be retried.
-#
-# Re-runs after every OS upgrade because the build version below changes (Apple resets
-# some preferences on major updates).
 # macOS build: {{ output "sw_vers" "--buildVersion" | trim }}
 set -euo pipefail
 
-# Press-and-hold off so a held key repeats instead of opening the accent popup.
 defaults write NSGlobalDomain KeyRepeat -int 2
 defaults write NSGlobalDomain InitialKeyRepeat -int 15
 defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
 
-# The path bar and hidden files are Finder-domain keys, declared in
-# run_after_20-macos-managed-defaults.sh rather than here.
 defaults write NSGlobalDomain AppleShowAllExtensions -bool true
 defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true
 

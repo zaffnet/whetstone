@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Force-removes git worktrees and prunes stale entries.
-# --all removes every worktree except the main one, after confirming.
 set -euo pipefail
 
 usage() {

@@ -1,18 +1,6 @@
 #!/usr/bin/env bash
-# Suggests one git branch name for the current working-tree changes with Codex.
-# Prints the name; create the branch yourself (`git switch -c "$(suggest-branch-name.sh)"`).
-#
-# Environment:
-#   GIT_BRANCH_PREFIX  Prefix for the name, with trailing slash (default: the
-#                      GitHub login from `gh api user`, else the git user name,
-#                      lower-cased with spaces as hyphens).
-#   CODEX_MODEL        Overrides ~/.codex/config.toml's `model` (fallback: gpt-5.6-sol).
-#   CODEX_BASE_URL     Overrides ~/.codex/config.toml's `openai_base_url`, then OPENAI_BASE_URL;
-#                      OPENAI_API_KEY is the credential.
 set -euo pipefail
 
-# The library is symlinked into ~/.local/bin too, so it sits beside this script whichever
-# path reached it. No symlink resolution.
 # shellcheck source-path=SCRIPTDIR source=_codex-config.sh
 source "${BASH_SOURCE[0]%/*}/_codex-config.sh"
 
@@ -58,8 +46,6 @@ resolve_prefix() {
 PREFIX="$(resolve_prefix)"
 readonly PREFIX
 
-# jq builds the schema so the prefix is escaped once for the regex (inside jq) and
-# once for JSON (by jq's encoder). The two escapes are separate; hand-escaping mixes them.
 SCHEMA="$(
   jq -n --arg prefix "$PREFIX" --argjson min "$((${#PREFIX} + 2))" '
     ($prefix | gsub("(?<c>[\\\\^$.|?*+()\\[\\]{}/])"; "\\" + .c)) as $escaped
@@ -89,8 +75,6 @@ if [[ -n "$CODEX_BASE_URL" ]]; then
   )
 fi
 
-# The prompt sends --stat as well, so the changed paths it asks for are still there when
-# this diff is cut.
 DIFF="$(codex_bound_diff "$(git diff HEAD)")"
 readonly DIFF
 
@@ -124,7 +108,6 @@ SCHEMA_FILE="$TEMP_DIR/schema.json"
 PROMPT_FILE="$TEMP_DIR/prompt.txt"
 RESULT_FILE="$TEMP_DIR/result.json"
 printf '%s\n' "$SCHEMA" >"$SCHEMA_FILE"
-# The prompt embeds the whole diff; on stdin it has no argv size limit.
 printf '%s\n' "$PROMPT" >"$PROMPT_FILE"
 
 cleanup() {
