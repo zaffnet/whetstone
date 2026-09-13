@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# chezmoi modify script for ~/.kiro/settings/cli.json: receives the current file on stdin
+# and prints the new one. Ownership is per top-level key, following
+# dot_claude/modify_settings.json.tmpl. The Kiro CLI writes its own keys here --
+# `kiro-cli settings`, `kiro-cli theme`, `kiro-cli inline` -- so a plain managed file would
+# delete every choice made inside the product on the next apply.
+set -euo pipefail
+
+declared='{
+  "autocomplete.disable": false,
+  "autocomplete.theme": "light",
+  "inline.enabled": true
+}'
+
+# An absent or unparseable file starts from empty rather than failing the apply: Kiro
+# recreates it, and refusing here would block every later script.
+current="$(cat)"
+if [[ -z ${current// /} ]] || ! jq -e . >/dev/null 2>&1 <<<"$current"; then
+  current='{}'
+fi
+
+jq -S --argjson declared "$declared" '. * $declared' <<<"$current"

@@ -17,6 +17,8 @@ brew "jq"                      # JSON processor; hooks and scripts depend on it
 brew "gh"                      # GitHub CLI (gh stack extension installed by a run_once script)
 brew "git-delta"               # Side-by-side diffs with syntax highlighting
 brew "gitleaks"                # Secret scanning, pre-commit and CI
+brew "git-lfs"                 # ~/.gitconfig sets filter.lfs.required, so checkouts of an
+                               # LFS repo fail without it
 brew "commitlint"              # Conventional-commit linting
 brew "gnupg"
 brew "smimesign"               # S/MIME commit signing
@@ -57,10 +59,17 @@ brew "harper"                  # Grammar checker (harper-ls, harper-cli)
 brew "azure-cli"
 
 # Window management
-# yabai needs a manual step this file cannot do: partially disabling SIP, then installing
-# the scripting addition. Without it the binary runs but cannot move windows.
-tap "asmvik/formulae"
-brew "asmvik/formulae/yabai", trusted: true
+# yabai needs two steps this file cannot do: partially disabling SIP and installing the
+# scripting addition, then `yabai --start-service`. Until both happen the binary is
+# installed but no window manager is running.
+# koekeishiya/formulae is the project's own tap. Upstream development moved to the asmvik
+# fork and both taps build the identical 7.1.25 tarball from it, so the official namespace
+# is the safer of the two to name. `trusted: true` is not optional: Homebrew refuses to
+# load a formula from any third-party tap without it, official or not, so the choice is
+# this flag or no brew-installed yabai. Same flag, same reason, as the charmbracelet
+# formula above.
+tap "koekeishiya/formulae"
+brew "koekeishiya/formulae/yabai", trusted: true
 
 # Apps
 cask "iterm2"
