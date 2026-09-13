@@ -306,7 +306,7 @@ gh pr view ${PR_NUMBER} --json title,body,baseRefName,headRefName,commits:
 PROMPT
   cat "$PR_VIEW_FILE"
   printf '\n\ngh pr diff %s:\n' "$PR_NUMBER"
-  cat "$PR_DIFF_FILE"
+  codex_bound_diff_from_file "$PR_DIFF_FILE"
   printf '\n\ngit status -sb:\n'
   cat "$GIT_STATUS_FILE"
   printf '\n\ngit log --oneline -n 10:\n'
@@ -314,6 +314,7 @@ PROMPT
   printf '\n\ngit diff --stat %s:\n' "$DIFF_RANGE"
   cat "$GIT_DIFF_STAT_FILE"
 } >"$PROMPT_FILE"
+codex_cap_file "$PROMPT_FILE"
 
 if ! codex exec \
   --ephemeral \
