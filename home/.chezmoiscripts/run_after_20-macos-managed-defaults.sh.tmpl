@@ -200,12 +200,21 @@ iterm2_plist="$HOME/Library/Preferences/com.googlecode.iterm2.plist"
 # Both commands in one invocation, and its status ignored. PlistBuddy runs every -c it is
 # given and exits non-zero if any one of them failed, so the first apply -- no key yet, so
 # Delete reports it missing -- exits 1 with the Add already done. The status cannot
-# distinguish that from a real failure, so the key is read back instead.
+# distinguish that from a real failure, so the value is read back instead.
 /usr/libexec/PlistBuddy \
   -c "Delete :Workgroups" \
   -c "Add :Workgroups data ${iterm2_workgroups_hex}" \
   "$iterm2_plist" >/dev/null 2>&1 || true
-if ! /usr/libexec/PlistBuddy -c "Print :Workgroups" "$iterm2_plist" >/dev/null 2>&1; then
+
+# The value, not just the key. Should Delete fail for a real reason with the old key still
+# in place, Add fails too -- the entry it is told to create exists -- and a key that is
+# merely present is the stale one, which would then be recorded as managed and the apply
+# would report a write it never made.
+iterm2_workgroups_written="$(
+  /usr/libexec/PlistBuddy -c "Print :Workgroups" "$iterm2_plist" 2>/dev/null \
+    | tr -d '\n' | tr '[:upper:]' '[:lower:]'
+)"
+if [ "$iterm2_workgroups_written" != "$iterm2_workgroups_hex" ]; then
   printf 'failed to write Workgroups into %s\n' "$iterm2_plist" >&2
   exit 1
 fi
