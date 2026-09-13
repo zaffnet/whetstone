@@ -193,31 +193,23 @@ iterm2_workgroups_b64="$(
 WORKGROUPS_B64
 )"
 
-# PlistBuddy rather than `defaults write`: Delete-then-Add keeps the key's data type, and a
-# -string write would change it to a type iTerm2 treats as missing.
-iterm2_workgroups_hex="$(printf '%s' "$iterm2_workgroups_b64" | base64 -d | xxd -p | tr -d '\n')"
+# `plutil -replace` rather than PlistBuddy Delete-then-Add: it takes base64 and stores the
+# decoded bytes, where PlistBuddy's `data <hex>` stores the hex digits themselves as ASCII,
+# leaving a blob iTerm2 cannot parse. It also creates the key or overwrites it with one
+# command, so there is no missing-key case to fall back from.
 iterm2_plist="$HOME/Library/Preferences/com.googlecode.iterm2.plist"
-# Both commands in one invocation, and its status ignored. PlistBuddy runs every -c it is
-# given and exits non-zero if any one of them failed, so the first apply -- no key yet, so
-# Delete reports it missing -- exits 1 with the Add already done. The status cannot
-# distinguish that from a real failure, so the value is read back instead.
-/usr/libexec/PlistBuddy \
-  -c "Delete :Workgroups" \
-  -c "Add :Workgroups data ${iterm2_workgroups_hex}" \
-  "$iterm2_plist" >/dev/null 2>&1 || true
+plutil -replace Workgroups -data "$iterm2_workgroups_b64" "$iterm2_plist"
 
-# The value, not just the key. Should Delete fail for a real reason with the old key still
-# in place, Add fails too -- the entry it is told to create exists -- and a key that is
-# merely present is the stale one, which would then be recorded as managed and the apply
-# would report a write it never made.
+# Read the value back. `plutil -replace` reports its own failures, but not a write undone
+# by something else between the two, and a stale value here would be recorded as managed.
 iterm2_workgroups_written="$(
-  /usr/libexec/PlistBuddy -c "Print :Workgroups" "$iterm2_plist" 2>/dev/null \
-    | tr -d '\n' | tr '[:upper:]' '[:lower:]'
+  plutil -extract Workgroups raw -o - "$iterm2_plist" 2>/dev/null | tr -d '\n'
 )"
-if [ "$iterm2_workgroups_written" != "$iterm2_workgroups_hex" ]; then
+if [ "$iterm2_workgroups_written" != "$(printf '%s' "$iterm2_workgroups_b64" | tr -d '\n')" ]; then
   printf 'failed to write Workgroups into %s\n' "$iterm2_plist" >&2
   exit 1
 fi
+
 grep -qxF -- Workgroups "$state_dir/macos-iterm2-managed-keys.txt" 2>/dev/null \
   || printf '%s\n' Workgroups >>"$state_dir/macos-iterm2-managed-keys.txt"
 
