@@ -37,17 +37,6 @@
         ]
       }
     ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|NotebookEdit|Bash|PowerShell",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$HOME/.agents/hooks/ruff_format.sh\""
-          }
-        ]
-      }
-    ],
     "SessionStart": [
       {
         "matcher": "",

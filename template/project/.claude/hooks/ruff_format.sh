@@ -1,1 +1,0 @@
-../../../../hooks/ruff_format.sh
