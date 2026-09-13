@@ -35,6 +35,24 @@
             "command": "graphify hook-guard read"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/iterm2/cc-status\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/iterm2/cc-status\""
+          }
+        ]
       }
     ],
     "SessionStart": [
@@ -44,6 +62,14 @@
           {
             "type": "command",
             "command": "if [ -n \"$CLAUDE_ENV_FILE\" ] && [ -f \"$CLAUDE_PROJECT_DIR/.venv/bin/activate\" ]; then printf 'export VIRTUAL_ENV=\"%s/.venv\"\\nexport PATH=\"%s/.venv/bin:$PATH\"\\n' \"$CLAUDE_PROJECT_DIR\" \"$CLAUDE_PROJECT_DIR\" >> \"$CLAUDE_ENV_FILE\"; fi"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/iterm2/cc-status\""
           }
         ]
       }
@@ -78,6 +104,14 @@
             "async": true
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/iterm2/cc-status\""
+          }
+        ]
       }
     ],
     "Stop": [
@@ -108,6 +142,14 @@
             "async": true
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/iterm2/cc-status\""
+          }
+        ]
       }
     ],
     "StopFailure": [
@@ -118,6 +160,54 @@
             "type": "command",
             "command": "afplay /System/Library/Sounds/Sosumi.aiff",
             "async": true
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/iterm2/cc-status\""
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/iterm2/cc-status\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/iterm2/cc-status\""
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/iterm2/cc-status\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/iterm2/cc-status\""
           }
         ]
       }
@@ -144,7 +234,8 @@
     "pyright-lsp@claude-plugins-official": true,
     "typescript-lsp@claude-plugins-official": false,
     "claude-md-management@claude-plugins-official": false,
-    "code-review@claude-code-plugins": false
+    "code-review@claude-code-plugins": false,
+    "whetstone-hooks@whetstone": true
   },
   "extraKnownMarketplaces": {
     "chrome-devtools-plugins": {
