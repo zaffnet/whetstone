@@ -210,7 +210,9 @@ PROMPT
   printf '\n\ngit diff --cached --stat:\n'
   git diff --cached --stat
   printf '\n\ngit diff --cached -W:\n'
-  git diff --cached -W
+  # -W pads each hunk with its enclosing function, so this runs larger than a plain diff.
+  codex_bound_diff "$(git diff --cached -W)"
+  printf '\n'
 } >"$PROMPT_FILE"
 
 if ! codex exec \
