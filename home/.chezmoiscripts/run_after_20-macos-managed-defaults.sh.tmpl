@@ -193,16 +193,25 @@ iterm2_workgroups_b64="$(
 WORKGROUPS_B64
 )"
 
-# PlistBuddy rather than `defaults write`: Delete-then-Add keeps the key's data type, and a
-# -string write would change it to a type iTerm2 treats as missing.
-iterm2_workgroups_hex="$(printf '%s' "$iterm2_workgroups_b64" | base64 -d | xxd -p | tr -d '\n')"
-/usr/libexec/PlistBuddy \
-  -c "Delete :Workgroups" \
-  -c "Add :Workgroups data ${iterm2_workgroups_hex}" \
-  "$HOME/Library/Preferences/com.googlecode.iterm2.plist" >/dev/null 2>&1 \
-  || /usr/libexec/PlistBuddy \
-    -c "Add :Workgroups data ${iterm2_workgroups_hex}" \
-    "$HOME/Library/Preferences/com.googlecode.iterm2.plist" >/dev/null
+# `plutil -replace` rather than PlistBuddy Delete-then-Add: it takes base64 and stores the
+# decoded bytes, where PlistBuddy's `data <hex>` stores the hex digits themselves as ASCII,
+# leaving a blob iTerm2 cannot parse. It also creates the key or overwrites it with one
+# command, so there is no missing-key case to fall back from.
+iterm2_plist="$HOME/Library/Preferences/com.googlecode.iterm2.plist"
+plutil -replace Workgroups -data "$iterm2_workgroups_b64" "$iterm2_plist"
+
+# Read the value back. `plutil -replace` reports its own failures, but not a write undone
+# by something else between the two, and a stale value here would be recorded as managed.
+# Assigned inside the `if`: `pipefail` hands the pipeline plutil's status, so an unreadable
+# key would abort on `set -e` before the message below could say so.
+iterm2_workgroups_written=""
+if ! iterm2_workgroups_written="$(
+  plutil -extract Workgroups raw -o - "$iterm2_plist" 2>/dev/null | tr -d '\n'
+)" || [ "$iterm2_workgroups_written" != "$(printf '%s' "$iterm2_workgroups_b64" | tr -d '\n')" ]; then
+  printf 'failed to write Workgroups into %s\n' "$iterm2_plist" >&2
+  exit 1
+fi
+
 grep -qxF -- Workgroups "$state_dir/macos-iterm2-managed-keys.txt" 2>/dev/null \
   || printf '%s\n' Workgroups >>"$state_dir/macos-iterm2-managed-keys.txt"
 
