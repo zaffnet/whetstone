@@ -1,0 +1,92 @@
+[
+  {
+    "name": "Claude Code",
+    "sessions": [
+      {
+        "displayName": "Chat",
+        "toolbarItems": [
+          {
+            "kind": "modeSwitcher"
+          },
+          {
+            "kind": "gitStatus"
+          },
+          {
+            "kind": "autoRequestReviewWhenIdle"
+          }
+        ],
+        "urlString": "",
+        "command": "",
+        "mode": "regular",
+        "perFileCommand": "",
+        "uniqueIdentifier": "builtin.claudeCode.main",
+        "kind": {
+          "kind": "root"
+        }
+      },
+      {
+        "displayName": "Diff",
+        "parentID": "builtin.claudeCode.main",
+        "command": "git difftool -y -x 'delta --side-by-side --paging=never' \\(gitBase)",
+        "urlString": "",
+        "toolbarItems": [
+          {
+            "kind": "modeSwitcher"
+          },
+          {
+            "kind": "changedFileSelector"
+          },
+          {
+            "kind": "gitBaseSelector"
+          },
+          {
+            "backShortcut": {
+              "serialized": "0xf702-0x340000-0x7b"
+            },
+            "reloadShortcut": {
+              "serialized": "0x72-0x100000-0xf"
+            },
+            "forwardShortcut": {
+              "serialized": "0xf703-0x340000-0x7c"
+            },
+            "kind": "navigation"
+          }
+        ],
+        "profileGUID": "whetstone-default",
+        "mode": "diff",
+        "perFileCommand": "git difftool -y -x 'delta --side-by-side --paging=never' \\(gitBase) -- \\(file)",
+        "uniqueIdentifier": "builtin.claudeCode.diff",
+        "kind": {
+          "kind": "peer"
+        }
+      },
+      {
+        "displayName": "Code Review",
+        "parentID": "builtin.claudeCode.main",
+        "command": "claude \\(codeReviewPrompt) --append-system-prompt-file '\\(codeReviewSystemPromptFile)' --settings '\\(iterm2.appBundlePath)/Contents/Resources/code-review-settings.txt'",
+        "urlString": "",
+        "toolbarItems": [
+          {
+            "kind": "modeSwitcher"
+          },
+          {
+            "kind": "reload",
+            "shortcut": {
+              "serialized": "0x72-0x100000-0xf"
+            }
+          },
+          {
+            "kind": "autoSendClippingsWhenIdle"
+          }
+        ],
+        "mode": "codeReview",
+        "perFileCommand": "",
+        "uniqueIdentifier": "builtin.claudeCode.review",
+        "kind": {
+          "kind": "peer"
+        }
+      }
+    ],
+    "uniqueIdentifier": "builtin.claudeCode"
+  }
+]

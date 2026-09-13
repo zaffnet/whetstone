@@ -184,3 +184,28 @@ fi
 
 apply_managed_defaults com.googlecode.iterm2 "$state_dir/macos-iterm2-managed-keys.txt" \
   ${managed_iterm2_settings[@]+"${managed_iterm2_settings[@]}"}
+
+# Encoded by the template rather than piped through xxd here: the JSON contains newlines and
+# both kinds of quote, which shell-quoting out of `include` would mangle.
+iterm2_workgroups_b64="$(
+  cat <<'WORKGROUPS_B64'
+{{ include ".chezmoitemplates/iterm2-workgroups.json" | b64enc }}
+WORKGROUPS_B64
+)"
+
+# PlistBuddy rather than `defaults write`: Delete-then-Add keeps the key's data type, and a
+# -string write would change it to a type iTerm2 treats as missing.
+iterm2_workgroups_hex="$(printf '%s' "$iterm2_workgroups_b64" | base64 -d | xxd -p | tr -d '\n')"
+/usr/libexec/PlistBuddy \
+  -c "Delete :Workgroups" \
+  -c "Add :Workgroups data ${iterm2_workgroups_hex}" \
+  "$HOME/Library/Preferences/com.googlecode.iterm2.plist" >/dev/null 2>&1 \
+  || /usr/libexec/PlistBuddy \
+    -c "Add :Workgroups data ${iterm2_workgroups_hex}" \
+    "$HOME/Library/Preferences/com.googlecode.iterm2.plist" >/dev/null
+grep -qxF -- Workgroups "$state_dir/macos-iterm2-managed-keys.txt" 2>/dev/null \
+  || printf '%s\n' Workgroups >>"$state_dir/macos-iterm2-managed-keys.txt"
+
+# Preferences are cached in memory per domain; without this the daemon can write the old
+# value back over what was just set.
+killall cfprefsd 2>/dev/null || true
