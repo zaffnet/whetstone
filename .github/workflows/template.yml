@@ -10,8 +10,6 @@ permissions:
 
 jobs:
   render-and-check:
-    # The default label is positional: `render-and-check (true, false, 88)` gives no clue
-    # which axis is which. Name them.
     name: >-
       render-and-check
       (docker=${{ matrix.use_docker }},
@@ -25,8 +23,6 @@ jobs:
         use_docker: ["false", "true"]
         use_fastapi: ["false", "true"]
         use_graphify: ["false", "true"]
-        # 88 is ruff's own default and the likeliest non-default answer. Rendering only the
-        # default hid a template line that was 89 characters wide.
         line_length: ["100", "88"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -34,7 +30,6 @@ jobs:
         with:
           enable-cache: true
       - name: Install actionlint
-        # The download script is pinned to the same tag as the binary it fetches.
         run: |
           bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12 /usr/local/bin
       - name: Render the template
@@ -43,8 +38,6 @@ jobs:
           USE_FASTAPI: ${{ matrix.use_fastapi }}
           USE_GRAPHIFY: ${{ matrix.use_graphify }}
           LINE_LENGTH: ${{ matrix.line_length }}
-        # --vcs-ref HEAD: copier defaults to the latest tag, which would test the last
-        # release instead of this commit.
         run: |
           uvx copier copy --defaults --vcs-ref HEAD \
             -d project_name=demo-app -d description=Demo -d github_owner=octocat \
@@ -62,13 +55,9 @@ jobs:
           uv run pytest -qq
           actionlint
           test -f LICENSE
-          # A WorktreeCreate hook has no fallback and fails inside the Claude desktop app's
-          # session sandbox; generated projects must not ship one, wired or not.
           jq -e '.hooks | has("WorktreeCreate") | not' .claude/settings.json
           test ! -e .claude/hooks/worktree_create.sh
       - name: Build the image and run the Compose stack
-        # line_length only changes rendered source, so build the image once per docker
-        # variant rather than once per line_length.
         if: matrix.use_docker == 'true' && matrix.line_length == '100'
         working-directory: /tmp/demo
         env:
@@ -85,10 +74,6 @@ jobs:
           fi
           docker compose down -v
 
-  # The name is interpolated inline into rendered Python, so a long one can push a line
-  # past the project's own ruff gate. copier.yml caps it at 40; this renders at the cap
-  # and at the 88-character floor on line_length, the pair that leaves the least room.
-  # Two variants, because __main__.py renders only without FastAPI and app.py only with it.
   longest-name:
     name: longest-name (fastapi=${{ matrix.use_fastapi }})
     runs-on: ubuntu-latest
@@ -117,13 +102,6 @@ jobs:
           uv run ruff check .
           uv run ruff format --check .
 
-  # One stable context for the branch ruleset to require. Both jobs above carry their
-  # matrix values in the job name, so adding an axis or labelling one renames every
-  # context and the ruleset waits on names that no longer exist. This name never
-  # changes, whatever the matrix does.
-  #
-  # always() so a failed dependency still runs it. Without it the job is skipped, and a
-  # skipped required check passes the ruleset.
   template-ok:
     if: always()
     needs: [render-and-check, longest-name]

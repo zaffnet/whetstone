@@ -1,19 +1,4 @@
 #!/usr/bin/env bash
-# Launches Claude Code or Codex in the current repository, with sibling
-# reference repositories mounted read-only via --add-dir and pulled first.
-#
-# Usage: run-coding-agent.sh [claude|codex] [--opus|--sonnet] [--medium|--high|--xhigh] [AGENT ARGS...]
-#
-# Environment:
-#   REFERENCE_REPOS   Space-separated directory names under SRC_DIR (the parent of
-#                     the current repo) to pull and mount. Falls back to a .reference-repos
-#                     file in the repo root, one name per line. Default: none.
-#   CLAUDE_MODEL      Claude model (default: opus[1m]).
-#   CODEX_MODEL       Codex model (default: gpt-5.6-sol).
-#
-# Codex reads AGENTS.override.md *instead of* AGENTS.md when it exists, so when
-# CLAUDE.local.md exists the override is AGENTS.md plus the local file: Codex sees
-# the same extra context as Claude without it ever being committed.
 set -euo pipefail
 
 REPO_DIR="$(git rev-parse --show-toplevel)"
@@ -33,8 +18,6 @@ fi
 if [[ -f CLAUDE.local.md && -f AGENTS.md ]]; then
   cat AGENTS.md CLAUDE.local.md >AGENTS.override.md
 else
-  # Codex prefers AGENTS.override.md, so a leftover copy would freeze AGENTS.md as it was
-  # when CLAUDE.local.md last existed.
   rm -f AGENTS.override.md
 fi
 

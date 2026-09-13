@@ -1,27 +1,6 @@
 #!/usr/bin/env bash
-# Generates a Conventional Commits message for the staged changes with Codex,
-# shows it, and commits after confirmation.
-#
-# Codex runs in an empty temp directory with every tool disabled; it sees only
-# the prompt (git status, recent log, staged diff) and returns structured JSON.
-#
-# Usage: commit.sh [-y|--yes]
-#
-# The model and the proxy come from ~/.codex/config.toml (see bin/_codex-config.sh), so this
-# agrees with interactive Codex by construction.
-#
-# Environment:
-#   CODEX_MODEL      Overrides the config's `model` (fallback: gpt-5.6-sol).
-#   CODEX_BASE_URL   Overrides the config's `openai_base_url`, then OPENAI_BASE_URL. When set,
-#                    requests go through it with OPENAI_API_KEY. Unset = OpenAI direct.
-#   COMMIT_SIGN      Set to 1 to force `git commit -S`. Otherwise the commit is
-#                    signed only when `git config commit.gpgsign` is true.
-#
-# The generated message is saved to $GIT_DIR/COMMIT_MESSAGE.md for reference.
 set -euo pipefail
 
-# The library is symlinked into ~/.local/bin too, so it sits beside this script whichever
-# path reached it. No symlink resolution.
 # shellcheck source-path=SCRIPTDIR source=_codex-config.sh
 source "${BASH_SOURCE[0]%/*}/_codex-config.sh"
 
@@ -111,7 +90,6 @@ case "$staged_diff_status" in
     ;;
 esac
 
-# Optional OpenAI-compatible proxy. Empty array means Codex uses its default provider.
 PROVIDER_ARGS=()
 CODEX_BASE_URL=$(codex_base_url)
 if [[ -n "$CODEX_BASE_URL" ]]; then
@@ -210,7 +188,6 @@ PROMPT
   printf '\n\ngit diff --cached --stat:\n'
   git diff --cached --stat
   printf '\n\ngit diff --cached -W:\n'
-  # -W pads each hunk with its enclosing function, so this runs larger than a plain diff.
   codex_bound_diff "$(git diff --cached -W)"
   printf '\n'
 } >"$PROMPT_FILE"
@@ -249,7 +226,6 @@ if ! codex exec \
 fi
 
 COMMIT_MESSAGE=$(jq -er '.message | select(type == "string" and length > 0)' "$RESULT_FILE")
-# Strip a fence around the whole message; fences inside the body are content.
 COMMIT_MESSAGE=$(printf '%s\n' "$COMMIT_MESSAGE" | sed -E '1{/^[[:space:]]*```/d;}' | sed -E '${/^[[:space:]]*```[[:space:]]*$/d;}')
 
 printf '%s\n' "$COMMIT_MESSAGE" >"$(git rev-parse --git-dir)/COMMIT_MESSAGE.md"

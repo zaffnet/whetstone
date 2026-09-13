@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
-# Runs after every apply. Copies ~/.agents/mcp.json into Cursor, Claude Code, and Codex;
-# sync-mcp is the only writer of Codex's [mcp_servers.*] and chezmoi leaves that section
-# alone. Also installs the gh extension the prompt relies on. Both steps need a sign-in
-# that happens after the first apply (Claude Code writes ~/.claude.json on first run, gh
-# needs `gh auth login`), so they retry on every apply instead of being recorded as done.
 set -euo pipefail
 
-# Homebrew is installed by 10-brew-bundle.sh, but that script's shellenv applies to its
-# own process and no login shell has read .zprofile yet.
 if ! command -v uv >/dev/null; then
   for brew_bin in /opt/homebrew/bin/brew /usr/local/bin/brew; do
     if [[ -x $brew_bin ]]; then
@@ -25,8 +18,6 @@ elif [[ ! -f "{{ .chezmoi.homeDir }}/.claude.json" ]]; then
 elif ! command -v uv >/dev/null; then
   echo "sync-mcp: uv not on PATH, skipping" >&2
 else
-  # sync-mcp needs tomllib (3.11+) and the system python3 on macOS is 3.9. uv comes from
-  # the Brewfile, which 10-brew-bundle.sh installs before this runs.
   uv run --no-project --python 3.12 python "$sync"
 fi
 

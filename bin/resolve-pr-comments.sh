@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Resolves every unresolved review thread on a pull request in the current repo and
-# prints each thread id it resolved. Non-interactive on purpose: agents call it.
-#
-# Usage: resolve-pr-comments.sh PR_NUMBER
 set -euo pipefail
 
 if [[ $# -ne 1 || ! $1 =~ ^[1-9][0-9]*$ ]]; then
@@ -11,8 +7,6 @@ if [[ $# -ne 1 || ! $1 =~ ^[1-9][0-9]*$ ]]; then
 fi
 pr=$1
 
-# The $-prefixed names in the query are GraphQL variables bound by gh from the -F
-# flags ($endCursor comes from --paginate), so they must reach the server unexpanded.
 # shellcheck disable=SC2016
 gh api graphql --paginate \
   -F owner='{owner}' -F name='{repo}' -F pr="$pr" \

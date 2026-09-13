@@ -1,15 +1,4 @@
 #!/usr/bin/env bash
-# Regenerates a pull request title and body with Codex from the PR diff, commits, and
-# recent history, shows the result, and applies it with `gh pr edit` after confirmation.
-# Existing checklist ticks and a `<!-- branch-stack-start -->...<!-- branch-stack-end -->`
-# block in the current body are preserved.
-#
-# Usage: update-pr-title-and-body.sh PR_NUMBER [-y|--yes]
-#
-# Environment:
-#   CODEX_MODEL      Overrides ~/.codex/config.toml's `model` (fallback: gpt-5.6-sol).
-#   CODEX_BASE_URL   Overrides ~/.codex/config.toml's `openai_base_url`, then OPENAI_BASE_URL;
-#                    OPENAI_API_KEY is the credential.
 set -euo pipefail
 
 SCHEMA=$(
@@ -36,8 +25,6 @@ JSON
 )
 readonly SCHEMA
 
-# The library is symlinked into ~/.local/bin too, so it sits beside this script whichever
-# path reached it. No symlink resolution.
 # shellcheck source-path=SCRIPTDIR source=_codex-config.sh
 source "${BASH_SOURCE[0]%/*}/_codex-config.sh"
 
@@ -135,7 +122,6 @@ trap cleanup EXIT
 
 readonly ASSUME_YES PR_NUMBER
 
-# Optional OpenAI-compatible proxy. Empty array means Codex uses its default provider.
 PROVIDER_ARGS=()
 CODEX_BASE_URL=$(codex_base_url)
 if [[ -n "$CODEX_BASE_URL" ]]; then
@@ -202,8 +188,6 @@ git diff --stat "$DIFF_RANGE" >"$GIT_DIFF_STAT_FILE"
 
 CURRENT_BODY=$(jq -er '.body' "$PR_VIEW_FILE")
 
-# Checklist items come from the repository's pull request template so the script
-# works for any repo.
 checklist_items() {
   local template
   for template in .github/PULL_REQUEST_TEMPLATE.md .github/pull_request_template.md \

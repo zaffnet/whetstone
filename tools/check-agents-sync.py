@@ -31,13 +31,8 @@ PAIRS = (
 FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n(.*)\Z", re.DOTALL)
 JINJA_NAME = re.compile(r"\{%.*?%\}")
 
-# Markdown frontmatter key -> Codex TOML key. Codex spells the effort differently; the rest
-# pair by the same name.
 SAME = {"name": "name", "description": "description", "effort": "model_reasoning_effort"}
-# Claude Code's own, with no Codex counterpart: Codex takes the tool set and the model from
-# its own config, and `opus` is a Claude model name that means nothing to it.
 MD_ONLY = frozenset({"tools", "model"})
-# Codex's own: the body lives in a key here rather than after the frontmatter.
 TOML_ONLY = frozenset({"developer_instructions"})
 MD_KEYS = frozenset(SAME) | MD_ONLY
 TOML_KEYS = frozenset(SAME.values()) | TOML_ONLY
@@ -117,8 +112,6 @@ def compare(md_path: Path, toml_path: Path) -> list[str]:
             problems.append(
                 f"{toml_path}: {toml_key} is {toml_value!r}, {md_path} {md_key} is {md_value!r}"
             )
-    # `name` is what addresses the subagent, so it also has to be the name of the file the
-    # agent is loaded from.
     if front.get("name", "") != agent_name(md_path):
         problems.append(f"{md_path}: name {front.get('name', '')!r} is not the file's name")
 

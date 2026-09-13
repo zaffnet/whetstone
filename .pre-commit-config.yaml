@@ -1,6 +1,3 @@
-# Runs on every commit. CI runs the same config (`pre-commit run --all-files`).
-# Install: `uv run pre-commit install` (or `just install`); this also installs the
-# commit-msg stage, which runs commitlint against ~/.config/commitlint.
 default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -36,8 +33,6 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
-        # zsh files cannot be parsed as bash. The chezmoi scripts and modify_ templates are
-        # bash with {{ }} inside quoted strings and comments, and are checked as written.
         exclude: ^(template/project/|home/dot_zsh|home/dot_zprofile|home/dot_p10k\.zsh)
 
   - repo: https://github.com/scop/pre-commit-shfmt
@@ -51,7 +46,6 @@ repos:
     rev: v1.7.12
     hooks:
       - id: actionlint
-        # Template workflows contain Jinja and are validated after rendering (template.yml).
         exclude: ^template/project/
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
@@ -71,26 +65,13 @@ repos:
 
   - repo: local
     hooks:
-      # Each reviewer subagent exists as Claude markdown and Codex TOML; the
-      # bodies must stay identical.
-      #
-      # always_run, not a `files` filter: pre-commit leaves deleted paths out of the
-      # staged filename set, so a commit that only deletes one half of a pair would
-      # skip the check and land the orphan.
       - id: check-agents-sync
         name: agents md/toml in sync
-        # The script needs tomllib (3.11+); the system python3 on macOS is older.
         entry: uv run --no-sync python tools/check-agents-sync.py
         language: system
         pass_filenames: false
         always_run: true
 
-      # `claude plugin validate .` checks plugin.json's paths but not the ones written
-      # in marketplace.json, so a renamed agent file passes it.
-      #
-      # always_run for the same reason as check-agents-sync: deleting a path that
-      # marketplace.json still names is exactly the break this catches, and a
-      # deletion-only commit matches no `files` filter.
       - id: check-marketplace-paths
         name: marketplace paths exist
         entry: bin/check-marketplace-paths
@@ -98,7 +79,6 @@ repos:
         pass_filenames: false
         always_run: true
 
-      # commit-msg stage: conventional commits via the user-level commitlint config.
       - id: commitlint
         name: commitlint
         entry: bin/commitlint-msg
