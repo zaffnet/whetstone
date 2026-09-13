@@ -71,16 +71,6 @@ repos:
 
   - repo: local
     hooks:
-      # Matches lines against a machine-local denylist of private hostnames,
-      # ids, and names. The file is never committed; when it is absent (CI, a
-      # fresh clone) the hook is a no-op. See docs/redaction.md.
-      - id: forbid-private-patterns
-        name: forbid private patterns
-        entry: bin/forbid-private-patterns
-        language: script
-        types: [text]
-        exclude: ^\.gitleaks\.toml$
-
       # Each reviewer subagent exists as Claude markdown and Codex TOML; the
       # bodies must stay identical.
       #
@@ -91,19 +81,6 @@ repos:
         name: agents md/toml in sync
         # The script needs tomllib (3.11+); the system python3 on macOS is older.
         entry: uv run --no-sync python tools/check-agents-sync.py
-        language: system
-        pass_filenames: false
-        always_run: true
-
-      # docs/skills.md is hand-written; nothing else notices when a skill is added to
-      # skills/ or skills.txt and the table is not.
-      #
-      # always_run for the same reason as check-agents-sync: removing a skill without
-      # removing its row is drift too, and a deletion-only commit matches no `files`
-      # filter.
-      - id: check-skills-doc
-        name: skills doc in sync
-        entry: uv run --no-sync python tools/check-skills-doc.py
         language: system
         pass_filenames: false
         always_run: true

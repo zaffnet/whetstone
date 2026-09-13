@@ -12,7 +12,7 @@ id = "absolute-home-path"
 description = "Absolute /Users/<name>/ or /home/<name>/ path; use $HOME or a chezmoi template variable"
 regex = '''(?:/Users|/home)/[A-Za-z0-9._-]+/'''
 [[rules.allowlists]]
-paths = ['''^docs/redaction\.md$''', '''^\.gitleaks\.toml$''']
+paths = ['''^\.gitleaks\.toml$''']
 
 [[rules]]
 id = "employee-style-id"

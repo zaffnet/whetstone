@@ -2,7 +2,7 @@
 # Installs the Cursor extensions listed in ~/.cursor/extensions.txt.
 #
 # run_after_ rather than run_onchange_, because retrying is the point. Cursor is installed
-# by hand, after the first apply (docs/new-machine.md step 6), so the first run finds no
+# by hand, after the first apply, so the first run finds no
 # binary. Under run_onchange_ that run would be recorded as handled and the extensions
 # would never install, with no error, until the list itself changed.
 set -euo pipefail

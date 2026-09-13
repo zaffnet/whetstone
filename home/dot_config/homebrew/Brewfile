@@ -77,7 +77,7 @@ cask "iterm2"
 # an existing /Applications/Cursor.app means modifying an app Homebrew did not place there,
 # which macOS App Management refuses; the cask then rolls back by removing the app, and the
 # failed script aborts the whole apply before a single dotfile is written. Install Cursor
-# by hand (docs/new-machine.md); it keeps itself up to date.
+# by hand; it keeps itself up to date.
 cask "codex"                   # OpenAI Codex desktop app
 cask "beekeeper-studio"        # SQL client
 cask "dbeaver-community"

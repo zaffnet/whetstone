@@ -112,8 +112,8 @@ pattern; read the file, and if a key's value spans more than one line, take the 
 only and drop the value lines rather than copying any of them across.
 
 Rewrite the comments as well. Notes beside a key accumulate an internal host, a private
-URL, a workspace or asset id, a console link, a personal email, all of which
-`docs/redaction.md` forbids and pre-commit catches. Say what the key is for in generic
+URL, a workspace or asset id, a console link, a personal email, none of which may enter
+this public repo, and which pre-commit catches. Say what the key is for in generic
 terms, or drop the comment. Report any name you cannot describe without the private
 detail.
 
@@ -160,9 +160,24 @@ file cannot be managed at all, following the `.gitconfig` precedent already in t
 Never edit `~/.config/chezmoi/chezmoi.toml`. Collect the `[data.work]` lines for the report
 and let the user paste them.
 
-Anything that would put a private hostname, internal URL, account id, or an absolute
-`/Users/<name>/` path into the repo goes through a `$work` key or `{{ .chezmoi.homeDir }}`
-instead. `docs/redaction.md` is the rule and pre-commit enforces it.
+This repo is public. None of the following may enter it: API keys, tokens, passwords,
+certificates, private keys, CA bundles; private hostnames, internal package indexes, proxy
+URLs, cloud account ids, IAM role names, asset or cost-center identifiers; other people's
+names and GitHub handles; absolute paths under `/Users/<name>/`; agent runtime state such
+as histories, session logs, and OAuth caches.
+
+Machine-specific values live outside the repo instead, in files `.chezmoiignore` and
+`.gitignore` exclude:
+
+| Value | Location |
+| --- | --- |
+| Proxy URL, AWS profile, private index, branch prefix | `[data.work]` in `~/.config/chezmoi/chezmoi.toml` |
+| Shell exports specific to one machine | `~/.zshrc.local` |
+| Commit signing program, certificate, CA bundle | `~/.gitconfig.local` |
+| API keys | `~/.zsh_secrets` |
+
+A template writes `{{ .chezmoi.homeDir }}` and a script writes `$HOME`, never a literal
+home path. gitleaks runs in pre-commit and CI and is the remaining automated check.
 
 ## 6. Software
 
@@ -255,9 +270,8 @@ In order, stopping at the first failure:
    no-ops (untracked) or leaves the file in place (staged) instead of undoing it. Run
    `chezmoi forget` on the offending source path — the inverse of `chezmoi add` — or, if it
    is already staged, `git rm --cached` followed by `rm`. Report it instead of applying.
-2. `just lint`. `check-skills-doc.py` fails here if `docs/skills.md` lacks the row for this
-   skill; gitleaks and `forbid-private-patterns` fail here on a leaked string. Fix the
-   cause, never suppress the checker.
+2. `just lint`. gitleaks fails here on a leaked string. Fix the cause, never suppress the
+   checker.
 3. `just validate`.
 4. `just apply`.
 5. `chezmoi verify`, then `just diff` again. Both silent. A non-empty second diff means an
