@@ -5,4 +5,4 @@
 ## Checklist
 
 - [ ] `just lint` passes.
-- [ ] No private hostnames, account ids, absolute home paths, or secrets (`docs/redaction.md`).
+- [ ] No private hostnames, account ids, absolute home paths, or secrets.
