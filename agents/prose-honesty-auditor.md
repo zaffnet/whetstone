@@ -1,6 +1,6 @@
 ---
 name: prose-honesty-auditor
-description: Judges every sentence and clause of the prose a diff adds to markdown and text files -- READMEs, design docs, ADRs, handbook pages -- against a high bar of usefulness to a later reader. Use before handing a turn back. Reports each part that can be cut.
+description: Judges every sentence and clause of the prose a diff adds to markdown and text files -- READMEs, design docs, ADRs -- against a high bar of usefulness to a later reader. Use before handing a turn back. Reports each part that can be cut.
 tools: Bash, Read, Grep, Glob
 model: sonnet
 effort: medium

@@ -16,3 +16,8 @@
 # bin/run_claude_code.sh was deleted in 07701ad, but this link to it was left behind, so
 # every apply recreated a dead link. Source dropped from home/ in f56aecf.
 .local/bin/run_claude_code.sh
+
+# docs/handbook/ was inlined into AGENTS.md and deleted, so the symlink source went with
+# it. Dropping the source only stops chezmoi managing the link; without this the existing
+# ~/.agents/handbook would be left behind pointing at a path that no longer exists.
+.agents/handbook
