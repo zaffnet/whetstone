@@ -202,10 +202,12 @@ plutil -replace Workgroups -data "$iterm2_workgroups_b64" "$iterm2_plist"
 
 # Read the value back. `plutil -replace` reports its own failures, but not a write undone
 # by something else between the two, and a stale value here would be recorded as managed.
-iterm2_workgroups_written="$(
+# Assigned inside the `if`: `pipefail` hands the pipeline plutil's status, so an unreadable
+# key would abort on `set -e` before the message below could say so.
+iterm2_workgroups_written=""
+if ! iterm2_workgroups_written="$(
   plutil -extract Workgroups raw -o - "$iterm2_plist" 2>/dev/null | tr -d '\n'
-)"
-if [ "$iterm2_workgroups_written" != "$(printf '%s' "$iterm2_workgroups_b64" | tr -d '\n')" ]; then
+)" || [ "$iterm2_workgroups_written" != "$(printf '%s' "$iterm2_workgroups_b64" | tr -d '\n')" ]; then
   printf 'failed to write Workgroups into %s\n' "$iterm2_plist" >&2
   exit 1
 fi
