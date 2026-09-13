@@ -17,6 +17,8 @@ brew "jq"                      # JSON processor; hooks and scripts depend on it
 brew "gh"                      # GitHub CLI (gh stack extension installed by a run_once script)
 brew "git-delta"               # Side-by-side diffs with syntax highlighting
 brew "gitleaks"                # Secret scanning, pre-commit and CI
+brew "git-lfs"                 # ~/.gitconfig sets filter.lfs.required, so checkouts of an
+                               # LFS repo fail without it
 brew "commitlint"              # Conventional-commit linting
 brew "gnupg"
 brew "smimesign"               # S/MIME commit signing
@@ -38,6 +40,7 @@ brew "rbenv"
 brew "ruby-build"
 brew "ruby", link: false
 brew "nvm"                     # Node version manager
+brew "bun"                     # JS runtime and package manager
 
 # Documents and media
 tap "charmbracelet/tap"
@@ -55,6 +58,19 @@ brew "harper"                  # Grammar checker (harper-ls, harper-cli)
 # Cloud
 brew "azure-cli"
 
+# Window management
+# yabai needs two steps this file cannot do: partially disabling SIP and installing the
+# scripting addition, then `yabai --start-service`. Until both happen the binary is
+# installed but no window manager is running.
+# koekeishiya/formulae is the project's own tap. Upstream development moved to the asmvik
+# fork and both taps build the identical 7.1.25 tarball from it, so the official namespace
+# is the safer of the two to name. `trusted: true` is not optional: Homebrew refuses to
+# load a formula from any third-party tap without it, official or not, so the choice is
+# this flag or no brew-installed yabai. Same flag, same reason, as the charmbracelet
+# formula above.
+tap "koekeishiya/formulae"
+brew "koekeishiya/formulae/yabai", trusted: true
+
 # Apps
 cask "iterm2"
 # No `cask "cursor"`. Cursor is auto_updates, so brew never upgrades it anyway, and adopting
@@ -67,6 +83,19 @@ cask "beekeeper-studio"        # SQL client
 cask "dbeaver-community"
 cask "caffeine"                # Keep the Mac awake
 cask "maccy"                   # Clipboard manager
+# Adopted from an existing install: brew takes over the app in place rather than refusing,
+# because of `cask_args adopt: true` above.
+cask "gitkraken"
+cask "whatsapp"
+
+# No cask for Docker Desktop, Google Chrome, Claude, ChatGPT, or GitHub Desktop. Each one
+# needs `sudo` to finish -- moving an app into /Applications, a recursive chmod, replacing a
+# binary under /usr/local/bin -- and this file is installed from a non-interactive script,
+# where the password prompt cannot be answered. `brew bundle` then exits 1 and fails the
+# apply. Install them by hand; all five keep themselves up to date. Claude, ChatGPT and
+# GitHub Desktop are in ~/Applications on this machine, which is why brew wants to move
+# them.
+
 cask "font-fira-code"
 cask "font-meslo-lg-nerd-font" # Powerlevel10k glyphs
 cask "font-jetbrains-mono-nerd-font"

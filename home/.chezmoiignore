@@ -27,10 +27,3 @@ Library/Spelling/en_US.dic
 Library/Spelling/en_CA.aff
 Library/Spelling/en_CA.dic
 {{- end }}
-
-{{ if eq .role "work" -}}
-# Some machines have tooling that rewrites ~/.gitconfig (signing key, x509 program) on
-# every git call, which would show as permanent drift. Under the work profile the file is
-# kept by hand; ~/.gitconfig.local still applies.
-.gitconfig
-{{- end }}

@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Installs the Cursor extensions listed in ~/.cursor/extensions.txt.
+#
+# run_after_ rather than run_onchange_, because retrying is the point. Cursor is installed
+# by hand, after the first apply (docs/new-machine.md step 6), so the first run finds no
+# binary. Under run_onchange_ that run would be recorded as handled and the extensions
+# would never install, with no error, until the list itself changed.
+set -euo pipefail
+
+list="{{ .chezmoi.homeDir }}/.cursor/extensions.txt"
+# Cursor can be installed for one user or for everyone, so look in both places.
+cursor_bin=""
+for candidate in \
+  "{{ .chezmoi.homeDir }}/Applications/Cursor.app/Contents/Resources/app/bin/cursor" \
+  "/Applications/Cursor.app/Contents/Resources/app/bin/cursor"; do
+  if [[ -x $candidate ]]; then
+    cursor_bin="$candidate"
+    break
+  fi
+done
+if [[ -z $cursor_bin ]]; then
+  echo "cursor-extensions: Cursor not installed, skipping" >&2
+  exit 0
+fi
+
+installed="$("$cursor_bin" --list-extensions 2>/dev/null || true)"
+status=0
+while read -r ext || [[ -n $ext ]]; do
+  [[ -z $ext || $ext == \#* ]] && continue
+  grep -qxFi -- "$ext" <<<"$installed" && continue
+  # A failure is reported rather than ignored, so a marketplace error or a renamed
+  # extension shows up in the apply instead of leaving the manifest half-installed.
+  "$cursor_bin" --install-extension "$ext" --force >/dev/null || {
+    echo "cursor-extensions: failed to install $ext" >&2
+    status=1
+  }
+done <"$list"
+exit "$status"
