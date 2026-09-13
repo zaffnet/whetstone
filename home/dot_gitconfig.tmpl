@@ -32,6 +32,11 @@
 	diff-words = diff --word-diff=color
 [init]
 	defaultBranch = main
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
 # Machine-specific settings (signing, proxies, CA bundles) live in ~/.gitconfig.local,
 # which is never committed.
 [include]
