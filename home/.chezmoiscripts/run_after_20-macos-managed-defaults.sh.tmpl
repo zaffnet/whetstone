@@ -196,13 +196,19 @@ WORKGROUPS_B64
 # PlistBuddy rather than `defaults write`: Delete-then-Add keeps the key's data type, and a
 # -string write would change it to a type iTerm2 treats as missing.
 iterm2_workgroups_hex="$(printf '%s' "$iterm2_workgroups_b64" | base64 -d | xxd -p | tr -d '\n')"
+iterm2_plist="$HOME/Library/Preferences/com.googlecode.iterm2.plist"
+# Both commands in one invocation, and its status ignored. PlistBuddy runs every -c it is
+# given and exits non-zero if any one of them failed, so the first apply -- no key yet, so
+# Delete reports it missing -- exits 1 with the Add already done. The status cannot
+# distinguish that from a real failure, so the key is read back instead.
 /usr/libexec/PlistBuddy \
   -c "Delete :Workgroups" \
   -c "Add :Workgroups data ${iterm2_workgroups_hex}" \
-  "$HOME/Library/Preferences/com.googlecode.iterm2.plist" >/dev/null 2>&1 \
-  || /usr/libexec/PlistBuddy \
-    -c "Add :Workgroups data ${iterm2_workgroups_hex}" \
-    "$HOME/Library/Preferences/com.googlecode.iterm2.plist" >/dev/null
+  "$iterm2_plist" >/dev/null 2>&1 || true
+if ! /usr/libexec/PlistBuddy -c "Print :Workgroups" "$iterm2_plist" >/dev/null 2>&1; then
+  printf 'failed to write Workgroups into %s\n' "$iterm2_plist" >&2
+  exit 1
+fi
 grep -qxF -- Workgroups "$state_dir/macos-iterm2-managed-keys.txt" 2>/dev/null \
   || printf '%s\n' Workgroups >>"$state_dir/macos-iterm2-managed-keys.txt"
 
