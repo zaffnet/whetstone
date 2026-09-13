@@ -33,27 +33,6 @@ Never end a turn with "I'll wait for X".
 commands error cleanly or print static text; under a PTY the same commands open a prompt or
 a full-screen TUI and block. Pass explicit flags instead of relying on that detection.
 
-## Formatting on every file change
-
-`hooks/ruff_format.sh` runs ruff over a changed Python file as soon as the tool call that
-changed it returns. Its matcher is `Edit|Write|NotebookEdit|Bash|PowerShell`: the shell
-tools are there because a matcher naming only the editing tools misses every file a shell
-command writes, and auto mode steers an agent toward Bash for exactly that.
-
-The two halves work from different evidence. An editing tool names the file in the payload.
-A shell tool does not, so the working tree is what says which files changed -- which means
-the hook has to decide what counts as this tool's work. It keeps files modified within the
-last 30 seconds, because the working-tree diff also holds whatever the author had in
-progress before the turn, and a read-only command like `ls` reaches that branch too.
-Formatting everything uncommitted would rewrite a half-written file nothing in the session
-touched.
-
-The window has one gap: a command that writes a file early and then runs longer than 30
-seconds leaves that file to pre-commit. Widening it trades that gap for the risk above.
-
-Lint that ruff cannot fix itself reaches Claude through `systemMessage`. A clean pass says
-nothing, so the report only appears when there is something to answer.
-
 ## Stop hooks
 
 Three hooks check the work when a turn ends. None of them delays it: each is configured

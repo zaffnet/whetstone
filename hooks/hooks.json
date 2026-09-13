@@ -1,16 +1,5 @@
 {
   "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|NotebookEdit|Bash|PowerShell",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/ruff_format.sh\""
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "hooks": [
