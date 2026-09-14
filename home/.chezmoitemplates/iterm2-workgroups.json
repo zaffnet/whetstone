@@ -27,7 +27,7 @@
       {
         "displayName": "Diff",
         "parentID": "builtin.claudeCode.main",
-        "command": "git difftool -y -x 'delta --side-by-side --paging=never' \\(gitBase)",
+        "command": "git diff \\(gitBase) | delta --side-by-side --paging=never",
         "urlString": "",
         "toolbarItems": [
           {
@@ -54,7 +54,7 @@
         ],
         "profileGUID": "whetstone-default",
         "mode": "diff",
-        "perFileCommand": "git difftool -y -x 'delta --side-by-side --paging=never' \\(gitBase) -- \\(file)",
+        "perFileCommand": "git diff \\(gitBase) -- \\(file) | delta --side-by-side --paging=never",
         "uniqueIdentifier": "builtin.claudeCode.diff",
         "kind": {
           "kind": "peer"
