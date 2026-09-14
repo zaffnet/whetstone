@@ -1,6 +1,10 @@
+{{- $work := get . "work" | default (dict) -}}
 [user]
 	name = {{ .name | quote }}
 	email = {{ .email | quote }}
+{{- if hasKey $work "git_signingkey" }}
+	signingkey = {{ get $work "git_signingkey" }}
+{{- end }}
 [pull]
 	rebase = true
 [core]
@@ -37,7 +41,18 @@
 	smudge = git-lfs smudge -- %f
 	process = git-lfs filter-process
 	required = true
-# Machine-specific settings (signing, proxies, CA bundles) live in ~/.gitconfig.local,
-# which is never committed.
+# Machine-specific settings (proxies, CA bundles) live in ~/.gitconfig.local, which is
+# never committed.
 [include]
 	path = ~/.gitconfig.local
+{{- if hasKey $work "git_signingkey" }}
+# Declared in the order and position the corp tooling writes them, so its rewrite matches
+# what chezmoi expects and the apply no longer stops to ask. After the include, so these
+# four win over ~/.gitconfig.local rather than the other way round.
+[commit]
+	gpgsign = true
+[gpg]
+	format = x509
+[gpg "x509"]
+	program = smimesign
+{{- end }}
