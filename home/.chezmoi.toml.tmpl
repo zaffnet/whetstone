@@ -29,6 +29,7 @@ sourceDir = {{ .chezmoi.workingTree | quote }}
 #     pypi_publish_url = "https://artifacts.example.internal/api/pypi"
 #     branch_prefix = "yourhandle/"                               # Cursor git.branchPrefix, Codex git-branch-prefix
 #     code_scan_command = "/opt/vendor/bin/code-scan"             # MCP server only this machine has
+#     git_signingkey = "<certificate-id>"                         # ~/.gitconfig [user] signingkey
 [data.work]
 
 # `chezmoi update` pulls and then applies whatever the source directory's working tree
