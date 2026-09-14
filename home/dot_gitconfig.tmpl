@@ -47,8 +47,9 @@
 	path = ~/.gitconfig.local
 {{- if hasKey $work "git_signingkey" }}
 # Declared in the order and position the corp tooling writes them, so its rewrite matches
-# what chezmoi expects and the apply no longer stops to ask. After the include, so these
-# four win over ~/.gitconfig.local rather than the other way round.
+# what chezmoi expects and the apply no longer stops to ask. These three are after the
+# include, so they win over ~/.gitconfig.local; signingkey is declared up in [user], before
+# it, so there the local file still wins.
 [commit]
 	gpgsign = true
 [gpg]
