@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # chezmoi modify script for ~/.cursor/cli-config.json: receives the current file on stdin
-# and prints the new one. Ownership is per top-level key, following
-# dot_kiro/settings/modify_cli.json.tmpl. The Cursor CLI writes here at runtime --
-# `permissions.allow` gains an entry every time a command is approved in the product --
-# so a plain managed file would delete those approvals on the next apply.
+# and prints the new one. The Cursor CLI writes here at runtime -- `permissions.allow`
+# gains an entry every time a command is approved in the product -- so a plain managed file
+# would delete those approvals on the next apply.
+#
+# The merge is jq's recursive `*`, as in dot_kiro/settings/modify_cli.json.tmpl, so a
+# declared scalar wins and a nested key only the live file has survives. Dropping a nested
+# key from `declared` therefore does not remove it from the live file; that stays the
+# deliberate two-step of editing the product and re-applying.
 set -euo pipefail
 
 declared='{

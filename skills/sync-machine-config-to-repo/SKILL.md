@@ -288,7 +288,7 @@ In order, stopping at the first failure:
 3. `just validate`.
 4. `just apply`.
 5. `chezmoi --source . verify --exclude=scripts`, then
-   `chezmoi --source . status --exclude=scripts`. The status silent, and verify exits 0.
+   `chezmoi --source . status --exclude=scripts`. The status is silent, and verify exits 0.
    Bare `chezmoi verify` prints nothing either way and exits 1 on the pending scripts, so
    read its exit code rather than its output. A non-empty status means an apply that does
    not converge.
