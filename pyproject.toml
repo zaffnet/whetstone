@@ -9,9 +9,9 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-    "copier>=9.18.1",
+    "copier>=9.18.2",
     "pre-commit>=4.6.1",
-    "ruff>=0.16.6",
+    "ruff>=0.16.7",
 ]
 
 [tool.ruff]
