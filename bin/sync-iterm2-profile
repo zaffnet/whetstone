@@ -123,7 +123,9 @@ def main() -> None:
         print(f"  {key}: absent -> {live[key]!r} (new)")  # noqa: T201 -- CLI report
     for key in held:
         why = (
-            "holds this machine's home directory" if machine_specific(live[key]) else "is templated"
+            "iTerm2 reports this machine's home directory"
+            if machine_specific(live[key])
+            else f"iTerm2 reports {live[key]!r}"
         )
         print(f"  {key}: kept {profile[key]!r} ({why})")  # noqa: T201 -- CLI report
 
