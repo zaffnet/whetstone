@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# chezmoi modify script for ~/.cursor/cli-config.json: receives the current file on stdin
+# and prints the new one. Ownership is per top-level key, following
+# dot_kiro/settings/modify_cli.json.tmpl. The Cursor CLI writes here at runtime --
+# `permissions.allow` gains an entry every time a command is approved in the product --
+# so a plain managed file would delete those approvals on the next apply.
+set -euo pipefail
+
+declared='{
+  "version": 1,
+  "editor": {
+    "vimMode": false
+  },
+  "hasChangedDefaultModel": false,
+  "approvalMode": "allowlist",
+  "sandbox": {
+    "mode": "disabled",
+    "networkAccess": "allowlist"
+  },
+  "network": {
+    "useHttp1ForAgent": false
+  },
+  "attribution": {
+    "attributeCommitsToAgent": true,
+    "attributePRsToAgent": true
+  }
+}'
+
+# An absent or unparseable file starts from empty rather than failing the apply: Cursor
+# recreates it, and refusing here would block every later script.
+current="$(cat)"
+if [[ -z ${current// /} ]] || ! jq -e . >/dev/null 2>&1 <<<"$current"; then
+  current='{}'
+fi
+
+# permissions is left to the live file. It is the record of what was approved on this
+# machine, and a declared value would replace the array rather than merge into it.
+jq -S --argjson declared "$declared" '
+  ($declared * {permissions: (.permissions // {allow: [], deny: []})}) as $want
+  | . * $want
+' <<<"$current"
