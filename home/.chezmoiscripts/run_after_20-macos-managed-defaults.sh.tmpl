@@ -119,8 +119,18 @@ killall Finder Dock 2>/dev/null || true
 # a failed check as running and disabling these settings for good.
 iterm2_running="$(osascript -e 'application "iTerm" is running' 2>/dev/null || echo unknown)"
 if [ "$iterm2_running" = unknown ]; then
-  iterm2_running=false
-  pgrep -qf iTerm.app && iterm2_running=true
+  # pgrep exits 0 on a match and 1 on none; 2 and above mean the query itself failed, and
+  # writing on that would discard the settings whenever iTerm2 turned out to be running.
+  pgrep -qf iTerm.app
+  case $? in
+    0) iterm2_running=true ;;
+    1) iterm2_running=false ;;
+    *)
+      printf 'could not tell whether iTerm2 is running: osascript gave no answer and\n' >&2
+      printf 'pgrep failed. Writing now could lose the settings, so nothing was written.\n' >&2
+      exit 1
+      ;;
+  esac
 fi
 if [ "$iterm2_running" = true ]; then
   printf 'iTerm2 settings skipped: it is running, and would overwrite them on quit.\n' >&2
