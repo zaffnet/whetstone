@@ -187,13 +187,18 @@ since `bin/forbid-private-patterns` was removed, so for that class this list is 
 
 ## 6. Software
 
-`just sync` runs `chezmoi re-add`, then `bin/sync-claude-settings`, then a Brewfile dump and
-diff. Only `chezmoi re-add` writes to the source tree. `bin/sync-claude-settings` is
-read-only unless called with `--adopt`, which `just sync` does not pass: without it, a
-declared key that differs is printed and left alone. HEAD is still `main` at this point, so
-do not run `chezmoi re-add` yet, but the rest of `just sync` is safe to run directly:
+`just sync` runs `chezmoi re-add`, then `bin/sync-claude-settings`,
+`bin/sync-iterm2-profile`, then a Brewfile dump and diff. Only `chezmoi re-add` writes to
+the source tree. Both sync scripts are read-only unless called with `--adopt`, which `just
+sync` does not pass: without it, a declared key that differs is printed and left alone.
+HEAD is still `main` at this point, so do not run `chezmoi re-add` yet, but the rest of
+`just sync` is safe to run directly:
 
 - `python3 bin/sync-claude-settings`, read-only, reports drift in `~/.claude/settings.json`.
+- `python3 bin/sync-iterm2-profile`, read-only, reports the iTerm2 profile keys that differ
+  from the template. It reads `com.googlecode.iterm2.plist` rather than the managed dynamic
+  profile, which iTerm2 rewrites down to four identity keys once its settings UI has edited
+  the profile.
 - Dump the live Brewfile with `brew bundle dump --force --file=/tmp/whetstone-brewfile`,
   then diff it against `home/dot_config/homebrew/Brewfile`, the same comparison `just sync`
   runs: filter both to lines starting `brew`, `cask`, `tap`, `uv`, `npm`, or `go`, strip
@@ -212,7 +217,8 @@ personal machine must not install those, and a work machine gets them from MDM. 
 installed under `/Applications` that the user never chose is a candidate for this rule.
 
 Under `--report-only`, this phase's reads already ran above; there is nothing further to
-defer. Note in the report any `bin/sync-claude-settings` drift found.
+defer. Note in the report any `bin/sync-claude-settings` or `bin/sync-iterm2-profile` drift
+found.
 
 Off `--report-only`, run `chezmoi re-add` only after phase 9 creates the branch, never
 before. A change it makes is drift in an already-managed file, not a new candidate: report
@@ -313,5 +319,6 @@ In this order:
    that this run did not write that file.
 6. The cruft list with paths and sizes, and which groups were deleted. Under
    `--report-only`, list the groups found instead of which were deleted.
-7. Drift `bin/sync-claude-settings` and the Brewfile diff found in already-managed files.
+7. Drift `bin/sync-claude-settings`, `bin/sync-iterm2-profile`, and the Brewfile diff found
+   in already-managed files.
 8. Any item that stopped at verification. Off `--report-only` only.
