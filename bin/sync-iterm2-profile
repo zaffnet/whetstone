@@ -20,6 +20,11 @@ would push one machine's geometry to every other.
 A template value holding a chezmoi action is left alone as well. iTerm2 reports the
 expanded string, so adopting it would write this machine's home directory into the
 template, and this repo is public.
+
+For the same reason --adopt writes only keys the template already declares, and refuses
+any value carrying this machine's home directory whatever the key. iTerm2 has several keys
+that can hold a path -- Custom Directory, Command, badge text -- and a new release can add
+more, so the check is on the value rather than on a list of key names.
 """
 
 from __future__ import annotations
@@ -84,6 +89,11 @@ def templated(value: Any) -> bool:  # noqa: ANN401 -- arbitrary template value
     return isinstance(value, str) and "{{" in value
 
 
+def machine_specific(value: Any) -> bool:  # noqa: ANN401 -- arbitrary plist value
+    """Report whether the value carries this machine's home directory."""
+    return str(Path.home()) in json.dumps(value, default=str)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--adopt", action="store_true", help="write the drift into the template")
@@ -97,14 +107,13 @@ def main() -> None:
     profile = template["Profiles"][0]
     live = {k: comparable(v) for k, v in live_profile().items() if k not in IGNORED}
 
+    differs = {k: v for k, v in live.items() if k in profile and profile[k] != v}
     changed = sorted(
-        k for k, v in live.items() if k in profile and profile[k] != v and not templated(profile[k])
+        k for k, v in differs.items() if not templated(profile[k]) and not machine_specific(v)
     )
-    held = sorted(
-        k for k, v in live.items() if k in profile and profile[k] != v and templated(profile[k])
-    )
+    held = sorted(k for k, v in differs.items() if templated(profile[k]) or machine_specific(v))
     added = sorted(k for k in live if k not in profile)
-    if not changed and not added:
+    if not changed and not added and not held:
         print("sync-iterm2-profile: the profile matches the template")  # noqa: T201 -- CLI report
         return
 
@@ -113,7 +122,10 @@ def main() -> None:
     for key in added:
         print(f"  {key}: absent -> {live[key]!r} (new)")  # noqa: T201 -- CLI report
     for key in held:
-        print(f"  {key}: kept {profile[key]!r}, iTerm2 reports {live[key]!r}")  # noqa: T201 -- CLI report
+        why = (
+            "holds this machine's home directory" if machine_specific(live[key]) else "is templated"
+        )
+        print(f"  {key}: kept {profile[key]!r} ({why})")  # noqa: T201 -- CLI report
 
     if not adopt:
         print(  # noqa: T201 -- CLI report
@@ -123,9 +135,18 @@ def main() -> None:
         )
         return
 
-    profile.update({k: live[k] for k in changed + added})
+    if not changed:
+        print("\nnothing adopted: every difference is a key the template does not declare")  # noqa: T201 -- CLI report
+        return
+
+    profile.update({k: live[k] for k in changed})
     TEMPLATE.write_text(json.dumps(template, indent=2, sort_keys=True) + "\n")
-    print(f"\nadopted {len(changed) + len(added)} key(s) into {TEMPLATE}")  # noqa: T201 -- CLI report
+    print(f"\nadopted {len(changed)} key(s) into {TEMPLATE}")  # noqa: T201 -- CLI report
+    if added:
+        print(  # noqa: T201 -- CLI report
+            f"left {len(added)} key(s) the template does not declare; add one by hand "
+            "after checking it holds no path or identity from this machine.",
+        )
 
 
 if __name__ == "__main__":
