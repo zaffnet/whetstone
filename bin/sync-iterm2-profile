@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+"""Report, and on request pull, in-product edits to the Whetstone iTerm2 profile.
+
+iTerm2 keeps the authoritative copy of a profile in com.googlecode.iterm2.plist, not in
+the dynamic profile file chezmoi manages. Editing the profile in Settings writes the plist
+and, once iTerm2 has added `Rewritable: true` to it, rewrites the dynamic profile file down
+to its four identity keys. Either way the managed file stops describing the profile, and
+the next `just apply` puts the template's values back.
+
+So the plist is what this reads. It holds every key the template declares even after a
+rewrite has stubbed the file out.
+
+Reporting, not adopting, is the default, following bin/sync-claude-settings: a key that
+differs does not say which side is right. It reads the same whether the setting was
+changed here deliberately or this machine is behind the template.
+
+IGNORED holds the keys that describe this window rather than this profile. Adopting them
+would push one machine's geometry to every other.
+
+A template value holding a chezmoi action is left alone as well. iTerm2 reports the
+expanded string, so adopting it would write this machine's home directory into the
+template, and this repo is public.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import plistlib
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+REPO = Path(__file__).resolve().parent.parent
+PROFILES = REPO / "home" / "Library" / "Application Support" / "iTerm2" / "DynamicProfiles"
+TEMPLATE = PROFILES / "whetstone.json.tmpl"
+PLIST = Path.home() / "Library" / "Preferences" / "com.googlecode.iterm2.plist"
+GUID = "whetstone-default"
+IGNORED = frozenset(
+    {
+        "Columns",
+        "Rows",
+        "Screen",
+        "Dynamic Profile Filename",
+        "Is Dynamic Profile",
+        "Rewritable",
+    },
+)
+
+
+def live_profile() -> dict[str, Any]:
+    """Return the GUID's entry from iTerm2's preferences, read through plutil.
+
+    Raises:
+        SystemExit: if the plist cannot be read, parsed, or does not hold the profile.
+
+    """
+    # plutil, because the plist is binary and cfprefsd may hold newer values than the file.
+    read = subprocess.run(  # noqa: S603 -- fixed argv, no shell
+        ["/usr/bin/plutil", "-convert", "xml1", "-o", "-", str(PLIST)],
+        capture_output=True,
+        check=False,
+    )
+    if read.returncode != 0:
+        sys.exit(f"sync-iterm2-profile: could not read {PLIST}: {read.stderr.decode().strip()}")
+    try:
+        parsed = plistlib.loads(read.stdout)
+    except plistlib.InvalidFileException as exc:
+        sys.exit(f"sync-iterm2-profile: {PLIST} did not parse ({exc})")
+    for bookmark in parsed.get("New Bookmarks", []):
+        if bookmark.get("Guid") == GUID:
+            return bookmark
+    sys.exit(f"sync-iterm2-profile: no profile with Guid {GUID} in {PLIST}")
+
+
+def comparable(value: Any) -> Any:  # noqa: ANN401 -- arbitrary plist value
+    """Render the value as JSON would, so a plist type is not reported as drift."""
+    return json.loads(json.dumps(value, default=str))
+
+
+def templated(value: Any) -> bool:  # noqa: ANN401 -- arbitrary template value
+    """Report whether the template's value is a chezmoi action rather than a literal."""
+    return isinstance(value, str) and "{{" in value
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--adopt", action="store_true", help="write the drift into the template")
+    adopt = parser.parse_args().adopt
+
+    if not PLIST.exists():
+        print(f"sync-iterm2-profile: no {PLIST}; nothing to report")  # noqa: T201 -- CLI report
+        return
+
+    template = json.loads(TEMPLATE.read_text())
+    profile = template["Profiles"][0]
+    live = {k: comparable(v) for k, v in live_profile().items() if k not in IGNORED}
+
+    changed = sorted(
+        k for k, v in live.items() if k in profile and profile[k] != v and not templated(profile[k])
+    )
+    held = sorted(
+        k for k, v in live.items() if k in profile and profile[k] != v and templated(profile[k])
+    )
+    added = sorted(k for k in live if k not in profile)
+    if not changed and not added:
+        print("sync-iterm2-profile: the profile matches the template")  # noqa: T201 -- CLI report
+        return
+
+    for key in changed:
+        print(f"  {key}: {profile[key]!r} -> {live[key]!r}")  # noqa: T201 -- CLI report
+    for key in added:
+        print(f"  {key}: absent -> {live[key]!r} (new)")  # noqa: T201 -- CLI report
+    for key in held:
+        print(f"  {key}: kept {profile[key]!r}, iTerm2 reports {live[key]!r}")  # noqa: T201 -- CLI report
+
+    if not adopt:
+        print(  # noqa: T201 -- CLI report
+            f"\n{len(changed) + len(added)} key(s) differ; nothing written.\n"
+            "The template's value may be the right one -- check before running "
+            "`bin/sync-iterm2-profile --adopt`.",
+        )
+        return
+
+    profile.update({k: live[k] for k in changed + added})
+    TEMPLATE.write_text(json.dumps(template, indent=2, sort_keys=True) + "\n")
+    print(f"\nadopted {len(changed) + len(added)} key(s) into {TEMPLATE}")  # noqa: T201 -- CLI report
+
+
+if __name__ == "__main__":
+    main()
