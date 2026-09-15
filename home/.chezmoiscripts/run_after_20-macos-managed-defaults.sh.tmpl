@@ -112,10 +112,14 @@ apply_managed_defaults com.apple.dock "$state_dir/macos-dock-managed-keys.txt" \
   ${managed_dock_settings[@]+"${managed_dock_settings[@]}"}
 killall Finder Dock 2>/dev/null || true
 
+# iTerm2 holds its preferences in memory and writes them out on quit, so a `defaults
+# write` while it runs is discarded. Skipping needs a positive answer: a detection that
+# failed (no osascript, Automation permission denied) must not read as "running" and
+# disable these settings for good.
 iterm2_running="$(osascript -e 'application "iTerm" is running' 2>/dev/null || echo unknown)"
-if [ "$iterm2_running" != false ]; then
-  printf 'iTerm2 settings skipped (running or undetermined: %s). Quit it and re-apply.\n' \
-    "$iterm2_running" >&2
+if [ "$iterm2_running" = true ]; then
+  printf 'iTerm2 settings skipped: it is running, and would overwrite them on quit.\n' >&2
+  printf 'Quit iTerm2, then re-apply from Terminal.app or over ssh.\n' >&2
   exit 0
 fi
 

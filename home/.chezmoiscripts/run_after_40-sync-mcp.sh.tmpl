@@ -22,5 +22,7 @@ else
 fi
 
 if command -v gh >/dev/null && gh auth status >/dev/null 2>&1; then
-  gh extension list 2>/dev/null | grep -q 'github/gh-stack' || gh extension install github/gh-stack || true
+  if ! gh extension list 2>/dev/null | grep -q 'github/gh-stack'; then
+    gh extension install github/gh-stack || echo "sync-mcp: gh-stack install failed" >&2
+  fi
 fi
