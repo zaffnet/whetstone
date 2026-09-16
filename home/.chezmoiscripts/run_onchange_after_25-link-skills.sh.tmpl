@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # skills: {{ output "ls" (joinPath .chezmoi.workingTree "skills") | trim | replace "\n" " " }}
 set -euo pipefail
-# Without nullglob an empty skills/ leaves the pattern unexpanded and the loop links '*'.
 shopt -s nullglob
 
 repo_skills="{{ .chezmoi.workingTree }}/skills"

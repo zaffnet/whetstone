@@ -34,8 +34,7 @@ Run `git fetch origin` first. Refuse and name the reason if any of these holds: 
 tree is dirty, HEAD is not `main`, HEAD does not equal `origin/main`, `chezmoi` is not
 installed, `chezmoi source-path` is not `$(git rev-parse --show-toplevel)/home` (this repo
 sets `.chezmoiroot` to `home`, so source-path is never the checkout root itself), or
-`chezmoi --source . status --exclude=scripts` prints anything. Pending drift in a file
-or a symlink would be indistinguishable from this run's own change. Do not gate on `just
+`chezmoi --source . status --exclude=scripts` prints anything. Do not gate on `just
 diff` or on a bare `chezmoi status`: a `.chezmoiscripts/` entry without an `once_` or
 `onchange_` attribute runs on every apply, so both report the scripts as pending however
 converged the machine is, and the gate would never pass.
