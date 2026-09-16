@@ -30,11 +30,18 @@ through 11: no branch, no edits, no deletions, no PR.
 
 ## 1. Preflight
 
-Run `git fetch origin` first. Refuse and name the reason if any of these holds: the working
+Change to `$(git rev-parse --show-toplevel)` first: `--source .` below resolves against
+the working directory, so the same call from a subdirectory reads that subdirectory as the
+source and reports its contents as drift, exiting 0 having checked nothing.
+
+Then run `git fetch origin`. Refuse and name the reason if any of these holds: the working
 tree is dirty, HEAD is not `main`, HEAD does not equal `origin/main`, `chezmoi` is not
 installed, `chezmoi source-path` is not `$(git rev-parse --show-toplevel)/home` (this repo
-sets `.chezmoiroot` to `home`, so source-path is never the checkout root itself), or `just
-diff` prints anything. Pending drift would be indistinguishable from this run's own change.
+sets `.chezmoiroot` to `home`, so source-path is never the checkout root itself), or
+`chezmoi --source . status --exclude=scripts` prints anything. Do not gate on `just
+diff` or on a bare `chezmoi status`: a `.chezmoiscripts/` entry without an `once_` or
+`onchange_` attribute runs on every apply, so both report the scripts as pending however
+converged the machine is, and the gate would never pass.
 
 Record `chezmoi managed --include=files,symlinks` as the managed set. Every later question
 is "is this path in the managed set". Bare `chezmoi managed` counts directories too and
@@ -259,7 +266,9 @@ its values, is ever created.
 Two ways an apply destroys data. Handle both before running one:
 
 - Adding a file whose live copy differs overwrites the live copy on the next apply. Always
-  `just diff` and read the hunk first.
+  `chezmoi --source . --no-pager diff --exclude=scripts` and read the hunk first. An app
+  that rewrites the file at runtime needs `modify_` rather than a plain file: forcing
+  past the "has changed since chezmoi last wrote it" prompt discards whatever it wrote.
 - Adding a managed directory where a real directory exists lets chezmoi delete the live one
   recursively, with no prompt. `run_before_06-skills-not-a-directory.sh.tmpl` guards the
   known cases. Prefer managing individual files, and if a new `symlink_` covers a path that
@@ -269,7 +278,8 @@ Two ways an apply destroys data. Handle both before running one:
 
 In order, stopping at the first failure:
 
-1. `just diff`, reading every hunk. Expect only the added files. A hunk that deletes a
+1. `chezmoi --source . --no-pager diff --exclude=scripts`, reading every hunk. Expect only
+   the added files. A hunk that deletes a
    file, replaces a directory with a symlink, or rewrites an untouched file is a stop:
    these files were just staged by `chezmoi add` in phase 9, so `git restore` either
    no-ops (untracked) or leaves the file in place (staged) instead of undoing it. Run
@@ -279,8 +289,11 @@ In order, stopping at the first failure:
    checker.
 3. `just validate`.
 4. `just apply`.
-5. `chezmoi verify`, then `just diff` again. Both silent. A non-empty second diff means an
-   apply that does not converge.
+5. `chezmoi --source . verify --exclude=scripts`, then
+   `chezmoi --source . status --exclude=scripts`. The status is silent, and verify exits 0.
+   Bare `chezmoi verify` prints nothing either way and exits 1 on the pending scripts, so
+   read its exit code rather than its output. A non-empty status means an apply that does
+   not converge.
 
 If an apply breaks the machine, recovery is `git switch main && just apply`. `main` is the
 last state known to apply cleanly. Say so in the report.

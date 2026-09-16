@@ -113,9 +113,23 @@ apply_managed_defaults com.apple.dock "$state_dir/macos-dock-managed-keys.txt" \
 killall Finder Dock 2>/dev/null || true
 
 iterm2_running="$(osascript -e 'application "iTerm" is running' 2>/dev/null || echo unknown)"
-if [ "$iterm2_running" != false ]; then
-  printf 'iTerm2 settings skipped (running or undetermined: %s). Quit it and re-apply.\n' \
-    "$iterm2_running" >&2
+if [ "$iterm2_running" = unknown ]; then
+  if pgrep -qf iTerm.app; then
+    iterm2_running=true
+  elif
+    pgrep_status=$?
+    [ "$pgrep_status" -eq 1 ]
+  then
+    iterm2_running=false
+  else
+    printf 'could not tell whether iTerm2 is running: osascript gave no answer and\n' >&2
+    printf 'pgrep failed (%s). No iTerm2 setting was written.\n' "$pgrep_status" >&2
+    exit 1
+  fi
+fi
+if [ "$iterm2_running" = true ]; then
+  printf 'iTerm2 settings skipped: it is running, and would overwrite them on quit.\n' >&2
+  printf 'Quit iTerm2, then re-apply from Terminal.app or over ssh.\n' >&2
   exit 0
 fi
 

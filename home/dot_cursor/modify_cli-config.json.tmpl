@@ -1,15 +1,12 @@
-{
+#!/usr/bin/env bash
+set -euo pipefail
+
+declared='{
   "version": 1,
   "editor": {
     "vimMode": false
   },
   "hasChangedDefaultModel": false,
-  "permissions": {
-    "allow": [
-      "Shell(ls)"
-    ],
-    "deny": []
-  },
   "approvalMode": "allowlist",
   "sandbox": {
     "mode": "disabled",
@@ -22,4 +19,14 @@
     "attributeCommitsToAgent": true,
     "attributePRsToAgent": true
   }
-}
+}'
+
+current="$(cat)"
+if [[ -z ${current// /} ]] || ! jq -e . >/dev/null 2>&1 <<<"$current"; then
+  current='{}'
+fi
+
+jq -S --argjson declared "$declared" '
+  ($declared * {permissions: (.permissions // {allow: [], deny: []})}) as $want
+  | . * $want
+' <<<"$current"

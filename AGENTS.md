@@ -7,10 +7,7 @@ Code, Codex, Cursor, and any other coding agent that reads `AGENTS.md`.
 ## Writing
 
 Load the `writing-whip` skill before writing prose, and `prose-honesty` before writing
-comments, docstrings, docs, or a PR body. `writing-whip` holds the catalog of AI writing
-tells and ships to machines that do not have this repo. `prose-honesty` is the bar for
-prose written as part of a change: does a reader who arrives next year, having never seen
-the change, need this sentence?
+comments, docstrings, docs, or a PR body.
 
 House style on top of them:
 
@@ -113,6 +110,21 @@ changing the scripts turns their reports into blocked turns.
 Both auditors report; neither rewrites. An audit judges every sentence and clause on its
 own: a comment holds its space only by supplying what the code cannot express, so expect
 deletions rather than rewordings.
+
+## Handing off
+
+Report the result of each:
+
+1. `uv run pre-commit run --all-files` passes.
+2. `bin/run-typecheck.sh` passes, or fails the same way on `main`.
+3. Run `prose-honesty-auditor` and `code-honesty-auditor` over every file the session
+   touched, and delete what they name. A rewording does not answer a finding.
+4. `git status` is clean, and `git --no-pager diff <base>..HEAD --name-only` lists only
+   this change's files. Stage by path: `git add -A` takes whatever else sits in the tree.
+5. Name the command and its exit code. Silence is not a pass, since `chezmoi verify`
+   prints nothing and exits 1.
+6. Reproduce the failure a fix claims to fix, before and after. Passing a checker says
+   the code parses, not that it runs.
 
 ## Git
 

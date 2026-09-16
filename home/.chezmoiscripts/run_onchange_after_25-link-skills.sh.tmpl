@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # skills: {{ output "ls" (joinPath .chezmoi.workingTree "skills") | trim | replace "\n" " " }}
 set -euo pipefail
+shopt -s nullglob
 
 repo_skills="{{ .chezmoi.workingTree }}/skills"
 target="{{ .chezmoi.homeDir }}/.agents/skills"
@@ -21,6 +22,9 @@ done
 for link in "$target"/*; do
   [[ -L $link ]] || continue
   dest="$(readlink "$link")"
-  [[ $dest == "$repo_skills"/* && ! -d $dest ]] && rm "$link" && echo "unlinked $(basename "$link")"
+  if [[ $dest == "$repo_skills"/* && ! -d $dest ]]; then
+    rm "$link"
+    echo "unlinked $(basename "$link")"
+  fi
 done
 exit 0

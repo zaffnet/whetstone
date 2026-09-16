@@ -16,7 +16,15 @@ if [[ -z $cursor_bin ]]; then
   exit 0
 fi
 
-installed="$("$cursor_bin" --list-extensions 2>/dev/null || true)"
+if [[ ! -r $list ]]; then
+  echo "cursor-extensions: $list is missing, nothing to install from" >&2
+  exit 1
+fi
+
+if ! installed="$("$cursor_bin" --list-extensions 2>/dev/null)"; then
+  echo "cursor-extensions: could not list installed extensions" >&2
+  exit 1
+fi
 status=0
 while read -r ext || [[ -n $ext ]]; do
   [[ -z $ext || $ext == \#* ]] && continue
