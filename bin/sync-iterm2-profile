@@ -106,23 +106,23 @@ def main() -> None:
 
     if not adopt:
         print(
-            f"\n{len(changed) + len(added)} key(s) differ; nothing written.\n"
+            f"\n{len(changed) + len(added) + len(held)} key(s) differ; nothing written.\n"
             "The template's value may be the right one -- check before running "
             "`bin/sync-iterm2-profile --adopt`.",
         )
         return
 
     if not changed:
-        print("\nnothing adopted: every difference is a key the template does not declare")
+        print(f"\nnothing adopted: no key of the {len(added) + len(held)} differing is adoptable")
         return
 
     profile.update({k: live[k] for k in changed})
     TEMPLATE.write_text(json.dumps(template, indent=2, sort_keys=True) + "\n")
     print(f"\nadopted {len(changed)} key(s) into {TEMPLATE}")
-    if added:
+    if added or held:
         print(
-            f"left {len(added)} key(s) the template does not declare; add one by hand "
-            "after checking it holds no path or identity from this machine.",
+            f"left {len(added) + len(held)} key(s) above; add one by hand after checking "
+            "it holds no path or identity from this machine.",
         )
 
 
