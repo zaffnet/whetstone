@@ -3,6 +3,9 @@ name: dependabot auto-merge
 on:
   pull_request_target:
     types: [opened, reopened, synchronize]
+  workflow_run:
+    workflows: ["lint"]
+    types: [completed]
 
 permissions:
   contents: write
