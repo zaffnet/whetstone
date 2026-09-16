@@ -125,8 +125,7 @@ Run these before handing off, and report the result of each:
    files this change owns. Stage by path, never `git add -A`: it picks up whatever else
    sits in the tree.
 5. Every claim of a pass names the command and its exit code. Silence is not a pass:
-   `chezmoi verify` prints nothing and exits 1, and a path-filtered `chezmoi diff` that
-   matched nothing prints nothing and exits 0.
+   `chezmoi verify` prints nothing and exits 1.
 6. A fix is demonstrated against the failure it claims to fix, reproduced before and
    after. A checker passing says the code parses, not that it works: `set -euo pipefail`
    turned a `pgrep` that found nothing into an aborted apply, and both survived lint.
