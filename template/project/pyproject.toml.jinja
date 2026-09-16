@@ -33,9 +33,6 @@ markers = [
 source = ["."]
 omit = ["**/*_test.py", "**/_test_helpers.py"]
 
-[tool.coverage.report]
-show_missing = true
-
 [tool.mypy]
 python_version = "{{ python_version }}"
 mypy_path = "stubs"
@@ -49,7 +46,6 @@ include = ["."]
 exclude = [".venv", "node_modules"]
 typeCheckingMode = "strict"
 stubPath = "stubs"
-reportMissingImports = "error"
 reportMissingTypeStubs = false
 pythonVersion = "{{ python_version }}"
 

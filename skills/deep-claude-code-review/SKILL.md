@@ -1,8 +1,6 @@
 ---
 name: deep-claude-code-review
-description: >-
-  Claude-only variant of deep-pr-review: several independent Claude Code subagents review the same change at the highest effort available, findings merged by agreement. Reviews a GitHub PR URL and posts inline comments after per-comment confirmation, or, with no PR, reviews the current branch or working tree and writes deep-review.local.md. Use only when the user asks for a Claude-only deep review or runs /deep-claude-code-review.
-
+description: "Claude-only variant of deep-pr-review: several independent Claude Code subagents review the same change at the highest effort available, findings merged by agreement. Reviews a GitHub PR URL and posts inline comments after per-comment confirmation, or, with no PR, reviews the current branch or working tree and writes deep-review.local.md. Use only when the user asks for a Claude-only deep review or runs /deep-claude-code-review."
 disable-model-invocation: true
 user-invocable: true
 argument-hint: "[--non-interactive] [<pr-url>]"
