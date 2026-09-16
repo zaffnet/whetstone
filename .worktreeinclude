@@ -1,4 +1,2 @@
-# AGENTS.override.md is left out on purpose: it is derived from AGENTS.md and
-# CLAUDE.local.md, so copying it forward would carry a stale one into the worktree.
 .claude/
 CLAUDE.local.md

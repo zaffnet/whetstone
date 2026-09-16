@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# `claude plugin validate .` does not cover the agents, skills, and hooks paths in
-# marketplace.json. It resolves each entry's source to .claude-plugin/plugin.json and
-# checks the paths there, so breaking a path in marketplace.json alone leaves it
-# reporting "Validation passed" and exit 0.
 set -euo pipefail
 
 manifest=.claude-plugin/marketplace.json

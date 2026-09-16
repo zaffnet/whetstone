@@ -225,8 +225,6 @@ def split_toml_tables(text: str) -> list[tuple[str | None, str]]:
 
 
 def mcp_server_name(header: str | None) -> str | None:
-    # TOML allows whitespace inside the brackets, so `[ mcp_servers.x ]` and
-    # `[mcp_servers.x]` are one table.
     if header is None:
         return None
     header = header.strip()

@@ -6,7 +6,6 @@
 *.pem
 *.key
 
-# Tool state
 .venv/
 __pycache__/
 .ruff_cache/
@@ -14,13 +13,9 @@ __pycache__/
 .copier-answers.yml
 uv.lock.bak
 
-# Anchored with a leading slash: tracked config of the same name lives under home/
-# and template/project/.
 /.claude/
 /.codex/
 /.cursor/
-# Contents, not the directory: git does not descend into an excluded directory, so an
-# ignored `/.vscode/` cannot have a file re-included beneath it.
 /.vscode/*
 !/.vscode/extensions.json
 /CLAUDE.local.md

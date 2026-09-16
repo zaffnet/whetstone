@@ -32,9 +32,6 @@ id = "ca-bundle-env"
 description = "CA bundle path exported into TLS env vars"
 regex = '''(?:SSL_CERT_FILE|REQUESTS_CA_BUNDLE|NODE_EXTRA_CA_CERTS|CURL_CA_BUNDLE|AWS_CA_BUNDLE)=\S+\.pem'''
 
-# This block applies to every rule, built-in ones included, so it holds only state that is
-# never committed. A file that legitimately matches one custom rule gets a
-# [[rules.allowlists]] entry on that rule instead.
 [allowlist]
 description = "Local tool state, never committed"
 paths = [
