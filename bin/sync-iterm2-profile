@@ -1,15 +1,5 @@
 #!/usr/bin/env python3
-"""Report, and on request pull, in-product edits to the Whetstone iTerm2 profile.
-
-iTerm2 keeps the authoritative copy of a profile in com.googlecode.iterm2.plist, and
-rewrites the dynamic profile file chezmoi manages down to its four identity keys once its
-settings UI has edited the profile. The plist still holds every key the template declares.
-
-This repo is public, so --adopt writes only keys the template already declares and refuses
-any value carrying this machine's home directory, whatever key it arrives under: Custom
-Directory, Command and badge text can each hold a path, and a new iTerm2 release can add
-another.
-"""
+"""Report, and on request pull, in-product edits to the Whetstone iTerm2 profile."""
 
 from __future__ import annotations
 
