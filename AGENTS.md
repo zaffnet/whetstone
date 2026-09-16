@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md
 
-## Writing Prose (documentation, comments, etc.)
+## Writing prose (documentation, comments, etc.)
 
 Load the `writing-whip` skill before writing prose, and `prose-honesty` before writing
 comments, docstrings, docs, or a PR body.
@@ -41,7 +41,7 @@ lines, be able to say what those lines buy.
 
 - Write the minimum that solves the problem.
 - Every changed line traces to the request. If it does not, it is a separate change.
-- Mention dead code you find. Confirm is is no longer needed and delete it.
+- Mention any dead code you find. Confirm it is no longer needed and delete it.
 - Remove names this change made unused, including ones you added that turned out unused.
 - Scope is a contract. Do not quietly widen or narrow it; if it must change, say so.
 - Parking a decision as a "follow-up" is usually evasion. Decide it or name who will.
@@ -51,11 +51,6 @@ lines, be able to say what those lines buy.
 The bar: does a reader who opens this next year, having never seen the change, need it? Judge
 each clause, not the file. If keeping it is arguable, cut it. Survivors state a cause, a
 constraint, or a consequence the code cannot state itself.
-
-```python
-# Keep: the plural `correlationIds` is ignored upstream and would match both calls
-# Cut:  Repeatable UUID filter; values may repeat   <- the type says it, twice
-```
 
 - No changelog narration. The reader has the file, not the diff.
 - No banner comments, no section separators, no emoji.
@@ -146,7 +141,7 @@ Run `gh stack list` to see the stack. Use `/gh-stack` to work with GitHub Stack.
 Report the result of each:
 
 1. `uv run pre-commit run --all-files` passes.
-2. `run-typecheck.sh` passes.
+2. `run-typecheck.sh` passes. It's available on PATH.
 3. Run @"prose-honesty-auditor (agent)" and @"code-honesty-auditor (agent)" over every
    file the session touched, and delete what they name. Take all their suggestions.
 4. Run the following skills on every file the session touched: /simplify-english,
