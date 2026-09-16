@@ -1,0 +1,14 @@
+{{- $md := include (printf "../agents/%s.md" .) -}}
+{{- $sep := printf "\n---\n" -}}
+{{- $parts := splitList $sep (trimPrefix "---" $md) -}}
+{{- $front := index $parts 0 -}}
+{{- $body := join $sep (rest $parts) -}}
+{{- $fm := dict -}}
+{{- range splitList "\n" $front -}}
+{{- $kv := splitn ":" 2 . -}}
+{{- if eq (len $kv) 2 -}}{{- $_ := set $fm (trim (index $kv "_0")) (trim (index $kv "_1")) -}}{{- end -}}
+{{- end -}}
+name = {{ get $fm "name" | quote }}
+description = {{ get $fm "description" | quote }}
+model_reasoning_effort = {{ get $fm "effort" | quote }}
+developer_instructions = {{ $body | quote }}
