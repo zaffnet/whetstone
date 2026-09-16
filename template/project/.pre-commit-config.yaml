@@ -38,24 +38,6 @@ repos:
 
   - repo: local
     hooks:
-{%- if use_docker %}
-      - id: check-container-version
-        name: check container version
-        entry: >-
-          bash -c '
-          metadata_file=$(mktemp);
-          cleanup() { unlink "$metadata_file"; };
-          trap cleanup EXIT;
-          docker buildx build --call=outline --metadata-file "$metadata_file" . >/dev/null &&
-          project_version=$(uv run tomlq -r ".project.version" pyproject.toml) &&
-          image_version=$(uv run yq -r ".[\"result.json\"].args[] | select(.name == \"IMAGE_VERSION\") | .value" "$metadata_file") &&
-          test "$project_version" = "$image_version" &&
-          uv run pysemver check "$project_version" >/dev/null'
-        language: system
-        files: ^(Dockerfile|pyproject\.toml)$
-        pass_filenames: false
-
-{%- endif %}
       - id: ruff-fix
         name: ruff fix (lint + import sort)
         entry: uv run ruff check --fix

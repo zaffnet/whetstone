@@ -15,25 +15,7 @@ uv sync --all-groups --all-extras
 # Install pre-commit hooks if you plan to modify the code. GIT_CONFIG_NOSYSTEM hides a
 # system-level core.hooksPath, which pre-commit refuses to install over.
 GIT_CONFIG_NOSYSTEM=1 uv run pre-commit install
-{%- if use_docker %}
-
-# Docker Compose is required for the local stack and for database tests.
-docker compose version
-{%- endif %}
 ```
-{%- if use_docker %}
-
-### Running the application
-
-```bash
-LOG_LEVEL=DEBUG IMAGE_TAG=local PULL_POLICY=never docker compose up --build
-{%- if use_fastapi %}
-curl http://localhost:8080/health
-{%- endif %}
-```
-
-Stop with `docker compose down`; add `-v` to drop the Postgres volume and start from scratch.
-{%- endif %}
 
 ## Creating commits and pull requests
 
@@ -124,19 +106,6 @@ uv run pytest
 | `bandit`, `pip-audit` | Security lint and dependency vulnerability audit |
 | `pytest`, `pytest-cov`, `diff-cover` | Tests and changed-line coverage gate |
 | `pre-commit` | Runs all of the above before each commit and in CI |
-{%- if use_docker %}
-| `docker compose` | Local stack; `docker-compose.override.yaml` for per-machine overrides |
-{%- endif %}
 
 `pyproject.toml` configures every tool. Runtime dependencies live under `[project.dependencies]`,
 development tools under `[dependency-groups.dev]`.
-{%- if use_docker %}
-
-### Container image
-
-The Dockerfile declares the uv image as a build stage so Dependabot can update it, installs
-with `uv sync --frozen --no-dev` from the committed lockfile, and runs as a non-root user. The
-`IMAGE_VERSION` build arg defaults to `project.version`; the `check-container-version` hook
-keeps the two equal, and CI overrides it with
-`<project-version>-dev.<run-number>.<attempt>+g<seven-character-commit>`.
-{%- endif %}

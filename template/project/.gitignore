@@ -23,5 +23,3 @@ logs/
 .claude/worktrees/
 CLAUDE.local.md
 AGENTS.override.md
-
-docker-compose.override.yaml
