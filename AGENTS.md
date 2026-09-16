@@ -113,22 +113,18 @@ deletions rather than rewordings.
 
 ## Handing off
 
-Run these before handing off, and report the result of each:
+Report the result of each:
 
 1. `uv run pre-commit run --all-files` passes.
-2. `bin/run-typecheck.sh` passes, or its failures predate the change and reproduce on
-   `main`.
-3. The `prose-honesty-auditor` and `code-honesty-auditor` agents have judged every file
-   touched this session, and every finding is cut. Delete what they name; a finding
-   answered with a rewording is not answered.
-4. `git status` is clean and `git --no-pager diff <base>..HEAD --name-only` lists only
-   files this change owns. Stage by path, never `git add -A`: it picks up whatever else
-   sits in the tree.
-5. Every claim of a pass names the command and its exit code. Silence is not a pass:
-   `chezmoi verify` prints nothing and exits 1.
-6. A fix is demonstrated against the failure it claims to fix, reproduced before and
-   after. A checker passing says the code parses, not that it works: `set -euo pipefail`
-   turned a `pgrep` that found nothing into an aborted apply, and both survived lint.
+2. `bin/run-typecheck.sh` passes, or fails the same way on `main`.
+3. Run `prose-honesty-auditor` and `code-honesty-auditor` over every file the session
+   touched, and delete what they name. A rewording does not answer a finding.
+4. `git status` is clean, and `git --no-pager diff <base>..HEAD --name-only` lists only
+   this change's files. Stage by path: `git add -A` takes whatever else sits in the tree.
+5. Name the command and its exit code. Silence is not a pass, since `chezmoi verify`
+   prints nothing and exits 1.
+6. Reproduce the failure a fix claims to fix, before and after. Passing a checker says
+   the code parses, not that it runs.
 
 ## Git
 
