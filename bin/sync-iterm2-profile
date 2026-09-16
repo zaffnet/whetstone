@@ -35,7 +35,6 @@ def live_profile() -> dict[str, Any]:
         SystemExit: if the plist cannot be read, parsed, or does not hold the profile.
 
     """
-    # plutil rather than plistlib: cfprefsd may hold newer values than the file.
     read = subprocess.run(  # noqa: S603 -- fixed argv, no shell
         ["/usr/bin/plutil", "-convert", "xml1", "-o", "-", str(PLIST)],
         capture_output=True,
