@@ -25,13 +25,9 @@ CLAUDE_JSON = HOME / ".claude.json"
 CODEX_TOML = HOME / ".codex" / "config.toml"
 
 CODEX_PRIVATE = frozenset({"node_repl", "computer-use", "event-stream"})
-# Byte for byte the HEADER in home/dot_codex/modify_private_config.toml.tmpl, and it has to
-# stay that way: the two split the same file, so a shape one recognises and the other does
-# not is a silent deletion. Anything this misses reads as an ordinary line and is absorbed
-# into the chunk above it, and when that chunk is an unmanaged [mcp_servers.*] table being
-# dropped, it goes with it.
-#
-# So it is read off TOML's own ABNF rather than approximated. The grammar is
+# Read off TOML's own ABNF rather than approximated, because a header this misses reads as
+# an ordinary line and is absorbed into the chunk above it, and when that chunk is an
+# unmanaged [mcp_servers.*] table being dropped, it goes with it. The grammar is
 # `ws table ws [ comment ]`, where a key part is an unquoted run or a whole quoted string --
 # so leading tabs and spaces are allowed, and a ] or a # inside quotes is content. The
 # shapes an approximation misses: [[array.of.tables]], a trailing comment, a ] inside a

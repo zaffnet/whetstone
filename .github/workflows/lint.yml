@@ -43,5 +43,3 @@ jobs:
           for f in template/project/.claude/hooks/*.sh; do
             diff -u "hooks/$(basename "$f")" "$f"
           done
-      - name: Reviewer subagents match between Claude markdown and Codex TOML
-        run: python3 tools/check-agents-sync.py

@@ -37,12 +37,6 @@ usage() {
   printf 'Usage: %s PR_NUMBER [-y|--yes]\n' "${0##*/}"
 }
 
-usage_error() {
-  printf '%s\n' "$1" >&2
-  usage >&2
-  exit 2
-}
-
 set_pr_number() {
   local value=$1
 
@@ -84,15 +78,6 @@ if [[ ! $PR_NUMBER =~ ^[1-9][0-9]*$ ]]; then
   usage_error 'PR_NUMBER must be a positive integer.'
 fi
 
-require_command() {
-  local command_name=$1
-
-  if ! command -v "$command_name" >/dev/null 2>&1; then
-    printf "Required command '%s' was not found.\n" "$command_name" >&2
-    exit 127
-  fi
-}
-
 require_command gh
 require_command git
 require_command jq
@@ -115,9 +100,6 @@ GIT_DIFF_STAT_FILE="$TEMP_DIR/git-diff-stat.txt"
 PROMPT_FILE="$TEMP_DIR/prompt.md"
 printf '%s\n' "$SCHEMA" >"$SCHEMA_FILE"
 
-cleanup() {
-  rm -rf -- "$TEMP_DIR"
-}
 trap cleanup EXIT
 
 readonly ASSUME_YES PR_NUMBER

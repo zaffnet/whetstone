@@ -25,7 +25,6 @@ bootstrap:
 
 sync:
     chezmoi --source . re-add
-    python3 bin/sync-claude-settings
     python3 bin/sync-iterm2-profile
     brew bundle dump --force --file=/tmp/whetstone-brewfile
     @echo "lines with > are installed but not in the Brewfile; add them by hand:"

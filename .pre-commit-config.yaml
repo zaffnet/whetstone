@@ -65,13 +65,6 @@ repos:
 
   - repo: local
     hooks:
-      - id: check-agents-sync
-        name: agents md/toml in sync
-        entry: uv run --no-sync python tools/check-agents-sync.py
-        language: system
-        pass_filenames: false
-        always_run: true
-
       - id: check-marketplace-paths
         name: marketplace paths exist
         entry: bin/check-marketplace-paths

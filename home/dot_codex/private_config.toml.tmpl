@@ -1,9 +1,4 @@
 {{- $work := get . "work" | default (dict) -}}
-# Managed by chezmoi from {{ .chezmoi.workingTree }} (home/.chezmoitemplates/codex-config.toml.tmpl).
-# Everything above the "preserved sections" marker is rewritten on every apply. The
-# [mcp_servers.*] tables (written by bin/sync-mcp from ~/.agents/mcp.json) and Codex's own
-# [projects.*] and [marketplaces.*] tables are carried over unchanged.
-
 model = "gpt-5.6-sol"
 approval_policy = "on-request"
 approvals_reviewer = "auto_review"
@@ -53,7 +48,6 @@ use_memories = true
 [shell_environment_policy]
 inherit = "core"
 
-# Values only; secrets come from the shell (~/.zsh_secrets), never from here.
 [shell_environment_policy.set]
 CLAUDE_CODE_MAX_OUTPUT_TOKENS = "128000"
 CLAUDE_CODE_NO_FLICKER = "1"
@@ -68,7 +62,7 @@ conversationDetailMode = "STEPS_COMMANDS"
 appearanceTheme = "system"
 reviewDelivery = "inline"
 git-branch-prefix = {{ get $work "branch_prefix" | default "zaffnet/" | quote }}
-git-worktree-root = {{ printf "%s/%s/" .chezmoi.homeDir .src_dir | quote }}
+git-worktree-root = {{ printf "%s/" (joinPath .chezmoi.homeDir .src_dir) | quote }}
 git-create-pull-request-as-draft = true
 show-context-window-usage = true
 worktree-keep-count = 15
@@ -113,3 +107,36 @@ enabled = false
 # [mcp_servers.*] is written by ~/.agents/bin/sync-mcp from ~/.agents/mcp.json after apply
 # (.chezmoiscripts/run_after_40-sync-mcp.sh). One writer; Codex keeps its own
 # private servers (node_repl, computer-use, event-stream) alongside.
+
+[plugins."codex-app-tools@openai-bundled"]
+enabled = true
+
+[plugins."browser@openai-bundled"]
+enabled = true
+
+[plugins."chrome@openai-bundled"]
+enabled = true
+
+[plugins."computer-use@openai-bundled"]
+enabled = true
+
+[plugins."visualize@openai-bundled"]
+enabled = true
+
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."pdf@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[plugins."template-creator@openai-primary-runtime"]
+enabled = true
+
+[plugins."unified-computer-use@openai-bundled"]
+enabled = true

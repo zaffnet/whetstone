@@ -8,15 +8,6 @@ CODEX_MODEL=$(codex_model)
 EFFORT="medium"
 readonly CODEX_MODEL EFFORT
 
-require_command() {
-  local command_name=$1
-
-  if ! command -v "$command_name" >/dev/null 2>&1; then
-    printf "Required command '%s' was not found.\n" "$command_name" >&2
-    exit 127
-  fi
-}
-
 require_command git
 require_command jq
 require_command codex
@@ -110,9 +101,6 @@ RESULT_FILE="$TEMP_DIR/result.json"
 printf '%s\n' "$SCHEMA" >"$SCHEMA_FILE"
 printf '%s\n' "$PROMPT" >"$PROMPT_FILE"
 
-cleanup() {
-  rm -rf -- "$TEMP_DIR"
-}
 trap cleanup EXIT
 
 if ! codex exec \

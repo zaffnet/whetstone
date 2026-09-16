@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/whetstone"
-
 managed_finder_settings=(
   "ShowPathbar|-bool|true"
   "AppleShowAllFiles|-bool|true"
@@ -33,65 +31,11 @@ managed_iterm2_settings=(
   "Default Bookmark Guid|-string|whetstone-default"
 )
 
-prune_retired_defaults_keys() {
-  local domain="$1"
-  local keys_file="$2"
-  shift 2
-  local current_keys=(${@+"$@"})
-
-  mkdir -p "$(dirname "$keys_file")"
-
-  local carry=()
-  if [ -f "$keys_file" ]; then
-    while IFS= read -r previous_key; do
-      [ -n "$previous_key" ] || continue
-
-      local still_managed=1
-      local key
-      for key in ${current_keys[@]+"${current_keys[@]}"}; do
-        if [ "$key" = "$previous_key" ]; then
-          still_managed=0
-          break
-        fi
-      done
-      [ "$still_managed" -ne 0 ] || continue
-
-      if defaults delete "$domain" "$previous_key" 2>/dev/null; then
-        continue
-      fi
-      if defaults read "$domain" "$previous_key" >/dev/null 2>&1; then
-        carry+=("$previous_key")
-        continue
-      fi
-      if defaults read "$domain" >/dev/null 2>&1; then
-        continue
-      fi
-      carry+=("$previous_key")
-    done <"$keys_file"
-  fi
-
-  local pending_file
-  pending_file="$(mktemp "$keys_file.XXXXXX")"
-  if ! printf '%s\n' ${current_keys[@]+"${current_keys[@]}"} ${carry[@]+"${carry[@]}"} \
-    >"$pending_file"; then
-    rm -f "$pending_file"
-    return 1
-  fi
-  if ! mv "$pending_file" "$keys_file"; then
-    rm -f "$pending_file"
-    return 1
-  fi
-}
-
 apply_managed_defaults() {
   local domain="$1"
-  local keys_file="$2"
-  shift 2
+  shift
   local settings=(${@+"$@"})
 
-  mkdir -p "$(dirname "$keys_file")"
-
-  local keys=()
   local setting key type value rest
   for setting in ${settings[@]+"${settings[@]}"}; do
     key="${setting%%|*}"
@@ -99,41 +43,30 @@ apply_managed_defaults() {
     type="${rest%%|*}"
     value="${rest#*|}"
     defaults write "$domain" "$key" "$type" "$value"
-    grep -qxF -- "$key" "$keys_file" 2>/dev/null || printf '%s\n' "$key" >>"$keys_file"
-    keys+=("$key")
   done
-
-  prune_retired_defaults_keys "$domain" "$keys_file" ${keys[@]+"${keys[@]}"}
 }
 
-apply_managed_defaults com.apple.finder "$state_dir/macos-finder-managed-keys.txt" \
+apply_managed_defaults com.apple.finder \
   ${managed_finder_settings[@]+"${managed_finder_settings[@]}"}
-apply_managed_defaults com.apple.dock "$state_dir/macos-dock-managed-keys.txt" \
+apply_managed_defaults com.apple.dock \
   ${managed_dock_settings[@]+"${managed_dock_settings[@]}"}
 killall Finder Dock 2>/dev/null || true
 
-iterm2_running="$(osascript -e 'application "iTerm" is running' 2>/dev/null || echo unknown)"
-if [ "$iterm2_running" = unknown ]; then
-  if pgrep -qf iTerm.app; then
-    iterm2_running=true
-  elif
-    pgrep_status=$?
-    [ "$pgrep_status" -eq 1 ]
-  then
-    iterm2_running=false
-  else
-    printf 'could not tell whether iTerm2 is running: osascript gave no answer and\n' >&2
-    printf 'pgrep failed (%s). No iTerm2 setting was written.\n' "$pgrep_status" >&2
-    exit 1
-  fi
-fi
-if [ "$iterm2_running" = true ]; then
+# Exit 1 is "no match"; anything else means pgrep could not answer, and writing then
+# would risk a running iTerm2 overwriting these settings when it quits.
+iterm2_pgrep=0
+pgrep -qf iTerm.app || iterm2_pgrep=$?
+if [ "$iterm2_pgrep" -eq 0 ]; then
   printf 'iTerm2 settings skipped: it is running, and would overwrite them on quit.\n' >&2
   printf 'Quit iTerm2, then re-apply from Terminal.app or over ssh.\n' >&2
   exit 0
+elif [ "$iterm2_pgrep" -ne 1 ]; then
+  printf 'could not tell whether iTerm2 is running: pgrep exited %s.\n' "$iterm2_pgrep" >&2
+  printf 'No iTerm2 setting was written.\n' >&2
+  exit 1
 fi
 
-apply_managed_defaults com.googlecode.iterm2 "$state_dir/macos-iterm2-managed-keys.txt" \
+apply_managed_defaults com.googlecode.iterm2 \
   ${managed_iterm2_settings[@]+"${managed_iterm2_settings[@]}"}
 
 iterm2_workgroups_b64="$(
@@ -152,8 +85,5 @@ if ! iterm2_workgroups_written="$(
   printf 'failed to write Workgroups into %s\n' "$iterm2_plist" >&2
   exit 1
 fi
-
-grep -qxF -- Workgroups "$state_dir/macos-iterm2-managed-keys.txt" 2>/dev/null \
-  || printf '%s\n' Workgroups >>"$state_dir/macos-iterm2-managed-keys.txt"
 
 killall cfprefsd 2>/dev/null || true

@@ -26,8 +26,6 @@ When in doubt, ask the user questions.
 
 ## Non-interactive mode
 
-If `--non-interactive` was passed, skip the per-comment pause. For each comment, decide using the same criteria (AI-written? over-engineering? deceptive or valueless test? already addressed by a later PR in the stack?) and take your own best-guess decision without asking, then move to the next comment.
+If `--non-interactive` was passed, skip the per-comment pause. For each comment, decide using the same criteria and take your own best-guess decision without asking, then move to the next comment.
 
 Once decisions are made for all comments, skip plan mode and approval too: proceed directly to commit the fixes, push them, reply to each comment, and resolve the thread where you fully addressed it.
-
-Drop "When in doubt, ask the user questions" — resolve doubt using the same best-guess decision, do not ask.
