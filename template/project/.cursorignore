@@ -6,11 +6,8 @@
 !.claude/**
 !.codex/
 !.codex/**
-!.cursor/
-!.cursor/**
 !.vscode/
 !.vscode/**
 !.worktreeinclude
 !AGENTS.override.md
 !CLAUDE.local.md
-!docker-compose.override.yaml

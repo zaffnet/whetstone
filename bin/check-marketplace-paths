@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# pre-commit hook: every agents, skills, and hooks path written in
-# .claude-plugin/marketplace.json has to exist.
-#
-# `claude plugin validate .` does not cover them. It resolves each entry's source to
-# .claude-plugin/plugin.json and checks the paths there, so breaking a path in
-# marketplace.json alone leaves it reporting "Validation passed" and exit 0.
 set -euo pipefail
 
 manifest=.claude-plugin/marketplace.json

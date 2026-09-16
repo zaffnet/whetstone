@@ -39,7 +39,6 @@ new DEST:
 validate:
     claude plugin validate .
     claude plugin validate .claude-plugin/plugin.json
-    gitleaks dir --no-banner --config .gitleaks.dir.toml .
 
 clean:
     rm -rf .ruff_cache

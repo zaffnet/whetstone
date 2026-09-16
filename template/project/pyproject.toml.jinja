@@ -3,18 +3,7 @@ name = "{{ project_name }}"
 version = "0.1.0"
 description = "{{ description }}"
 requires-python = ">={{ python_version }}"
-{%- if license != "Proprietary" %}
-license = "{{ license }}"
-{%- endif %}
-dependencies = [
-{%- if use_fastapi %}
-    "fastapi>=0.140",
-    "httpx2>=2.9",
-    "pydantic>=2.13",
-    "pydantic-settings>=2.15",
-    "uvicorn[standard]>=0.52",
-{%- endif %}
-]
+dependencies = []
 
 [dependency-groups]
 dev = [
@@ -26,28 +15,15 @@ dev = [
     "pre-commit>=4.6",
     "pyrefly>=1.2",
     "pytest>=9.1",
-{%- if use_fastapi %}
-    "pytest-asyncio>=0.24",
-{%- endif %}
     "pytest-cov>=7.1",
     "pytest-timeout>=2.4",
     "ruff>=0.16",
-{%- if use_docker %}
-    "semver>=3.0",
-    "yq>=4.1",
-{%- endif %}
 ]
 
 [tool.pytest.ini_options]
 # Test files sit next to the code they cover and end in _test.py.
 python_files = "*_test.py"
-{%- if use_fastapi %}
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
 addopts = '-v -m "not live"'
-{%- else %}
-addopts = '-v -m "not live"'
-{%- endif %}
 markers = [
     "integration: marks tests as integration tests",
     "live: marks tests that call live external services",
@@ -66,9 +42,6 @@ mypy_path = "stubs"
 files = ["."]
 pretty = true
 warn_unused_configs = true
-{%- if use_fastapi %}
-plugins = ['pydantic.mypy']
-{%- endif %}
 exclude = ["^\\.venv/", "^node_modules/"]
 
 [tool.basedpyright]
@@ -82,7 +55,7 @@ pythonVersion = "{{ python_version }}"
 
 [tool.ruff]
 target-version = "py{{ python_version | replace('.', '') }}"
-line-length = {{ line_length }}
+line-length = 88
 
 [tool.ruff.lint]
 select = ["ALL"]
