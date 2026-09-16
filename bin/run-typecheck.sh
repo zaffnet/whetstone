@@ -20,7 +20,7 @@ if ! command -v uvx >/dev/null 2>&1; then
   exit 127
 fi
 
-targets=("${@:-.}")
+targets=("$@")
 workers=$("$python" -c "import os; print(min(4, os.cpu_count() or 1))")
 
 status=0
@@ -29,7 +29,7 @@ run() {
   "$@" || status=1
 }
 
-run uv run --no-sync ruff format --check --force-exclude --color always "${targets[@]}"
+run uv run --no-sync ruff format --check --force-exclude --color always "${targets[@]+"${targets[@]}"}"
 
 ruff_check=(
   uv run --no-sync ruff check
@@ -38,6 +38,8 @@ ruff_check=(
   --select ALL
   --extend-select E266
   --ignore "D100,D101,D102,D103,D104,D105,D203,D213,COM812,FIX,TD,TRY003,CPY001"
+  --extend-include bin/sync-mcp
+  --extend-include bin/sync-iterm2-profile
   --per-file-ignores "*_test.py:S101"
   --per-file-ignores "*_test.py:S105"
   --per-file-ignores "*_test.py:S404"
@@ -49,21 +51,22 @@ ruff_check=(
   --preview
   --color always
 )
-run "${ruff_check[@]}" "${targets[@]}"
+run "${ruff_check[@]}" "${targets[@]+"${targets[@]}"}"
 
 mypy_targets=()
-for target in "${targets[@]}"; do
+for target in "${targets[@]+"${targets[@]}"}"; do
   if [[ $target == *.py ]]; then
     stub="${target%.py}.pyi"
-    for other in "${targets[@]}"; do
+    for other in "${targets[@]+"${targets[@]}"}"; do
       [[ $other == "$stub" ]] && continue 2
     done
   fi
   mypy_targets+=("$target")
 done
-run uv run --no-sync mypy --strict --num-workers "$workers" "${mypy_targets[@]}"
+mypy=(uv run --no-sync mypy --strict --scripts-are-modules --num-workers "$workers")
+run "${mypy[@]}" "${mypy_targets[@]+"${mypy_targets[@]}"}"
 
-run uv run --no-sync basedpyright --threads "$workers" "${targets[@]}"
+run uv run --no-sync basedpyright --threads "$workers" "${targets[@]+"${targets[@]}"}"
 
 pyrefly=(
   uvx pyrefly check
@@ -74,6 +77,6 @@ pyrefly=(
   --python-interpreter-path "$python"
 )
 [[ -d stubs ]] && pyrefly+=(--search-path stubs)
-run "${pyrefly[@]}" "${targets[@]}"
+run "${pyrefly[@]}" "${targets[@]+"${targets[@]}"}"
 
 exit "$status"

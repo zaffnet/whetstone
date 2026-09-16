@@ -7,14 +7,46 @@ dependencies = []
 
 [dependency-groups]
 dev = [
+    "basedpyright>=1.39",
     "copier>=9.18.2",
+    "mypy>=2.3",
     "pre-commit>=4.6.1",
+    "pyrefly>=1.2",
     "ruff>=0.16.7",
 ]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "stubs"
+files = ["bin/sync-mcp", "bin/sync-iterm2-profile"]
+scripts_are_modules = true
+strict = true
+pretty = true
+warn_unused_configs = true
+
+[tool.basedpyright]
+include = ["bin/sync-mcp", "bin/sync-iterm2-profile"]
+exclude = [".venv", "node_modules", "template"]
+typeCheckingMode = "all"
+stubPath = "stubs"
+reportMissingImports = "error"
+reportMissingTypeStubs = false
+pythonVersion = "3.12"
+
+[tool.pyrefly]
+preset = "all"
+check-unannotated-defs = true
+strict-callable-subtyping = true
+strict-partial-subtyping = true
+project-includes = ["bin/sync-mcp", "bin/sync-iterm2-profile"]
+project-excludes = ["**/.venv/", "**/node_modules/", "template/**"]
+search-path = ["stubs"]
+python-version = "3.12.0"
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+extend-include = ["bin/sync-mcp", "bin/sync-iterm2-profile"]
 
 [tool.ruff.lint]
 select = ["ALL"]

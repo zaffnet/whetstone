@@ -59,7 +59,9 @@ repos:
     hooks:
       - id: ruff-check
         args: [--fix]
+        files: '^bin/(sync-mcp|sync-iterm2-profile)$|\.pyi?$'
       - id: ruff-format
+        files: '^bin/(sync-mcp|sync-iterm2-profile)$|\.pyi?$'
 
   - repo: local
     hooks:
@@ -67,6 +69,28 @@ repos:
         name: marketplace paths exist
         entry: bin/check-marketplace-paths
         language: script
+        pass_filenames: false
+        always_run: true
+
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        pass_filenames: false
+        always_run: true
+        require_serial: true
+
+      - id: basedpyright
+        name: basedpyright
+        entry: uv run basedpyright
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: pyrefly
+        name: pyrefly
+        entry: uv run pyrefly check
+        language: system
         pass_filenames: false
         always_run: true
 

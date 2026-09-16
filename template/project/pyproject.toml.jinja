@@ -37,6 +37,7 @@ omit = ["**/*_test.py", "**/_test_helpers.py"]
 python_version = "{{ python_version }}"
 mypy_path = "stubs"
 files = ["."]
+strict = true
 pretty = true
 warn_unused_configs = true
 exclude = ["^\\.venv/", "^node_modules/"]
@@ -44,8 +45,9 @@ exclude = ["^\\.venv/", "^node_modules/"]
 [tool.basedpyright]
 include = ["."]
 exclude = [".venv", "node_modules"]
-typeCheckingMode = "strict"
+typeCheckingMode = "all"
 stubPath = "stubs"
+reportMissingImports = "error"
 reportMissingTypeStubs = false
 pythonVersion = "{{ python_version }}"
 
