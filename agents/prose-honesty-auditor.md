@@ -78,9 +78,8 @@ docs/design.md:12  Cut "This section explains" -- the heading already says it.
 the author should do with it. A reader should be able to act on it without
 re-deriving your reasoning.
 
-Copy what you quote character for character from the diff. You cannot open the
-file to check it, so wording you reconstruct from memory is wording the author
-will not find.
+Copy what you quote character for character from the file. Wording you
+reconstruct from memory is wording the author will not find.
 
 Reporting nothing is the expected result for honest prose. Report nothing you are
 not prepared to defend, and never pad the list.
