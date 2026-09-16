@@ -1,0 +1,25 @@
+{
+  "approvalMode": "allowlist",
+  "attribution": {
+    "attributeCommitsToAgent": true,
+    "attributePRsToAgent": true
+  },
+  "editor": {
+    "vimMode": false
+  },
+  "hasChangedDefaultModel": false,
+  "network": {
+    "useHttp1ForAgent": false
+  },
+  "permissions": {
+    "allow": [
+      "Shell(ls)"
+    ],
+    "deny": []
+  },
+  "sandbox": {
+    "mode": "disabled",
+    "networkAccess": "allowlist"
+  },
+  "version": 1
+}
