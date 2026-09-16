@@ -5,6 +5,7 @@ source "${BASH_SOURCE[0]%/*}/_common.sh"
 HONESTY_NAME=prose_honesty
 HONESTY_BRIEF=agents/prose-honesty-auditor.md
 HONESTY_GLOBS=('*.md' '*.markdown' '*.rst' '*.txt')
+HONESTY_SHEBANG_GLOBS=()
 HONESTY_LEAD="Prose a reader arriving next year cannot use, in what the turn that just
 ended changed. Cut it. Where a finding names one clause worth keeping, keep that clause
 and delete the rest; where it names none, delete the whole sentence or section.

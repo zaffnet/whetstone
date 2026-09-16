@@ -1,65 +1,54 @@
 #!/usr/bin/env bash
 
-HONESTY_STALE_AFTER_SECONDS=30
+# Sourced by prose_honesty.sh and code_prose_honesty.sh, which set HONESTY_NAME,
+# HONESTY_BRIEF, HONESTY_GLOBS, HONESTY_SHEBANG_GLOBS, and HONESTY_LEAD.
 
-HONESTY_MAX_REPORT_BYTES=16384
-
-HONESTY_MIN_ADDED_LINES=1
-
-honesty_note() {
+honesty_give_up() {
   printf '%s: %s\n' "$HONESTY_NAME" "$1" >&2
+  exit 0
 }
 
-if ! command -v claude >/dev/null 2>&1; then
-  honesty_note 'claude was not found; prose was not checked'
-  exit 0
-fi
+command -v claude >/dev/null 2>&1 || honesty_give_up 'claude was not found; prose was not checked'
 
 cwd="$(hook_field '.cwd // empty')"
-[[ -n $cwd ]] || cwd="$PWD"
-
-root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || exit 0
+root="$(git -C "${cwd:-$PWD}" rev-parse --show-toplevel 2>/dev/null)" || exit 0
 cd "$root" || exit 0
 
+brief=""
 for candidate in \
   "${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/$HONESTY_BRIEF}" \
   "$root/.claude/$HONESTY_BRIEF" \
   "${BASH_SOURCE[0]%/*}/../$HONESTY_BRIEF"; do
   [[ -f $candidate ]] && brief="$candidate" && break
 done
-[[ -n ${brief:-} ]] || exit 0
+[[ -n $brief ]] || exit 0
 
-recent=()
-while IFS= read -r -d '' file; do
-  recent+=(":(literal)$file")
-done < <(hook_changed_files "${HONESTY_GLOBS[@]}" | hook_recently_modified "$HONESTY_STALE_AFTER_SECONDS")
-
-if [[ -n ${HONESTY_SHEBANG_GLOBS+x} ]] && ((${#HONESTY_SHEBANG_GLOBS[@]})); then
+honesty_select() {
+  hook_changed_files "${HONESTY_GLOBS[@]}" | hook_recently_modified 30
+  # A script with no extension matches no glob, so admit it on its shebang.
+  ((${#HONESTY_SHEBANG_GLOBS[@]})) || return 0
   while IFS= read -r -d '' file; do
-    [[ -f $file && $(head -c 2 -- "$file" 2>/dev/null) == '#!' ]] || continue
-    recent+=(":(literal)$file")
-  done < <(hook_changed_files "${HONESTY_SHEBANG_GLOBS[@]}" | hook_recently_modified "$HONESTY_STALE_AFTER_SECONDS")
-fi
-((${#recent[@]})) || exit 0
+    [[ $(head -c 2 -- "$file" 2>/dev/null) == '#!' ]] && printf '%s\0' "$file"
+  done < <(hook_changed_files "${HONESTY_SHEBANG_GLOBS[@]}" | hook_recently_modified 30)
+}
 
-diff_text="$(hook_changed_diff "${recent[@]}")"
-[[ -n $diff_text ]] || exit 0
+paths=()
+while IFS= read -r -d '' file; do
+  paths+=(":(literal)$file")
+done < <(honesty_select)
+((${#paths[@]})) || exit 0
+
+diff_text="$(hook_changed_diff "${paths[@]}")"
+
+# Scope is what the diff adds, so a diff that only deletes has nothing to audit.
+# The '+++' header also matches '^+', so only lines inside a hunk count.
+awk '/^@@/ { hunk = 1; next }
+     /^diff --git / { hunk = 0 }
+     hunk && /^\+/ { found = 1; exit }
+     END { exit !found }' <<<"$diff_text" || exit 0
 
 if (($(wc -l <<<"$diff_text") > 4000)); then
-  honesty_note 'diff over 4000 lines; not audited'
-  exit 0
-fi
-
-added="$(
-  awk '
-    /^@@/ { in_hunk = 1; next }
-    /^diff --git / { in_hunk = 0 }
-    in_hunk && /^\+/ { n++ }
-    END { print n + 0 }
-  ' <<<"$diff_text"
-)"
-if ((added < HONESTY_MIN_ADDED_LINES)); then
-  exit 0
+  honesty_give_up 'diff over 4000 lines; not audited'
 fi
 
 errfile="$(mktemp)"
@@ -80,46 +69,18 @@ envelope="$(
 )" || status=$?
 
 if ((status != 0)); then
-  honesty_note "the auditor did not run (exit $status); prose was not checked"
   head -c 2000 "$errfile" >&2
-  exit 0
+  honesty_give_up "the auditor did not run (exit $status); prose was not checked"
 fi
 
-result="$(jq -c 'if type == "array" then .[-1] else . end' <<<"$envelope" 2>/dev/null)" || result=""
-
-if [[ -z $result ]]; then
-  honesty_note "the auditor's output did not parse; prose was not checked"
-  exit 0
-fi
-
-if [[ "$(jq -r '.is_error // false' <<<"$result" 2>/dev/null)" != false ]]; then
-  honesty_note 'the auditor reported an error; prose was not checked'
-  jq -r '.result // empty' <<<"$result" 2>/dev/null | head -c 2000 >&2
-  exit 0
-fi
-
-findings="$(
-  jq -r '.result // empty' <<<"$result" \
+report="$(
+  jq -r 'if type == "array" then .[-1] else . end
+         | if .is_error then error else .result end' <<<"$envelope" 2>/dev/null \
     | sed -e '/^[[:space:]]*```/d' \
-    | jq -c 'if (.findings | type) == "array" then .findings else empty end' 2>/dev/null
-)" || findings=""
+    | jq -r 'if (.findings | type) == "array" then .findings else error end
+             | .[] | "  \(.file):\(.line)  \(.why)"' 2>/dev/null
+)" || honesty_give_up 'the auditor did not answer with findings; prose was not checked'
 
-if [[ -z $findings ]]; then
-  honesty_note 'the auditor did not answer with a findings array; prose was not checked'
-  exit 0
-fi
-
-count="$(jq -r 'length' <<<"$findings")"
-((count > 0)) || exit 0
-
-report="$(jq -r '.[] | "  \(.file):\(.line)  \(.why)"' <<<"$findings")"
-
-honesty_truncation_marker='  [report truncated; findings above are the first of more]'
-
-honesty_overhead=$((${#HONESTY_LEAD} + ${#honesty_truncation_marker} + 3))
-if (($(printf '%s' "$report" | wc -c) > HONESTY_MAX_REPORT_BYTES - honesty_overhead)); then
-  report="${report:0:$(((HONESTY_MAX_REPORT_BYTES - honesty_overhead) / 4))}
-$honesty_truncation_marker"
-fi
+[[ -n $report ]] || exit 0
 
 printf '%s\n\n%s\n' "$HONESTY_LEAD" "$report" | hook_emit_rewake
