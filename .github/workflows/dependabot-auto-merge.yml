@@ -3,9 +3,8 @@ name: dependabot auto-merge
 on:
   pull_request_target:
     types: [opened, reopened, synchronize]
-  workflow_run:
-    workflows: ["lint"]
-    types: [completed]
+  push:
+    branches: [main]
 
 permissions:
   contents: write
@@ -13,10 +12,21 @@ permissions:
 
 jobs:
   auto-merge:
-    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for n in $(gh pr list --state open --json number --jq '.[].number'); do
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${n}/update-branch" || true
+          done
