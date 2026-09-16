@@ -7,12 +7,12 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-    "basedpyright>=1.39",
-    "copier>=9.18.2",
-    "mypy>=2.3",
-    "pre-commit>=4.6.1",
-    "pyrefly>=1.2",
-    "ruff>=0.16.7",
+  "basedpyright>=1.39",
+  "copier>=9.18.2",
+  "mypy>=2.3",
+  "pre-commit>=4.6.1",
+  "pyrefly>=1.2",
+  "ruff>=0.16.7",
 ]
 
 [tool.mypy]
@@ -43,4 +43,18 @@ select = ["ALL"]
 extend-select = ["E266"]
 explicit-preview-rules = true
 preview = true
-ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D203", "D213", "COM812", "FIX", "TD", "TRY003", "CPY001"]
+ignore = [
+  "D100",
+  "D101",
+  "D102",
+  "D103",
+  "D104",
+  "D105",
+  "D203",
+  "D213",
+  "COM812",
+  "FIX",
+  "TD",
+  "TRY003",
+  "CPY001",
+]
