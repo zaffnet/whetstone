@@ -64,7 +64,6 @@ repos:
         language: fail
         files: (^|/)test_[^/]*\.py$
 
-      # Conventional Commits subject, 72 characters or fewer (docs/DEVELOPMENT.md).
       # Merge and revert subjects that git writes itself are allowed through.
       - id: conventional-commit-subject
         name: conventional commit subject
