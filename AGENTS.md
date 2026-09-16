@@ -1,39 +1,22 @@
-# Working conventions
+# AGENTS.md / CLAUDE.md
 
-Read once per session. This file is symlinked to `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`,
-and `~/.kiro/steering/AGENTS.md`, so it applies everywhere. The rules below cover Claude
-Code, Codex, Cursor, and any other coding agent that reads `AGENTS.md`.
-
-## Writing
+## Writing Prose (documentation, comments, etc.)
 
 Load the `writing-whip` skill before writing prose, and `prose-honesty` before writing
 comments, docstrings, docs, or a PR body.
 
-House style on top of them:
-
-- Plain sentences that state facts and decisions.
-- Use a list when the material is a list.
-- If the code, the doc, or the user already named something, use that exact word. Do not
-  paraphrase a technical term, and do not coin a near-synonym of one.
-- Sentence case in headings.
-- Straight quotes, no em dashes, no arrow glyphs.
-
-## Code
+## Code style
 
 Python follows [PEP 8](https://peps.python.org/pep-0008/) for judgment calls. Ruff
 (pre-commit) owns naming, formatting, and imports.
 
-Docstrings on public modules, classes, and functions: a one-line summary, then `Args:`,
-`Returns:`, and `Raises:` sections where they carry information. One-line helpers skip
-Args/Returns. Type hints on function signatures. Shrink a docstring rather than deleting
-it: pre-commit fails on a public interface without one.
-
-Make routine judgment calls. Check in only when different readings of the request would
-lead to materially different work. If you assume something, say what you assumed.
+Keep the docstrings on public modules, classes, and functions short. Use
+@"code-honesty-auditor (agent)" to audit any docstrings or comments you have written in
+any code.
 
 Write the minimum that solves the problem. Keep diffs surgical: every changed line traces
-to the request. Mention unrelated dead code; do not delete it unless asked. Remove names
-this change made unused.
+to the request. Mention unrelated dead code; make a case for them to delete, and when permission is
+granted, delete them. Do it routinely and religiously. Remove names that have become unused.
 
 Fix the root cause. Do not leave `# type: ignore`, bare `except: pass`, or unexplained
 `# noqa`. When a type error comes from a dependency, add real stubs -- `types-<pkg>` or a
@@ -44,108 +27,136 @@ Imports go at the top of the module, never inside a function body, a type annota
 an interface field. A real circular dependency is the one exception; name it next to the
 import.
 
-Test files are `*_test.py`, never `test_*.py`. Correct: `memory_store_test.py`. Wrong:
-`test_memory_store.py`.
-
 Do not add tests that only assert a constant or a fact ruff, mypy, or basedpyright already
 prove. No section-separator comments. No template docstrings that restate the function
 name.
 
-Asked to review names, list every weak identifier and wait. Renaming is a separate
-instruction.
+## Code taste
 
-Keep runner output out of context. One test file is
-`uv run pytest <file> -qq --tb=short --no-header`; sync is
-`uv sync -q --all-groups --all-extras`, which takes `--upgrade` only when the request is to
-upgrade, since it rewrites `uv.lock`. Use `-qq` rather than `-q` where a repo's `addopts`
-add verbosity of their own. Quieten anything else that prints at length: `ruff --quiet`,
-`git fetch -q`.
+Aim for the largest honest net negative diff. Reduction is the deliverable, not a side effect
+of one. This applies to code, comments, docs, PR size, and tooling alike. If a change adds
+lines, be able to say what those lines buy.
 
-## Working with agents
+### Scope and diffs
 
-Color flags per command, never via env:
+- Write the minimum that solves the problem.
+- Every changed line traces to the request. If it does not, it is a separate change.
+- Mention dead code you find. Confirm is is no longer needed and delete it.
+- Remove names this change made unused, including ones you added that turned out unused.
+- Scope is a contract. Do not quietly widen or narrow it; if it must change, say so.
+- Parking a decision as a "follow-up" is usually evasion. Decide it or name who will.
 
-- screen output: `pytest --color=yes`, `ruff check --color always`,
-  `git --no-pager diff --color=always`
-- redirected or parsed output: no color (`NO_COLOR=1 GH_FORCE_TTY=0 gh api ...`)
+### Comments and docstrings
 
-Never strip ANSI with a regex after the fact.
+The bar: does a reader who opens this next year, having never seen the change, need it? Judge
+each clause, not the file. If keeping it is arguable, cut it. Survivors state a cause, a
+constraint, or a consequence the code cannot state itself.
 
-When a request names several things to fetch, issue those calls in one turn. In long agent
-loops the next independent reads are only implied by the task, and agents tend to issue
-them one per turn. That costs round trips, not answer quality. Before each turn: list what
-you need next, then request every item that does not depend on another's result in that one
-response.
+```python
+# Keep: the plural `correlationIds` is ignored upstream and would match both calls
+# Cut:  Repeatable UUID filter; values may repeat   <- the type says it, twice
+```
 
-Ending a turn is a stop, not a wait. After spawning background agents, hold the turn open
-by blocking on each child, or run the fan-out through a workflow that collects results.
-Never end a turn with "I'll wait for X".
+- No changelog narration. The reader has the file, not the diff.
+- No banner comments, no section separators, no emoji.
+- No TODO without either the work or an issue reference.
+- Where a linter requires a docstring, shrink it rather than delete it.
+- Never document behaviour no test exercises.
+- Consistency with the surrounding file beats a marginal improvement. When the call is close,
+  leave it.
 
-`gh stack list` shows the stack. `gh stack` branches on whether stdout is a TTY: piped,
-most commands error cleanly or print static text; under a PTY the same commands open a
-prompt or a full-screen TUI and block. Pass explicit flags instead of relying on that
-detection.
+### Naming
 
-## Stop hooks
+- Accurate beats short. Four words is fine.
+- No metaphor that misleads about what the thing does.
+- Reuse the exact word the code, the doc, or the user already used.
+- A good name makes its comment redundant. Prefer the rename.
+- Find every opportunity to rename. Clear names will help readers understand the code better.
 
-Three hooks check the work when a turn ends. None of them delays it: each is configured
-with `"asyncRewake": true`, so the harness starts the hook, stops waiting, and ends the
-turn. Findings arrive at the start of the next turn, which is why each report says which
-turn it describes and that its line numbers may have moved.
+### Structure and typing
 
-Exit 2 is the only code that reaches Claude; it delivers what the hook wrote to stderr.
-Exit 0 delivers nothing, which is what every failure path uses: a checker that could not
-run says so on stderr, where it reaches the debug log, and does not read as a clean audit.
-Exit 2 from a hook the harness *is* waiting for means "refuse to let the turn end", so
-these scripts and the `asyncRewake` field belong together -- dropping the field without
-changing the scripts turns their reports into blocked turns.
+- Imports at module top. A circular dependency is the only reason to move one inside.
+  Avoid circular dependencies.
+- Early returns over nested conditionals. Keep functions short.
+- Write a real type or stub rather than `Any`.
+- No suppressions, and no laundering one suppression into another form. Fix the root cause.
+- Modern generics and `X | None`, not the legacy spellings.
+- Model variants as a discriminated union and match exhaustively, closing with `assert_never`,
+  so adding a variant is a compile error at each site that must change and nowhere else.
+- A library never knows its caller: no consumer-shaped parameters, no imports pointing up.
+- Data does not live inside the script that generates from it.
+- Mark generated files as generated so review lands on the generator.
 
-- `hooks/typecheck.sh` runs the repository's own `./run-typecheck.sh` where there is one,
-  and `bin/run-typecheck.sh` otherwise.
-- `hooks/code_prose_honesty.sh` audits the turn's code diff for comment text a later reader
-  cannot use, plus every checker suppression the diff adds. Its `HONESTY_GLOBS` names the
-  languages it covers; a language absent from that list is audited by neither hook.
-- `hooks/prose_honesty.sh` does the same for markdown, text, and HTML files.
+### Errors and logging
 
-Both auditors report; neither rewrites. An audit judges every sentence and clause on its
-own: a comment holds its space only by supplying what the code cannot express, so expect
-deletions rather than rewordings.
+- A custom exception hierarchy per boundary, raised at that boundary.
+- At a library boundary, sever the chain: raise the library's own error without the
+  internal cause.
+- Libraries log through the standard library's logging only, and configure nothing.
+- Defensive checks on trusted internal paths are slop. Validate at the edge, then trust it.
+
+### Tests
+
+- Every test runs against the real thing. "This cannot be tested live" is nearly always a
+  claim about the attempt, not about the world; change the request, the credentials, or the
+  config and try again. A mock-only test needs a written reason.
+- Fake data is either obviously synthetic or copied verbatim from a real response. Never
+  invent data and describe it as real.
+- A mock that agrees with your own misreading proves nothing.
+- Mutation-test the test: break the code and confirm it fails.
+- Partial verification reads exactly like proof. Say which part you checked.
+- One invalid input is enough. Do not walk every field constraint.
+- Do not test what the type checker or linter already proves.
+- Deleting a test is legitimate. Confirm it is no longer needed and delete it liberally.
+- Weigh a test against the lines it costs. Tests are code and carry the same bar.
+
+### Verification
+
+- Evidence before claims, always. Run the thing, then report.
+- Run checkers the way the gate runs them, including with no path argument.
+- Two checkers disagreeing is information, not noise. Understand it before silencing either.
+- Zero findings is the bar, whether or not the hook is set to block.
+- Probe the live system before claiming what it does.
+- Reading a doc is not evidence. Assume the spec is wrong until the system agrees with it.
+- Documents become stale. They may be inaccurate. Do not blindly trust them.
+- Talk is cheap. Show me the code.
+
+### Prose and docs
+
+- Plain sentences stating facts and decisions. A list where the material is a list.
+- Describe the current state. No history, no record of how the design was reached.
+- Design docs stay out of implementation detail.
+- One fact has one owner. Everywhere else cross-references it.
+- Sentence case headings, straight quotes, no em dashes, no arrow glyphs.
+- For work that needs judgment, use judgment. A brittle deterministic script that approximates
+  a judgment call is worse than making the call.
+
+## Writing style
+
+- Write for humans, not agents.
+- If the code, the doc, or the user already named it, use that exact word. Do not
+  paraphrase a technical term, and do not coin a near-synonym or near-homophone of one.
+
+## Stacked pull requests
+
+Run `gh stack list` to see the stack. Use `/gh-stack` to work with GitHub Stack.
 
 ## Handing off
 
 Report the result of each:
 
 1. `uv run pre-commit run --all-files` passes.
-2. `bin/run-typecheck.sh` passes, or fails the same way on `main`.
-3. Run `prose-honesty-auditor` and `code-honesty-auditor` over every file the session
-   touched, and delete what they name. A rewording does not answer a finding.
-4. `git status` is clean, and `git --no-pager diff <base>..HEAD --name-only` lists only
-   this change's files. Stage by path: `git add -A` takes whatever else sits in the tree.
-5. Name the command and its exit code. Silence is not a pass, since `chezmoi verify`
-   prints nothing and exits 1.
-6. Reproduce the failure a fix claims to fix, before and after. Passing a checker says
-   the code parses, not that it runs.
+2. `run-typecheck.sh` passes.
+3. Run @"prose-honesty-auditor (agent)" and @"code-honesty-auditor (agent)" over every
+   file the session touched, and delete what they name. Take all their suggestions.
+4. Run the following skills on every file the session touched: /simplify-english,
+   /writing-whip, /writing-clearly-and-concisely, and /prose-honesty.
 
 ## Git
 
 Small PRs, one logical change each. Conventional commits, imperative mood, first line of
-72 characters or fewer.
-
-In whetstone, never push to `main`: push a branch, open the PR, request a Copilot review,
-and resolve every thread. Copilot is the only review bot to ask. Never comment
-`@codex review`.
+72 characters or fewer. Never push to `main`: push a branch, open the PR.
 
 ## Skills
 
 Check `~/.agents/skills` at the start of a task and load the ones that match.
-
-## Templates and dotfiles
-
-Projects generated from whetstone and files managed by chezmoi are never patched in place.
-A template fix goes into whetstone, ships with `just release vX.Y.Z`, and reaches a project
-when its owner runs `uvx copier update` and commits. A project records its template version
-in `.copier-answers.yml`; never edit, stage, or commit inside someone else's project to
-deliver a template fix. A dotfile fix goes into `home/` and `just apply`. Managed here, so
-never edited in place: `~/.claude/settings.json`, `~/.claude/CLAUDE.md`, `~/.codex/`,
-`~/.cursor/`, `~/.agents/`. For anything else, `chezmoi source-path <file>` names the file
-to edit instead, or fails if it is unmanaged. Published tags are never moved.
