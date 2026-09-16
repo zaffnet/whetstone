@@ -1,26 +1,5 @@
 {
   "hooks": {
-    {%- if use_graphify %}
-    "PreToolUse": [
-      {
-        "hooks": [
-          {
-            "command": "graphify hook-guard search",
-            "type": "command"
-          }
-        ],
-        "matcher": "Bash|Grep"
-      },
-      {
-        "hooks": [
-          {
-            "command": "graphify hook-guard read",
-            "type": "command"
-          }
-        ],
-        "matcher": "Read|Glob"
-      }
-    ],{% endif %}
     "Stop": [
       {
         "hooks": [
