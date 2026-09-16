@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
 
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   review-with-tracking:
     runs-on: ubuntu-latest
@@ -23,10 +27,6 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           track_progress: true
-          plugin_marketplaces: https://github.com/zaffnet/whetstone.git
-          plugins: |
-            whetstone-skills@whetstone
-            whetstone-reviewers@whetstone
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -39,31 +39,27 @@ jobs:
                - Code readability and maintainability
                - Read CLAUDE.md and AGENTS.md and follow the instructions.
 
-            2. **Performance**
+            2. **Security**
+               - Hardcoded secrets or credentials
+               - Workflow permissions and unpinned actions
+               - Shell injection in hooks and GitHub Actions
+
+            3. **Performance**
                - Identify potential performance bottlenecks
-               - Review database queries for efficiency
-               - Check for memory leaks or resource issues
 
             4. **Testing**
                - Verify adequate test coverage
                - Review test quality and edge cases
                - Check for missing test scenarios
-               - Run @"deceptive-test-hunter (agent)" to ensure the tests are not deceptive or redundant.
+               - Reject deceptive or redundant tests
 
             5. **Documentation**
                - Ensure code is properly documented
                - Verify README updates for new features
-               - Check API documentation accuracy
-               - Run @"prose-honesty-auditor (agent)" and @"code-honesty-auditor (agent)" to ensure the documentation is honest and accurate.
+               - Check hooks/ and template/project/.claude/hooks stay in parity
 
             Provide detailed feedback using inline comments for specific issues.
             Use top-level comments for general observations or praise.
-
-            Before posting any comments or replying to any comments, ensure you run the following skills on the comment text you are about to post:
-              - /simplify-english
-              - /writing-whip
-              - /writing-clearly-and-concisely
-              - /prose-honesty
 
           claude_args: |
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
