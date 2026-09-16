@@ -61,7 +61,7 @@ notifications-turn-mode = "always"
 conversationDetailMode = "STEPS_COMMANDS"
 appearanceTheme = "system"
 reviewDelivery = "inline"
-git-branch-prefix = "zaffnet/"
+git-branch-prefix = {{ get $work "branch_prefix" | default "zaffnet/" | quote }}
 git-worktree-root = {{ printf "%s/" (joinPath .chezmoi.homeDir .src_dir) | quote }}
 git-create-pull-request-as-draft = true
 show-context-window-usage = true
@@ -108,8 +108,6 @@ enabled = false
 # (.chezmoiscripts/run_after_40-sync-mcp.sh). One writer; Codex keeps its own
 # private servers (node_repl, computer-use, event-stream) alongside.
 
-# --- preserved sections (owned by Codex and bin/sync-mcp; chezmoi keeps them as-is) ---
-
 [plugins."codex-app-tools@openai-bundled"]
 enabled = true
 
@@ -142,43 +140,3 @@ enabled = true
 
 [plugins."unified-computer-use@openai-bundled"]
 enabled = true
-
-# [mcp_servers.*] is written by ~/.agents/bin/sync-mcp from ~/.agents/mcp.json after apply
-# (.chezmoiscripts/run_after_40-sync-mcp.sh). One writer; Codex keeps its own
-# private servers (node_repl, computer-use, event-stream) alongside.
-
-[mcp_servers.aws-mcp]
-command = "uvx"
-args = ["mcp-proxy-for-aws@1.6.4", "https://aws-mcp.us-east-1.api.aws/mcp", "--metadata", "INSTALL_SOURCE=aws-cli"]
-
-[mcp_servers.aws-mcp.env]
-AWS_REGION = "us-east-1"
-
-[mcp_servers.awslabs-aws-iac-mcp]
-command = "uvx"
-args = ["awslabs.aws-iac-mcp-server@1.0.23"]
-
-[mcp_servers.awslabs-aws-iac-mcp.env]
-AWS_REGION = "us-east-1"
-FASTMCP_LOG_LEVEL = "ERROR"
-
-[mcp_servers.langfuse-docs]
-url = "https://langfuse.com/api/mcp"
-
-[mcp_servers.ms365]
-command = "npx"
-args = ["-y", "@softeria/ms-365-mcp-server@0.146.1", "--org-mode"]
-
-[mcp_servers.primevue]
-command = "npx"
-args = ["-y", "@primevue/mcp@5.0.1"]
-
-[mcp_servers.chrome-devtools]
-command = "npx"
-args = ["-y", "chrome-devtools-mcp@1.8.0", "--autoConnect"]
-
-[mcp_servers.context7]
-url = "https://mcp.context7.com/mcp"
-
-[mcp_servers.mrc-mcp]
-url = "https://www.microsoft.com/releasecommunications/mcp"

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+status=0
+for dir in "{{ .chezmoi.homeDir }}/.cursor/skills" "{{ .chezmoi.homeDir }}/.kiro/skills"; do
+  if [[ -d $dir && ! -L $dir ]]; then
+    printf '%s is a real directory, not a symlink.\n' "$dir" >&2
+    printf '  An apply would delete it and everything in it. Keep what you need first:\n' >&2
+    printf '    ls %s\n' "$dir" >&2
+    printf '    mv %s/<name> %s/.agents/skills/   # or add it to ~/.agents/skills.txt\n' \
+      "$dir" "{{ .chezmoi.homeDir }}" >&2
+    printf '    rm -rf %s\n' "$dir" >&2
+    status=1
+  fi
+done
+exit "$status"

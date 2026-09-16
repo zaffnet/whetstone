@@ -4,8 +4,10 @@ codex_config_value() {
   local config="${CODEX_HOME:-$HOME/.codex}/config.toml"
 
   [[ -r $config ]] || return 0
-  python3 -c 'import sys, tomllib; print(tomllib.load(open(sys.argv[1], "rb")).get(sys.argv[2], ""))' \
-    "$config" "$1" 2>/dev/null
+  # Both keys this reads are top-level scalars above the first [table], so stopping at
+  # that line keeps a same-named key inside a table from matching. macOS system python3
+  # is 3.9 and has no tomllib, and these scripts run outside uv.
+  sed -n "/^\\[/q; s/^$1[[:space:]]*=[[:space:]]*\"\\(.*\\)\"[[:space:]]*\$/\\1/p" "$config" | head -1
 }
 
 require_command() {

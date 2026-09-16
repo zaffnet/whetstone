@@ -52,10 +52,18 @@ apply_managed_defaults com.apple.dock \
   ${managed_dock_settings[@]+"${managed_dock_settings[@]}"}
 killall Finder Dock 2>/dev/null || true
 
-if pgrep -qf iTerm.app; then
+# Exit 1 is "no match"; anything else means pgrep could not answer, and writing then
+# would risk a running iTerm2 overwriting these settings when it quits.
+iterm2_pgrep=0
+pgrep -qf iTerm.app || iterm2_pgrep=$?
+if [ "$iterm2_pgrep" -eq 0 ]; then
   printf 'iTerm2 settings skipped: it is running, and would overwrite them on quit.\n' >&2
   printf 'Quit iTerm2, then re-apply from Terminal.app or over ssh.\n' >&2
   exit 0
+elif [ "$iterm2_pgrep" -ne 1 ]; then
+  printf 'could not tell whether iTerm2 is running: pgrep exited %s.\n' "$iterm2_pgrep" >&2
+  printf 'No iTerm2 setting was written.\n' >&2
+  exit 1
 fi
 
 apply_managed_defaults com.googlecode.iterm2 \

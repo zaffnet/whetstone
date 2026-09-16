@@ -140,7 +140,7 @@ MRU lists, window frames, and session state. Ask only about what is left.
 | Plain file in `home/` | Same bytes on every machine. |
 | `.tmpl` | Any part varies by machine, user, or role. Default when unsure. |
 | `symlink_` | The real content belongs in the repo working tree, as the agent config does. |
-| `modify_` | An application also writes this file at runtime. A plain file or `.tmpl` would let the next apply discard keys the app wrote; `modify_settings.json.tmpl:2-12` for Cursor is the working example, owning per top-level key and carrying over anything else. |
+| Plain file, for a file an app writes | `chezmoi re-add` captures what the app wrote, so the machine stays the authority. A `.tmpl` cannot: `re-add` skips templates, so the repo never learns the app's edits. |
 | `.chezmoiscripts/` | The state is set by a command, not a file: `defaults write`, an installer. |
 | `.chezmoiignore` | Paired with an `.example`, or a file corp tooling rewrites. |
 | Brewfile | Software. See phase 6. |
@@ -260,9 +260,9 @@ its values, is ever created.
 Two ways an apply destroys data. Handle both before running one:
 
 - Adding a file whose live copy differs overwrites the live copy on the next apply. Always
-  `chezmoi --source . --no-pager diff --exclude=scripts` and read the hunk first. An app
-  that rewrites the file at runtime needs `modify_` rather than a plain file: forcing
-  past the "has changed since chezmoi last wrote it" prompt discards whatever it wrote.
+  `chezmoi --source . --no-pager diff --exclude=scripts` and read the hunk first. Forcing
+  past the "has changed since chezmoi last wrote it" prompt discards whatever the app
+  wrote; run `re-add` first so the repo holds it.
 - Adding a managed directory where a real directory exists lets chezmoi delete the live one
   recursively, with no prompt. `run_before_06-skills-not-a-directory.sh.tmpl` guards the
   known cases. Prefer managing individual files, and if a new `symlink_` covers a path that
