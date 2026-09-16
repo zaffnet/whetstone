@@ -1,4 +1,3 @@
-# Local overlays and secrets never enter the repo.
 *.local
 *.local.*
 /.env
@@ -15,20 +14,17 @@ __pycache__/
 .copier-answers.yml
 uv.lock.bak
 
-# Editors and agents at the repo root (runtime state; config lives under home/ and
-# template/project/, which is why these patterns are anchored with a leading slash)
+# Anchored with a leading slash: tracked config of the same name lives under home/
+# and template/project/.
 /.claude/
 /.codex/
 /.cursor/
 # Contents, not the directory: git does not descend into an excluded directory, so an
-# ignored `/.vscode/` cannot have a file re-included beneath it. extensions.json is shared
-# project metadata -- which extensions this repo's own shell, TOML and Markdown need --
-# while settings.json stays personal runtime state like the rest of this block.
+# ignored `/.vscode/` cannot have a file re-included beneath it.
 /.vscode/*
 !/.vscode/extensions.json
 /CLAUDE.local.md
 /AGENTS.override.md
 /.reference-repos
 
-# macOS
 .DS_Store

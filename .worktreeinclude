@@ -1,5 +1,4 @@
-# Local-only files copied into every new worktree by hooks/setup-working-tree.sh.
-# AGENTS.override.md is not here on purpose: it is derived from AGENTS.md and
-# CLAUDE.local.md, and copying it forward would carry a stale one into the worktree.
+# AGENTS.override.md is left out on purpose: it is derived from AGENTS.md and
+# CLAUDE.local.md, so copying it forward would carry a stale one into the worktree.
 .claude/
 CLAUDE.local.md

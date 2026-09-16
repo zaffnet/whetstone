@@ -225,9 +225,9 @@ def split_toml_tables(text: str) -> list[tuple[str | None, str]]:
 
 
 def mcp_server_name(header: str | None) -> str | None:
-    # Stripped, because TOML allows whitespace inside the brackets: `[ mcp_servers.x ]` is
-    # the same table as `[mcp_servers.x]`. table_name() in the Codex modify script does the
-    # same, and the two have to agree on what a table is called.
+    # TOML allows whitespace inside the brackets, so `[ mcp_servers.x ]` and
+    # `[mcp_servers.x]` are one table. table_name() in the Codex modify script has to
+    # agree with this on what a table is called.
     if header is None:
         return None
     header = header.strip()

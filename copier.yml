@@ -1,8 +1,4 @@
-# Copier template for a Python project: uv, ruff, mypy + basedpyright, pre-commit,
-# GitHub Actions, and agent configuration for Claude Code, Codex, and Cursor.
-#
-#   uvx copier copy gh:zaffnet/whetstone my-project
-#   uvx copier update            # later, from inside the project
+# uvx copier copy gh:zaffnet/whetstone my-project
 _min_copier_version: "9.4.0"
 _subdirectory: template/project
 _templates_suffix: .jinja
