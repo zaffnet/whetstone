@@ -131,9 +131,9 @@ Report the result of each:
 Small PRs, one logical change each. Conventional commits, imperative mood, first line of
 72 characters or fewer.
 
-In whetstone, never push to `main` and never merge a pull request: push a branch, open the
-PR, request a Copilot review, resolve every thread, and leave the merge to zaffnet.
-Copilot is the only review bot to ask. Never comment `@codex review`.
+In whetstone, never push to `main`: push a branch, open the PR, request a Copilot review,
+and resolve every thread. Copilot is the only review bot to ask. Never comment
+`@codex review`.
 
 ## Skills
 
