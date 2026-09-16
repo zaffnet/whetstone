@@ -31,9 +31,10 @@ Follow Conventional Commits (`conventionalcommits.org`):
 <type>(scope): <subject>
 ```
 
-Valid types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `ci`, `style`, `perf`, `build`.
-Write the subject in imperative mood ("add", "fix", "remove", not "added", "fixes", "removed").
-Keep the first line at 72 characters or fewer and the full message under 100 words.
+The `conventional-commit-subject` hook in `.pre-commit-config.yaml` checks the type and the
+72-character limit, and its regex lists the types it accepts. Write the subject in imperative
+mood ("add", "fix", "remove", not "added", "fixes", "removed"). Keep the whole message under
+100 words.
 
 ```txt
 feat(api): add rate limiting
@@ -81,31 +82,14 @@ lines, split it.
 
 Test files live next to the code they cover and end with `*_test.py`, never `test_*.py`.
 
-```bash
-# Default suite (excludes integration and live tests)
-uv run pytest -m "not integration and not live"
-
-# Coverage command used by pre-commit and CI
-uv run pytest -m "not integration and not live" --cov --cov-report=xml
-
-# Changed-line coverage against main (CI requires at least 80%)
-uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under=80
-
-# Everything
-uv run pytest
-```
+`just test` runs the default suite, which skips integration and live tests. `just cov` runs the
+same suite with coverage and then checks the changed lines. Pre-commit and CI run that coverage
+command too, and fail a change that covers under 80% of its own changed lines. `uv run pytest`
+on its own runs everything.
 
 ## Toolchain
 
-| Tool | Role |
-|---|---|
-| `uv` | Dependency resolution, virtualenv, Python version (`.python-version`), lockfile (`uv.lock`, committed) |
-| `ruff` | Lint (`select = ["ALL"]` with a commented ignore list) and format |
-| `mypy` + `basedpyright` | Two type checkers; each catches what the other misses |
-| `pyrefly` | Fast type checking in the editor (`pyrefly.toml`) |
-| `bandit`, `pip-audit` | Security lint and dependency vulnerability audit |
-| `pytest`, `pytest-cov`, `diff-cover` | Tests and changed-line coverage gate |
-| `pre-commit` | Runs all of the above before each commit and in CI |
-
-`pyproject.toml` configures every tool. Runtime dependencies live under `[project.dependencies]`,
-development tools under `[dependency-groups.dev]`.
+Runtime dependencies live under `[project.dependencies]` in `pyproject.toml`, development tools
+under `[dependency-groups.dev]`. `.pre-commit-config.yaml` shows which of those tools run on a
+commit. Two type checkers run there, mypy and basedpyright, because each catches what the other
+misses; `pyrefly` is for the editor only.

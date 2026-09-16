@@ -1,13 +1,7 @@
-# .worktreeinclude lists local-only files that new worktrees copy over. This file
-# re-includes the same paths for Cursor access and indexing, except secrets: .env
-# stays ignored on purpose. Overrides .gitignore and the default ignores. See
-# https://cursor.com/docs/reference/ignore-file
-!.claude/
-!.claude/**
-!.codex/
-!.codex/**
-!.vscode/
-!.vscode/**
-!.worktreeinclude
+# Re-include the per-machine agent state .gitignore hides, so Cursor indexes it.
+# .env stays ignored: it holds secrets. Overrides .gitignore and the default
+# ignores. See https://cursor.com/docs/reference/ignore-file
+!.claude/settings.local.json
+!.claude/plans/**
 !AGENTS.override.md
 !CLAUDE.local.md
