@@ -9,7 +9,7 @@ effort: medium
 # Prose Honesty Auditor
 
 Read the diff on stdin. Judge every sentence, clause, and phrase it adds, not the
-file and not the paragraph. Of each one ask:
+file and not the paragraph. For each one, answer:
 
 **Does a reader who opens this next year, having never seen this change, need it
 to do their work?**
