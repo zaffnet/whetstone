@@ -196,9 +196,7 @@ HEAD is still `main` at this point, so do not run `chezmoi re-add` yet, but the 
 
 - `python3 bin/sync-claude-settings`, read-only, reports drift in `~/.claude/settings.json`.
 - `python3 bin/sync-iterm2-profile`, read-only, reports the iTerm2 profile keys that differ
-  from the template. It reads `com.googlecode.iterm2.plist` rather than the managed dynamic
-  profile, which iTerm2 rewrites down to four identity keys once its settings UI has edited
-  the profile.
+  from the template.
 - Dump the live Brewfile with `brew bundle dump --force --file=/tmp/whetstone-brewfile`,
   then diff it against `home/dot_config/homebrew/Brewfile`, the same comparison `just sync`
   runs: filter both to lines starting `brew`, `cask`, `tap`, `uv`, `npm`, or `go`, strip

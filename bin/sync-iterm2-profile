@@ -1,30 +1,14 @@
 #!/usr/bin/env python3
 """Report, and on request pull, in-product edits to the Whetstone iTerm2 profile.
 
-iTerm2 keeps the authoritative copy of a profile in com.googlecode.iterm2.plist, not in
-the dynamic profile file chezmoi manages. Editing the profile in Settings writes the plist
-and, once iTerm2 has added `Rewritable: true` to it, rewrites the dynamic profile file down
-to its four identity keys. Either way the managed file stops describing the profile, and
-the next `just apply` puts the template's values back.
+iTerm2 keeps the authoritative copy of a profile in com.googlecode.iterm2.plist, and
+rewrites the dynamic profile file chezmoi manages down to its four identity keys once its
+settings UI has edited the profile. The plist still holds every key the template declares.
 
-So the plist is what this reads. It holds every key the template declares even after a
-rewrite has stubbed the file out.
-
-Reporting, not adopting, is the default, following bin/sync-claude-settings: a key that
-differs does not say which side is right. It reads the same whether the setting was
-changed here deliberately or this machine is behind the template.
-
-IGNORED holds the keys that describe this window rather than this profile. Adopting them
-would push one machine's geometry to every other.
-
-A template value holding a chezmoi action is left alone as well. iTerm2 reports the
-expanded string, so adopting it would write this machine's home directory into the
-template, and this repo is public.
-
-For the same reason --adopt writes only keys the template already declares, and refuses
-any value carrying this machine's home directory whatever the key. iTerm2 has several keys
-that can hold a path -- Custom Directory, Command, badge text -- and a new release can add
-more, so the check is on the value rather than on a list of key names.
+This repo is public, so --adopt writes only keys the template already declares and refuses
+any value carrying this machine's home directory, whatever key it arrives under: Custom
+Directory, Command and badge text can each hold a path, and a new iTerm2 release can add
+another.
 """
 
 from __future__ import annotations
@@ -55,13 +39,13 @@ IGNORED = frozenset(
 
 
 def live_profile() -> dict[str, Any]:
-    """Return the GUID's entry from iTerm2's preferences, read through plutil.
+    """Return the GUID's entry from iTerm2's preferences.
 
     Raises:
         SystemExit: if the plist cannot be read, parsed, or does not hold the profile.
 
     """
-    # plutil, because the plist is binary and cfprefsd may hold newer values than the file.
+    # plutil rather than plistlib: cfprefsd may hold newer values than the file.
     read = subprocess.run(  # noqa: S603 -- fixed argv, no shell
         ["/usr/bin/plutil", "-convert", "xml1", "-o", "-", str(PLIST)],
         capture_output=True,
