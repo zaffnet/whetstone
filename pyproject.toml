@@ -1,5 +1,3 @@
-# Tooling environment for the repo itself (not for the Copier template's output).
-# `uv sync` then `uv run pre-commit install`.
 [project]
 name = "whetstone"
 version = "0.1.0"
@@ -17,7 +15,6 @@ dev = [
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-# ruff 0.16 formats Python blocks in Markdown; the skills are prose.
 extend-exclude = ["template/project", "skills"]
 
 [tool.ruff.lint]
