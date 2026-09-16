@@ -112,8 +112,6 @@ apply_managed_defaults com.apple.dock "$state_dir/macos-dock-managed-keys.txt" \
   ${managed_dock_settings[@]+"${managed_dock_settings[@]}"}
 killall Finder Dock 2>/dev/null || true
 
-# osascript answers "false" only when it reached iTerm2 and iTerm2 said no; anything else
-# is not an answer, so fall back to the process table.
 iterm2_running="$(osascript -e 'application "iTerm" is running' 2>/dev/null || echo unknown)"
 if [ "$iterm2_running" = unknown ]; then
   if pgrep -qf iTerm.app; then

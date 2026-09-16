@@ -12,6 +12,13 @@ tells and ships to machines that do not have this repo. `prose-honesty` is the b
 prose written as part of a change: does a reader who arrives next year, having never seen
 the change, need this sentence?
 
+Loading it before writing is not enough, since prose written to explain a change reads as
+necessary to whoever just made it. A turn that added a comment, a docstring, or prose to a
+markdown file does not end until `prose-honesty` has judged that text as written, whether
+by re-reading the skill against the diff or by the `code-honesty-auditor` and
+`prose-honesty-auditor` agents. Apply what it returns by cutting; a finding answered with a
+rewording is not answered.
+
 House style on top of them:
 
 - Plain sentences that state facts and decisions.
