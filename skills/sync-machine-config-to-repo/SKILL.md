@@ -16,9 +16,7 @@ metadata:
 
 # sync-machine-config-to-repo
 
-Walk this machine for anything whetstone does not manage, decide where each survivor
-belongs, and land the worthwhile ones on a branch as a PR. The goal is that `just apply` on
-a second machine reproduces more of this one.
+The goal is that `just apply` on a second machine reproduces more of this one.
 
 `just sync` covers only the reverse direction: `chezmoi re-add` refreshes files chezmoi
 already tracks and never surfaces a new one. This is the other half.
@@ -199,17 +197,14 @@ still `main` here, so do not run it yet. The rest is safe to run directly:
 
 - `python3 bin/sync-iterm2-profile`, reports the iTerm2 profile keys that differ from the
   template.
-- Dump the live Brewfile with `brew bundle dump --force --file=/tmp/whetstone-brewfile`,
-  then diff it against `home/dot_config/homebrew/Brewfile`, the same comparison `just sync`
-  runs: filter both to lines starting `brew`, `cask`, `tap`, `uv`, `npm`, or `go`, strip
-  trailing comments, sort, and diff.
+- `just sync`'s Brewfile comparison, which the justfile defines.
 
 Lines marked `>` are installed but absent from the Brewfile. For each, either add it under
 the right comment heading or leave it out as a one-off, a dependency of something already
 listed, or corp-installed.
 
-The Brewfile carries non-standard `uv "..."` and `npm "..."` lines that the `just sync`
-grep recognises. Preserve those line types; do not convert them to `brew` or `cask`.
+The Brewfile carries non-standard `uv "..."` and `npm "..."` lines. Preserve those line
+types; do not convert them to `brew` or `cask`.
 
 Leave out fleet software: endpoint protection, network or web proxies, vulnerability
 scanners, telemetry and asset inventory agents, and the MDM enrolment apps themselves. A
@@ -299,17 +294,11 @@ last state known to apply cleanly. Say so in the report.
 
 ## 11. Commit, push, PR
 
-One commit per logical group, not per file. Conventional commits, imperative mood, first
-line 72 characters or fewer. Scope `dotfiles` for `home/`, `template` for
+One commit per logical group, not per file. Scope `dotfiles` for `home/`, `template` for
 `template/project/`.
 
-Push the branch, open the PR with `gh pr create`, and request a Copilot review. Never push
-to `main`, never merge, never comment `@codex review`. If the PR touches
-`template/project/`, say in the body that it reaches nothing until `just release vX.Y.Z`
-and the project owner runs `uvx copier update`.
-
-Load `writing-whip` before writing the PR body, and `prose-honesty` before writing any
-comment into a managed file.
+Open the PR with `gh pr create`. If it touches `template/project/`, say in the body that
+it reaches nothing until the project owner runs `uvx copier update`.
 
 ## 12. Report
 
