@@ -1,8 +1,4 @@
-# Copier template for a Python project: uv, ruff, mypy + basedpyright, pre-commit,
-# GitHub Actions, and agent configuration for Claude Code, Codex, and Cursor.
-#
-#   uvx copier copy gh:zaffnet/whetstone my-project
-#   uvx copier update            # later, from inside the project
+# uvx copier copy gh:zaffnet/whetstone my-project
 _min_copier_version: "9.4.0"
 _subdirectory: template/project
 _templates_suffix: .jinja
@@ -30,10 +26,6 @@ _message_after_copy: |
 
   Later, pull template updates with `uvx copier update`.
 
-# 40 is the widest name the rendered Python can carry. The name is interpolated inline,
-# and the widest of those lines is `runpy.run_module("<package_name>", ...)` in
-# __main___test.py: 45 characters of fixed text, so 40 lands at 85, inside the
-# 88-character floor on line_length. The template CI renders a 40-character name at 88.
 project_name:
   type: str
   help: Project name (kebab-case, 40 characters or fewer; also the repository and distribution name)
@@ -41,8 +33,8 @@ project_name:
     {% if not (project_name | regex_search('^[a-z][a-z0-9]*(-[a-z0-9]+)*$')) %}
     Use kebab-case: lowercase letters, digits, single hyphens.
     {% elif project_name | length > 40 %}
-    Keep it to 40 characters or fewer: it is interpolated into rendered Python, and
-    those lines have to fit the narrowest line_length the template supports.
+    Keep it to 40 characters or fewer: package_name defaults to this name, and
+    package_name has to fit the 88 columns ruff holds rendered Python to.
     {% endif %}
 
 package_name:
@@ -53,7 +45,8 @@ package_name:
     {% if not (package_name | regex_search('^[a-z][a-z0-9_]*$')) %}
     Use a valid lowercase identifier.
     {% elif package_name | length > 40 %}
-    Keep it to 40 characters or fewer, for the same reason as project_name.
+    Keep it to 40 characters or fewer: it is imported in rendered Python, which ruff
+    holds to 88 columns.
     {% endif %}
 
 description:
@@ -76,43 +69,3 @@ python_version:
   choices:
     - "3.12"
     - "3.13"
-
-line_length:
-  type: int
-  help: Line length for ruff and editors (88 or more)
-  default: 100
-  validator: >-
-    {% if line_length < 88 %}
-    Use 88 or more. The template is rendered and checked at 88 and 100; below that the
-    scaffold can violate its own ruff config.
-    {% endif %}
-
-use_docker:
-  type: bool
-  help: Dockerfile, Compose stack with Postgres, container-version hook, Trivy scan in CI
-  default: false
-
-use_fastapi:
-  type: bool
-  help: FastAPI, uvicorn, pydantic-settings, httpx2, pytest-asyncio, and the async-safety reviewer agent
-  default: false
-
-use_graphify:
-  type: bool
-  help: graphify codebase knowledge graph, with query-first guidance for Claude, Codex, and Cursor
-  default: false
-
-license:
-  type: str
-  help: License
-  default: MIT
-  choices:
-    - MIT
-    - Apache-2.0
-    - Proprietary
-
-author:
-  type: str
-  help: Copyright holder named in LICENSE
-  default: "{{ github_owner }}"
-  when: "{{ license != 'Proprietary' }}"

@@ -23,13 +23,3 @@ cov:
 clean:
     rm -rf .pytest_cache .ruff_cache .mypy_cache .coverage coverage.xml htmlcov dist
     find . \( -name .venv -o -name .git \) -prune -o -name __pycache__ -type d -prune -exec rm -rf {} +
-{%- if use_docker %}
-
-# Build and run the local stack
-up:
-    IMAGE_TAG=local PULL_POLICY=never docker compose up --build
-
-# Stop the stack; `just down -v` also drops the database volume
-down *ARGS:
-    docker compose down {{ '{{ ARGS }}' }}
-{%- endif %}
