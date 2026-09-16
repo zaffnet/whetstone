@@ -105,9 +105,9 @@ Report the result of each:
    every file the session touched. This is not optional and not a judgment call: run them
    even when the change looks too small to need it, even when you are confident, and even
    when a previous turn already ran them. Delete what they name. A rewording does not
-   answer a finding, and neither does an explanation of why the text earns its place. Where
-   a finding is wrong, say so and why; silence is not an answer. Repeat until a run comes
-   back with nothing, or three runs have passed, whichever is first.
+   answer a finding. Where a finding is wrong, say so and why; silence is not an answer.
+   Repeat until a run comes back with nothing, or three runs have passed, whichever is
+   first.
 4. `git status` is clean, and `git --no-pager diff <base>..HEAD --name-only` lists only
    this change's files. Stage by path: `git add -A` takes whatever else sits in the tree.
 5. Name the command and its exit code. Silence is not a pass, since `chezmoi verify`
