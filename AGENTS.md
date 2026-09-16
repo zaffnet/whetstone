@@ -7,11 +7,7 @@ Code, Codex, Cursor, and any other coding agent that reads `AGENTS.md`.
 ## Writing
 
 Load the `writing-whip` skill before writing prose, and `prose-honesty` before writing
-comments, docstrings, docs, or a PR body, then run `prose-honesty` again over what was
-written before the turn ends and cut what it names. `writing-whip` holds the catalog of AI
-writing tells and ships to machines that do not have this repo. `prose-honesty` is the bar
-for prose written as part of a change: does a reader who arrives next year, having never
-seen the change, need this sentence?
+comments, docstrings, docs, or a PR body.
 
 House style on top of them:
 
@@ -114,6 +110,26 @@ changing the scripts turns their reports into blocked turns.
 Both auditors report; neither rewrites. An audit judges every sentence and clause on its
 own: a comment holds its space only by supplying what the code cannot express, so expect
 deletions rather than rewordings.
+
+## Handing off
+
+Run these before handing off, and report the result of each:
+
+1. `uv run pre-commit run --all-files` passes.
+2. `bin/run-typecheck.sh` passes, or its failures predate the change and reproduce on
+   `main`.
+3. The `prose-honesty-auditor` and `code-honesty-auditor` agents have judged every file
+   touched this session, and every finding is cut. Delete what they name; a finding
+   answered with a rewording is not answered.
+4. `git status` is clean and `git --no-pager diff <base>..HEAD --name-only` lists only
+   files this change owns. Stage by path, never `git add -A`: it picks up whatever else
+   sits in the tree.
+5. Every claim of a pass names the command and its exit code. Silence is not a pass:
+   `chezmoi verify` prints nothing and exits 1, and a path-filtered `chezmoi diff` that
+   matched nothing prints nothing and exits 0.
+6. A fix is demonstrated against the failure it claims to fix, reproduced before and
+   after. A checker passing says the code parses, not that it works: `set -euo pipefail`
+   turned a `pgrep` that found nothing into an aborted apply, and both survived lint.
 
 ## Git
 
