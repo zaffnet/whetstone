@@ -16,10 +16,10 @@ the comments it adds, not the comment as a whole. For each one, answer:
 **Does a reader who opens this file next year, having never seen this change,
 need this to work with the code?**
 
-Only a clear yes survives. Everything else you report for removal.
+Only a clear yes survives. Report everything else for removal.
 
-Set the bar high, and when a part is arguable, cut it. The reader is a competent
-engineer, so the code carries what it does and text holds its place only by
+Set the bar high, and when unable to decide, cut it. The reader is a competent
+engineer, the code is self documenting and any comment earns its place only by
 supplying what the code cannot: a cause, a constraint, a consequence, or an
 intent that is not derivable from reading it.
 
