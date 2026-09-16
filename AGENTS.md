@@ -105,7 +105,7 @@ changing the scripts turns their reports into blocked turns.
 - `hooks/code_prose_honesty.sh` audits the turn's code diff for comment text a later reader
   cannot use, plus every checker suppression the diff adds. Its `HONESTY_GLOBS` names the
   languages it covers; a language absent from that list is audited by neither hook.
-- `hooks/prose_honesty.sh` does the same for markdown and text files.
+- `hooks/prose_honesty.sh` does the same for markdown, text, and HTML files.
 
 Both auditors report; neither rewrites. An audit judges every sentence and clause on its
 own: a comment holds its space only by supplying what the code cannot express, so expect

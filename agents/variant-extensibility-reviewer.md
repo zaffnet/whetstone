@@ -1,6 +1,12 @@
 ---
 name: variant-extensibility-reviewer
-description: Reviews a stack built around a registry of variants (job types, executors, plugins, discriminated unions) for whether a new variant can be added without core surgery. Use after changing any registry, dispatcher, model, or API file under <package>/. Reports every per-variant touch-point, classified as compile-time-enforced completeness (healthy) or avoidable coupling (fix): extensibility drift that ruff, mypy, and pyright do not catch.
+description: >-
+  Reviews a stack built around a registry of variants (job types, executors,
+  plugins, discriminated unions) for whether a new variant can be added without
+  core surgery. Use after changing any registry, dispatcher, model, or API file
+  under <package>/. Reports every per-variant touch-point, classified as
+  compile-time-enforced completeness (healthy) or avoidable coupling (fix):
+  extensibility drift that ruff, mypy, and pyright do not catch.
 tools: Bash, Read, Grep, Glob
 model: opus[1m]
 effort: high
