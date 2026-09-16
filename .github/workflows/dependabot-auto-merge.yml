@@ -26,6 +26,7 @@ jobs:
     steps:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           for n in $(gh pr list --state open --json number --jq '.[].number'); do
             gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${n}/update-branch" || true
