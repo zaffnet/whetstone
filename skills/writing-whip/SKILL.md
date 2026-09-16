@@ -1,7 +1,6 @@
 ---
 name: writing-whip
-description: >-
-  Kill all AI writing tropes and behaviours at the source: generation. Focus on quelling behaviour-driven triggers. Load before writing, especially for anything longer than a paragraph and re-check output against it, extremely important for communications, documentation, outbound, client-facing copy and for your own replies to the user.
+description: "Kill all AI writing tropes and behaviours at the source: generation. Focus on quelling behaviour-driven triggers. Load before writing, especially for anything longer than a paragraph and re-check output against it, extremely important for communications, documentation, outbound, client-facing copy and for your own replies to the user."
 user-invocable: true
 ---
 

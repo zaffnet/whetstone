@@ -1,9 +1,6 @@
 ---
 name: address-pr-comments-sequential
-description: >-
-  Address unresolved GitHub PR review comments one at a time.
-
-
+description: "Address unresolved GitHub PR review comments one at a time."
 disable-model-invocation: true
 user-invocable: true
 argument-hint: "[--non-interactive] <pr-number-or-url>"

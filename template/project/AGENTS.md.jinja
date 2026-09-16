@@ -46,6 +46,10 @@ When the next independent reads or checks are only implied by the task, list wha
 
 Run `gh stack list` to see the stack. Use `/gh-stack` to work with GitHub Stack.
 
+## Before handing work back
+
+Run `code-honesty-auditor`, `prose-honesty-auditor`, and `deceptive-test-hunter` over every file you touched. This is not optional and not a judgment call: run them even when the change looks too small to need it, even when you are confident, and even when a previous turn already ran them. Delete what they name. A rewording does not answer a finding. Where a finding is wrong, say so and why; silence is not an answer. Repeat until a run comes back with nothing, or three runs have passed, whichever is first.
+
 ## Machine-local facts
 
 Put machine-specific context (local clone paths, internal URLs, credentials location) in `CLAUDE.local.md`. It is ignored by git; Codex reads it as `AGENTS.override.md`.

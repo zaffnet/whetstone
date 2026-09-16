@@ -1,11 +1,6 @@
 ---
 name: prose-honesty
-description: >-
-  Judge every sentence a coding agent writes that is not language syntax --
-  comments, docstrings, READMEs, design docs, ADRs, PR and commit bodies -- against
-  one bar: does a reader who arrives next year, having never seen this change, need
-  it? Load before writing or editing any such text, and re-check the output against
-  it before handing back.
+description: "Judge every sentence a coding agent writes that is not language syntax -- comments, docstrings, READMEs, design docs, ADRs, PR and commit bodies -- against one bar: does a reader who arrives next year, having never seen this change, need it? Load before writing or editing any such text, and re-check the output against it before handing back."
 user-invocable: true
 ---
 

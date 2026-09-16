@@ -1,1 +1,0 @@
-../../../../hooks/prose_honesty.sh

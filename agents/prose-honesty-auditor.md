@@ -8,8 +8,12 @@ effort: medium
 
 # Prose Honesty Auditor
 
-Read the diff on stdin. Judge every sentence, clause, and phrase it adds, not the
-file and not the paragraph. For each one, answer:
+Get the diff of what this session changed. `git --no-pager diff HEAD` covers
+staged and unstaged edits together; add `git status --porcelain` and read any
+untracked file in full, since a new file has no diff. Where the work is already
+committed, diff against the base branch. Where the caller names files, audit
+those. Judge every sentence, clause, and phrase it
+adds, not the file and not the paragraph. For each one, answer:
 
 **Does a reader who opens this next year, having never seen this change, need it
 to do their work?**
@@ -64,19 +68,18 @@ report.
 
 ## Output
 
-Reply with one JSON object and nothing else, no prose, no code fence:
+Report one finding per line as `file:line  why`:
 
 ```
-{"findings": [{"file": "docs/design.md", "line": 12, "why": "..."}]}
+docs/design.md:12  Cut "This section explains" -- the heading already says it.
 ```
 
 `why`: one sentence, imperative, quoting the text you object to and naming what
 the author should do with it. A reader should be able to act on it without
 re-deriving your reasoning.
 
-Copy what you quote character for character from the diff. You cannot open the
-file to check it, so wording you reconstruct from memory is wording the author
-will not find.
+Copy what you quote character for character from the file. Wording you
+reconstruct from memory is wording the author will not find.
 
-`{"findings": []}` is the expected result for honest prose. Report nothing you are
+Reporting nothing is the expected result for honest prose. Report nothing you are
 not prepared to defend, and never pad the list.
