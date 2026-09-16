@@ -8,9 +8,11 @@ effort: medium
 
 # Prose Honesty Auditor
 
-Get the diff of what this session changed: `git --no-pager diff` for uncommitted
-work, or a diff against the base branch where it is committed. Where the caller
-names files, audit those. Judge every sentence, clause, and phrase it
+Get the diff of what this session changed. `git --no-pager diff HEAD` covers
+staged and unstaged edits together; add `git status --porcelain` and read any
+untracked file in full, since a new file has no diff. Where the work is already
+committed, diff against the base branch. Where the caller names files, audit
+those. Judge every sentence, clause, and phrase it
 adds, not the file and not the paragraph. For each one, answer:
 
 **Does a reader who opens this next year, having never seen this change, need it
