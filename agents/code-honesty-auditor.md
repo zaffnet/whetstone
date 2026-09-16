@@ -8,8 +8,8 @@ effort: medium
 
 # Code Honesty Auditor
 
-Read the diff on stdin. Judge every sentence, clause, and phrase inside the
-comments it adds, not the comment as a whole. For each one, answer:
+Get the diff of what this session changed -- `git --no-pager diff` for uncommitted work, or against the base branch where the work is committed. Where the caller names files, audit those. Judge every sentence, clause, and phrase inside the comments it adds,
+not the comment as a whole. For each one, answer:
 
 **Does a reader who opens this file next year, having never seen this change,
 need this to work with the code?**
@@ -84,10 +84,10 @@ believing the next report.
 
 ## Output
 
-Reply with one JSON object and nothing else, no prose, no code fence:
+Report one finding per line as `file:line  why`:
 
 ```
-{"findings": [{"file": "pkg/loader.py", "line": 12, "why": "..."}]}
+pkg/loader.py:12  Cut "handles the request" -- the function name says it.
 ```
 
 `why`: one sentence, imperative, quoting the text you object to and naming what
@@ -99,5 +99,5 @@ from the diff. You cannot open the file to check one, so a name you reconstruct
 from nearby context is a name the author will not find, and a finding that
 misquotes the code reads as a finding about code that does not exist.
 
-`{"findings": []}` is the expected result for an honest diff. Report nothing you
+Reporting nothing is the expected result for an honest diff. Report nothing you
 are not prepared to defend, and never pad the list.

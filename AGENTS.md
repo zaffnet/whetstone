@@ -88,28 +88,12 @@ detection.
 
 ## Stop hooks
 
-Three hooks check the work when a turn ends. None of them delays it: each is configured
-with `"asyncRewake": true`, so the harness starts the hook, stops waiting, and ends the
-turn. Findings arrive at the start of the next turn, which is why each report says which
-turn it describes and that its line numbers may have moved.
-
-Exit 2 is the only code that reaches Claude; it delivers what the hook wrote to stderr.
-Exit 0 delivers nothing, which is what every failure path uses: a checker that could not
-run says so on stderr, where it reaches the debug log, and does not read as a clean audit.
-Exit 2 from a hook the harness *is* waiting for means "refuse to let the turn end", so
-these scripts and the `asyncRewake` field belong together -- dropping the field without
-changing the scripts turns their reports into blocked turns.
-
-- `hooks/typecheck.sh` runs the repository's own `./run-typecheck.sh` where there is one,
-  and `bin/run-typecheck.sh` otherwise.
-- `hooks/code_prose_honesty.sh` audits the turn's code diff for comment text a later reader
-  cannot use, plus every checker suppression the diff adds. Its `HONESTY_GLOBS` names the
-  languages it covers; a language absent from that list is audited by neither hook.
-- `hooks/prose_honesty.sh` does the same for markdown, text, and HTML files.
-
-Both auditors report; neither rewrites. An audit judges every sentence and clause on its
-own: a comment holds its space only by supplying what the code cannot express, so expect
-deletions rather than rewordings.
+`hooks/typecheck.sh` runs the repository's own `./run-typecheck.sh` where there is one,
+and `bin/run-typecheck.sh` otherwise. It is configured with `"asyncRewake": true`, so the
+harness starts it, stops waiting, and ends the turn; findings arrive at the start of the
+next turn. Exit 2 is the only code that reaches Claude, and it delivers what the hook
+wrote to stderr. Exit 0 delivers nothing, which is what every failure path uses: a checker
+that could not run says so on stderr rather than reading as a clean audit.
 
 ## Handing off
 
@@ -117,8 +101,13 @@ Report the result of each:
 
 1. `uv run pre-commit run --all-files` passes.
 2. `bin/run-typecheck.sh` passes, or fails the same way on `main`.
-3. Run `prose-honesty-auditor` and `code-honesty-auditor` over every file the session
-   touched, and delete what they name. A rewording does not answer a finding.
+3. Run `code-honesty-auditor`, `prose-honesty-auditor`, and `deceptive-test-hunter` over
+   every file the session touched. This is not optional and not a judgment call: run them
+   even when the change looks too small to need it, even when you are confident, and even
+   when a previous turn already ran them. Delete what they name. A rewording does not
+   answer a finding, and neither does an explanation of why the text earns its place. Where
+   a finding is wrong, say so and why; silence is not an answer. Repeat until a run comes
+   back with nothing, or three runs have passed, whichever is first.
 4. `git status` is clean, and `git --no-pager diff <base>..HEAD --name-only` lists only
    this change's files. Stage by path: `git add -A` takes whatever else sits in the tree.
 5. Name the command and its exit code. Silence is not a pass, since `chezmoi verify`
