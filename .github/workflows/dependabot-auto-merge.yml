@@ -3,6 +3,8 @@ name: dependabot auto-merge
 on:
   pull_request_target:
     types: [opened, reopened, synchronize]
+  push:
+    branches: [main]
 
 permissions:
   contents: write
@@ -10,10 +12,28 @@ permissions:
 
 jobs:
   auto-merge:
-    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: update-pr-branches
+      cancel-in-progress: true
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for n in $(gh pr list --state open --limit 100 \
+            --json number,isDraft,isCrossRepository \
+            --jq '.[] | select(.isDraft == false and .isCrossRepository == false) | .number'); do
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${n}/update-branch" \
+              || echo "::warning::update-branch failed for #${n}"
+          done
