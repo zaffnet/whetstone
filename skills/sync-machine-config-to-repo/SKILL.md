@@ -197,7 +197,6 @@ since `bin/forbid-private-patterns` was removed, so for that class this list is 
 Of what `just sync` runs, only `chezmoi re-add` writes to the source tree, and HEAD is
 still `main` here, so do not run it yet. The rest is safe to run directly:
 
-- `python3 bin/sync-claude-settings`, reports drift in `~/.claude/settings.json`.
 - `python3 bin/sync-iterm2-profile`, reports the iTerm2 profile keys that differ from the
   template.
 - Dump the live Brewfile with `brew bundle dump --force --file=/tmp/whetstone-brewfile`,
