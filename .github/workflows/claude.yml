@@ -1,7 +1,4 @@
-name: PR Review with Progress Tracking
-
-# This example demonstrates how to use the track_progress feature to get
-# visual progress tracking for PR reviews, similar to v0.x agent mode.
+name: PR Review with Claude Code
 
 on:
   pull_request:
@@ -11,7 +8,7 @@ jobs:
   review-with-tracking:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       pull-requests: write
       issues: write
       id-token: write
@@ -25,9 +22,11 @@ jobs:
         uses: anthropics/claude-code-action@7b0b255830a1fab6e602658672acad11c12d841d # v1
         with:
           anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
           track_progress: true
-
+          plugin_marketplaces: https://github.com/zaffnet/whetstone.git
+          plugins: |
+            whetstone-skills@whetstone
+            whetstone-reviewers@whetstone
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -67,6 +66,6 @@ jobs:
               - /prose-honesty
 
           claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)
-            --model claude-opus-5[1m]
-            --effort high"
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --model opus[1m]
+            --effort high
