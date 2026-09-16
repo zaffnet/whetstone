@@ -5,23 +5,15 @@ source "${BASH_SOURCE[0]%/*}/_common.sh"
 HONESTY_NAME=code_prose_honesty
 HONESTY_BRIEF=agents/code-honesty-auditor.md
 HONESTY_GLOBS=(
-  '*.py' '*.pyi'
-  '*.sh' '*.bash' '*.zsh'
-  '*.js' '*.jsx' '*.mjs' '*.cjs' '*.ts' '*.tsx'
-  '*.java' '*.kt' '*.kts'
-  '*.go' '*.rs' '*.rb' '*.php' '*.swift' '*.scala' '*.cs'
-  '*.c' '*.h' '*.cc' '*.cpp' '*.hpp'
-  '*.sql' '*.vue' '*.svelte'
-  '*.tf' '*.hcl'
-  '*.yaml' '*.yml' '*.toml'
-  'justfile' 'Justfile' 'Makefile' 'Dockerfile' '*.mk'
-  '*.jinja' '*.tmpl'
-  '*Brewfile' '*dot_zprofile' '*dot_zshenv'
-  '*ignore' '*.shellcheckrc' '*.worktreeinclude'
-  '*.chezmoiremove' '*dot_zsh_secrets.example'
-  '*CODEOWNERS' '*.env.example'
+  '*.py' '*.pyi' '*.sh' '*.bash' '*.zsh' '*.sql' '*.tf' '*.hcl'
+  '*.js' '*.jsx' '*.mjs' '*.cjs' '*.ts' '*.tsx' '*.vue' '*.svelte'
+  '*.java' '*.kt' '*.kts' '*.go' '*.rs' '*.rb' '*.php' '*.swift' '*.scala' '*.cs'
+  '*.c' '*.h' '*.cc' '*.cpp' '*.hpp' '*.yaml' '*.yml' '*.toml'
+  '*.jinja' '*.tmpl' '*.mk' 'justfile' 'Justfile' 'Makefile' 'Dockerfile'
+  '*Brewfile' '*CODEOWNERS' '*ignore' '*.shellcheckrc' '*.worktreeinclude'
+  '*.chezmoiremove' '*.env.example' '*dot_zprofile' '*dot_zshenv'
+  '*dot_zsh_secrets.example'
 )
-
 HONESTY_SHEBANG_GLOBS=('bin/*' 'home/*')
 HONESTY_LEAD="Comment text that a later reader cannot use, in what the turn that just
 ended changed. Cut it. Where a finding names one clause worth keeping, keep that clause
