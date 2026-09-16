@@ -123,7 +123,7 @@ if [ "$iterm2_running" = unknown ]; then
     iterm2_running=false
   else
     printf 'could not tell whether iTerm2 is running: osascript gave no answer and\n' >&2
-    printf 'pgrep failed (%s). Nothing was written.\n' "$pgrep_status" >&2
+    printf 'pgrep failed (%s). No iTerm2 setting was written.\n' "$pgrep_status" >&2
     exit 1
   fi
 fi
