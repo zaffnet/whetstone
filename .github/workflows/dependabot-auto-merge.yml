@@ -23,11 +23,17 @@ jobs:
   update:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    concurrency:
+      group: update-pr-branches
+      cancel-in-progress: true
     steps:
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
         run: |
-          for n in $(gh pr list --state open --json number --jq '.[].number'); do
-            gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${n}/update-branch" || true
+          for n in $(gh pr list --state open --limit 100 \
+            --json number,isDraft,isCrossRepository \
+            --jq '.[] | select(.isDraft == false and .isCrossRepository == false) | .number'); do
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${n}/update-branch" \
+              || echo "::warning::update-branch failed for #${n}"
           done
