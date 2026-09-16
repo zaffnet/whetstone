@@ -1,8 +1,6 @@
 ---
 name: deep-pr-review
-description: >-
-  Multi-model code review: one independent reviewer per model you can reach (OpenAI, Anthropic, Google, ...), findings merged by agreement. Reviews a GitHub PR URL and posts inline comments after per-comment confirmation, or, with no PR, reviews the current branch or working tree and writes deep-review.local.md. Use only when the user asks for a deep or multi-model review or runs /deep-pr-review.
-
+description: "Multi-model code review: one independent reviewer per model you can reach (OpenAI, Anthropic, Google, ...), findings merged by agreement. Reviews a GitHub PR URL and posts inline comments after per-comment confirmation, or, with no PR, reviews the current branch or working tree and writes deep-review.local.md. Use only when the user asks for a deep or multi-model review or runs /deep-pr-review."
 disable-model-invocation: true
 user-invocable: true
 argument-hint: "[--non-interactive] [<pr-url>]"

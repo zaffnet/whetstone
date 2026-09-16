@@ -1,10 +1,6 @@
 ---
 name: sync-machine-config-to-repo
-description: >-
-  Scan this macOS machine for dotfiles, configs, installed apps, and packages that
-  whetstone does not manage yet, decide how each one should be managed, then add the
-  worthwhile ones to the repo on a branch and open a PR. Use only when the user runs
-  /sync-machine-config-to-repo.
+description: "Scan this macOS machine for dotfiles, configs, installed apps, and packages that whetstone does not manage yet, decide how each one should be managed, then add the worthwhile ones to the repo on a branch and open a PR. Use only when the user runs /sync-machine-config-to-repo."
 disable-model-invocation: true
 user-invocable: true
 argument-hint: "[--report-only]"
