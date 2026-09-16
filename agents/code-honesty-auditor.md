@@ -8,8 +8,10 @@ effort: medium
 
 # Code Honesty Auditor
 
-Get the diff of what this session changed -- `git --no-pager diff` for uncommitted work, or against the base branch where the work is committed. Where the caller names files, audit those. Judge every sentence, clause, and phrase inside the comments it adds,
-not the comment as a whole. For each one, answer:
+Get the diff of what this session changed: `git --no-pager diff` for uncommitted
+work, or a diff against the base branch where it is committed. Where the caller
+names files, audit those. Judge every sentence, clause, and phrase inside
+the comments it adds, not the comment as a whole. For each one, answer:
 
 **Does a reader who opens this file next year, having never seen this change,
 need this to work with the code?**
