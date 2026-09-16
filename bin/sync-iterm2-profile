@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Report, and on request pull, in-product edits to the Whetstone iTerm2 profile."""
 
+# ruff: noqa: T201 -- a CLI report prints
+
 from __future__ import annotations
 
 import argparse
@@ -73,7 +75,7 @@ def main() -> None:
     adopt = parser.parse_args().adopt
 
     if not PLIST.exists():
-        print(f"sync-iterm2-profile: no {PLIST}; nothing to report")  # noqa: T201 -- CLI report
+        print(f"sync-iterm2-profile: no {PLIST}; nothing to report")
         return
 
     template = json.loads(TEMPLATE.read_text())
@@ -87,23 +89,23 @@ def main() -> None:
     held = sorted(k for k, v in differs.items() if templated(profile[k]) or machine_specific(v))
     added = sorted(k for k in live if k not in profile)
     if not changed and not added and not held:
-        print("sync-iterm2-profile: the profile matches the template")  # noqa: T201 -- CLI report
+        print("sync-iterm2-profile: the profile matches the template")
         return
 
     for key in changed:
-        print(f"  {key}: {profile[key]!r} -> {live[key]!r}")  # noqa: T201 -- CLI report
+        print(f"  {key}: {profile[key]!r} -> {live[key]!r}")
     for key in added:
-        print(f"  {key}: absent -> {live[key]!r} (new)")  # noqa: T201 -- CLI report
+        print(f"  {key}: absent -> {live[key]!r} (new)")
     for key in held:
         why = (
             "iTerm2 reports this machine's home directory"
             if machine_specific(live[key])
             else f"iTerm2 reports {live[key]!r}"
         )
-        print(f"  {key}: kept {profile[key]!r} ({why})")  # noqa: T201 -- CLI report
+        print(f"  {key}: kept {profile[key]!r} ({why})")
 
     if not adopt:
-        print(  # noqa: T201 -- CLI report
+        print(
             f"\n{len(changed) + len(added)} key(s) differ; nothing written.\n"
             "The template's value may be the right one -- check before running "
             "`bin/sync-iterm2-profile --adopt`.",
@@ -111,14 +113,14 @@ def main() -> None:
         return
 
     if not changed:
-        print("\nnothing adopted: every difference is a key the template does not declare")  # noqa: T201 -- CLI report
+        print("\nnothing adopted: every difference is a key the template does not declare")
         return
 
     profile.update({k: live[k] for k in changed})
     TEMPLATE.write_text(json.dumps(template, indent=2, sort_keys=True) + "\n")
-    print(f"\nadopted {len(changed)} key(s) into {TEMPLATE}")  # noqa: T201 -- CLI report
+    print(f"\nadopted {len(changed)} key(s) into {TEMPLATE}")
     if added:
-        print(  # noqa: T201 -- CLI report
+        print(
             f"left {len(added)} key(s) the template does not declare; add one by hand "
             "after checking it holds no path or identity from this machine.",
         )
