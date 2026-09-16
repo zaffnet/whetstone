@@ -30,7 +30,11 @@ through 11: no branch, no edits, no deletions, no PR.
 
 ## 1. Preflight
 
-Run `git fetch origin` first. Refuse and name the reason if any of these holds: the working
+Change to `$(git rev-parse --show-toplevel)` first: `--source .` below resolves against
+the working directory, so the same call from a subdirectory reads that subdirectory as the
+source and reports its contents as drift, exiting 0 having checked nothing.
+
+Then run `git fetch origin`. Refuse and name the reason if any of these holds: the working
 tree is dirty, HEAD is not `main`, HEAD does not equal `origin/main`, `chezmoi` is not
 installed, `chezmoi source-path` is not `$(git rev-parse --show-toplevel)/home` (this repo
 sets `.chezmoiroot` to `home`, so source-path is never the checkout root itself), or
