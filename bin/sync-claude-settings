@@ -17,6 +17,8 @@ one stale machine to every other. Removing a setting stays the deliberate two-st
 modify script's header describes.
 """
 
+# ruff: noqa: T201 -- a CLI report prints
+
 from __future__ import annotations
 
 import argparse
@@ -37,13 +39,50 @@ def merged(template_value: Any, live_value: Any) -> Any:  # noqa: ANN401 -- arbi
     return live_value
 
 
+def templated(value: Any) -> bool:  # noqa: ANN401 -- arbitrary JSON
+    """Report whether a chezmoi action appears at any depth, not just the top level."""
+    return "{{" in json.dumps(value)
+
+
+def machine_specific(value: Any) -> bool:  # noqa: ANN401 -- arbitrary JSON
+    """Report whether the home directory appears at any depth, not just the top level."""
+    return str(Path.home()) in json.dumps(value)
+
+
+def report(
+    template: dict[str, Any],
+    live: dict[str, Any],
+    differs: dict[str, Any],
+    changed: list[str],
+    held: list[str],
+) -> None:
+    """Print each differing key, nesting one level into a dict value."""
+    for key in changed:
+        new = differs[key]
+        print(f"  {key}:")
+        if isinstance(new, dict):
+            for nested in sorted(k for k in new if new[k] != template[key].get(k)):
+                print(f"    {nested}: {template[key].get(nested)!r} -> {new[nested]!r}")
+            for nested in sorted(k for k in template[key] if k not in live[key]):
+                print(f"    {nested}: kept {template[key][nested]!r} (absent here)")
+        else:
+            print(f"    {template[key]!r} -> {new!r}")
+    for key in held:
+        why = (
+            "the template's value is a chezmoi action"
+            if templated(template[key])
+            else "the live value carries this machine's home directory"
+        )
+        print(f"  {key}: kept as declared ({why})")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--adopt", action="store_true", help="write the drift into the template")
     adopt = parser.parse_args().adopt
 
     if not LIVE.exists():
-        print(f"sync-claude-settings: no {LIVE}; nothing to report")  # noqa: T201 -- CLI report
+        print(f"sync-claude-settings: no {LIVE}; nothing to report")
         return
 
     template = json.loads(TEMPLATE.read_text())
@@ -55,33 +94,41 @@ def main() -> None:
     # Against the merge, not against live: a nested key live lacks always compares
     # unequal, so testing live directly would report drift forever and rewrite the file
     # byte-identically on every run.
-    drift = [k for k in template if k in live and merged(template[k], live[k]) != template[k]]
-    if not drift:
-        print("sync-claude-settings: no declared key differs from the template")  # noqa: T201 -- CLI report
+    differs = {
+        k: merged(template[k], live[k])
+        for k in template
+        if k in live and merged(template[k], live[k]) != template[k]
+    }
+    changed = sorted(
+        k for k, v in differs.items() if not templated(template[k]) and not machine_specific(v)
+    )
+    held = sorted(k for k in differs if k not in changed)
+    if not changed and not held:
+        print("sync-claude-settings: no declared key differs from the template")
         return
 
-    for key in drift:
-        print(f"  {key}:")  # noqa: T201 -- CLI report
-        new = merged(template[key], live[key])
-        if isinstance(new, dict):
-            for nested in sorted(k for k in new if new[k] != template[key].get(k)):
-                print(f"    {nested}: {template[key].get(nested)!r} -> {new[nested]!r}")  # noqa: T201 -- CLI report
-            for nested in sorted(k for k in template[key] if k not in live[key]):
-                print(f"    {nested}: kept {template[key][nested]!r} (absent here)")  # noqa: T201 -- CLI report
-        else:
-            print(f"    {template[key]!r} -> {new!r}")  # noqa: T201 -- CLI report
-        template[key] = new
+    report(template, live, differs, changed, held)
 
     if not adopt:
-        print(  # noqa: T201 -- CLI report
-            f"\n{len(drift)} declared key(s) differ; nothing written.\n"
+        print(
+            f"\n{len(changed) + len(held)} declared key(s) differ; nothing written.\n"
             "The template's value may be the right one -- check before running "
             "`bin/sync-claude-settings --adopt`.",
         )
         return
 
+    if not changed:
+        print(f"\nnothing adopted: no key of the {len(held)} differing is adoptable")
+        return
+
+    template.update({k: differs[k] for k in changed})
     TEMPLATE.write_text(json.dumps(template, indent=2) + "\n")
-    print(f"\nadopted {len(drift)} key(s) into {TEMPLATE}")  # noqa: T201 -- CLI report
+    print(f"\nadopted {len(changed)} key(s) into {TEMPLATE}")
+    if held:
+        print(
+            f"left {len(held)} key(s) above; add one by hand after checking it holds no "
+            "path or identity from this machine.",
+        )
 
 
 if __name__ == "__main__":
