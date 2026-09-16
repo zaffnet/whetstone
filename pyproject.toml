@@ -23,5 +23,3 @@ extend-exclude = ["template/project", "skills"]
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D203", "D213", "COM812", "FIX", "TD", "TRY003", "CPY001"]
-
-# this is another diff test
