@@ -4,7 +4,7 @@
 #
 # AGENTS.override.md is not here on purpose: it is derived from AGENTS.md and
 # CLAUDE.local.md, and copying it forward would carry a stale one into the worktree.
-# Both setup scripts regenerate it in place.
+# The Codex environment regenerates it in place.
 .env
 .claude/settings.local.json
 .claude/plans

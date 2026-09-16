@@ -82,10 +82,10 @@ lines, split it.
 
 Test files live next to the code they cover and end with `*_test.py`, never `test_*.py`.
 
-`just test` runs the default suite, which skips integration and live tests. `just cov` runs the
-same suite with coverage and then checks the changed lines. Pre-commit and CI run that coverage
-command too, and fail a change that covers under 80% of its own changed lines. `uv run pytest`
-on its own runs everything.
+`addopts` in `pyproject.toml` skips live tests, so `just test` and a bare `uv run pytest` run
+the unit and integration tests. `just cov` skips the integration tests as well and adds coverage,
+then checks the changed lines. Pre-commit and CI run that same coverage command, and fail a change
+that covers under 80% of its own changed lines. Reach the live tests with `-m live`.
 
 ## Toolchain
 

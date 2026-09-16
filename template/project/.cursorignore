@@ -1,7 +1,11 @@
 # Re-include the per-machine agent state .gitignore hides, so Cursor indexes it.
 # .env stays ignored: it holds secrets. Overrides .gitignore and the default
 # ignores. See https://cursor.com/docs/reference/ignore-file
+#
+# .claude/plans/ needs the directory un-ignored before its contents: gitignore
+# matching never descends into an excluded directory.
 !.claude/settings.local.json
+!.claude/plans/
 !.claude/plans/**
 !AGENTS.override.md
 !CLAUDE.local.md
