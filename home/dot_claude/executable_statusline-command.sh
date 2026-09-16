@@ -132,39 +132,6 @@ fmt_duration() {
   fi
 }
 
-fmt_ago() {
-  local d=${1:-0}
-  ((d < 0)) && d=0
-  if ((d >= 86400)); then
-    local days=$((d / 86400)) hours=$(((d % 86400) / 3600))
-    if ((hours > 0)); then
-      printf '%dd %dh ago' "$days" "$hours"
-    else
-      printf '%dd ago' "$days"
-    fi
-  elif ((d >= 3600)); then
-    local hours=$((d / 3600)) mins=$(((d % 3600) / 60))
-    if ((mins > 0)); then
-      printf '%dh %dm ago' "$hours" "$mins"
-    else
-      printf '%dh ago' "$hours"
-    fi
-  elif ((d >= 60)); then
-    printf '%dm ago' $((d / 60))
-  else
-    printf '%ds ago' "$d"
-  fi
-}
-
-fmt_clock() {
-  local epoch=$1 ago=${2:-0}
-  if ((ago >= 86400)); then
-    date -r "$epoch" '+%b %-d %-I:%M %p'
-  else
-    date -r "$epoch" '+%-I:%M %p'
-  fi
-}
-
 fmt_until() {
   local epoch=${1%.*} now d
   [[ -z "$epoch" || "$epoch" == 0 ]] && return
@@ -196,99 +163,6 @@ int_pct() {
   printf '%s' "${v:-0}"
 }
 
-# Last completed user-prompt → assistant turn from the session transcript.
-last_ms="" last_end_epoch=""
-if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
-  sl_cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline"
-  mkdir -p "$sl_cache_dir" && chmod 700 "$sl_cache_dir"
-  turn_cache="$sl_cache_dir/turn-$(printf '%s' "$transcript_path" | shasum -a 256 | awk '{print substr($1,1,16)}')"
-  tx_mtime=$(stat -f %m "$transcript_path" 2>/dev/null || echo 0)
-  cache_tx_mtime=0
-  if [[ -f "$turn_cache" ]]; then
-    # shellcheck disable=SC1090
-    source "$turn_cache"
-  fi
-  if [[ ! -f "$turn_cache" || "${cache_tx_mtime:-0}" != "$tx_mtime" ]]; then
-    last_start_epoch="" last_end_epoch="" last_ms=""
-    read -r last_start_epoch last_end_epoch < <(
-      python3 - "$transcript_path" <<'PY' 2>/dev/null
-import json, os, sys
-from datetime import datetime
-
-path = sys.argv[1]
-try:
-    size = os.path.getsize(path)
-except OSError:
-    raise SystemExit(0)
-read_size = min(size, 2 * 1024 * 1024)
-with open(path, "rb") as f:
-    if size > read_size:
-        f.seek(size - read_size)
-    data = f.read()
-text = data.decode("utf-8", errors="replace")
-if size > read_size:
-    nl = text.find("\n")
-    if nl >= 0:
-        text = text[nl + 1 :]
-
-def parse_ts(ts):
-    if ts.endswith("Z"):
-        ts = ts[:-1] + "+00:00"
-    return datetime.fromisoformat(ts).timestamp()
-
-def is_prompt(obj):
-    if obj.get("type") != "user" or obj.get("isSidechain") or obj.get("isMeta"):
-        return False
-    content = (obj.get("message") or {}).get("content")
-    if isinstance(content, str):
-        return bool(content.strip())
-    if isinstance(content, list) and content:
-        kinds = [c.get("type") for c in content if isinstance(c, dict)]
-        return bool(kinds) and "tool_result" not in kinds and all(k == "text" for k in kinds)
-    return False
-
-last_prompt = None
-completed_start = None
-completed_end = None
-for line in text.splitlines():
-    if not line:
-        continue
-    try:
-        obj = json.loads(line)
-    except json.JSONDecodeError:
-        continue
-    if obj.get("isSidechain"):
-        continue
-    ts = obj.get("timestamp")
-    if not ts:
-        continue
-    try:
-        epoch = parse_ts(ts)
-    except ValueError:
-        continue
-    kind = obj.get("type")
-    if kind == "user" and is_prompt(obj):
-        last_prompt = epoch
-    elif kind == "assistant" and last_prompt is not None and epoch >= last_prompt:
-        completed_start = last_prompt
-        completed_end = epoch
-
-if completed_start is not None and completed_end is not None:
-    print(int(completed_start), int(completed_end))
-PY
-    )
-    if [[ -n "$last_start_epoch" && -n "$last_end_epoch" ]]; then
-      last_ms=$(((last_end_epoch - last_start_epoch) * 1000))
-      {
-        printf 'cache_tx_mtime=%q\n' "$tx_mtime"
-        printf 'last_start_epoch=%q\n' "$last_start_epoch"
-        printf 'last_end_epoch=%q\n' "$last_end_epoch"
-        printf 'last_ms=%q\n' "$last_ms"
-      } >"$turn_cache"
-    fi
-  fi
-fi
-
 line1=()
 
 if [[ -n "$cwd" ]]; then
@@ -297,15 +171,7 @@ fi
 
 branch="" dirty="" arrows=""
 if [[ -n "$cwd" ]]; then
-  sl_cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline"
-  mkdir -p "$sl_cache_dir" && chmod 700 "$sl_cache_dir"
-  git_cache="$sl_cache_dir/git-$(printf '%s' "$cwd" | shasum -a 256 | awk '{print substr($1,1,16)}')"
-  cache_mtime=$(stat -f %m "$git_cache" 2>/dev/null || echo 0)
-  now_s=$(date +%s)
-  if [[ -f "$git_cache" ]] && ((now_s - cache_mtime < 3)); then
-    # shellcheck disable=SC1090
-    source "$git_cache"
-  elif git -C "$cwd" --no-optional-locks rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  if git -C "$cwd" --no-optional-locks rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     branch=$(git -C "$cwd" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null)
     if [[ -z "$branch" ]]; then
       branch="@$(git -C "$cwd" --no-optional-locks rev-parse --short HEAD 2>/dev/null)"
@@ -319,11 +185,6 @@ if [[ -n "$cwd" ]]; then
       [[ "${behind:-0}" -gt 0 ]] && arrows+="⇣${behind}"
       [[ "${ahead:-0}" -gt 0 ]] && arrows+="⇡${ahead}"
     fi
-    {
-      printf 'branch=%q\n' "$branch"
-      printf 'dirty=%q\n' "$dirty"
-      printf 'arrows=%q\n' "$arrows"
-    } >"$git_cache"
   fi
 fi
 if [[ -n "$branch" ]]; then
@@ -394,14 +255,6 @@ fi
 
 if [[ -n "$duration_ms" && "$duration_ms" != 0 ]]; then
   line2+=("$(printf '%b%s%b' "$GREY" "$(fmt_duration "$duration_ms")" "$RESET")")
-fi
-
-if [[ -n "$last_end_epoch" && "$last_end_epoch" != 0 ]]; then
-  last_ago_s=$(($(date +%s) - last_end_epoch))
-  last_clock=$(fmt_clock "$last_end_epoch" "$last_ago_s")
-  last_ago=$(fmt_ago "$last_ago_s")
-  line2+=("$(printf '%btook %s, finished %s (%s)%b' \
-    "$GREY" "$(fmt_duration "${last_ms:-0}")" "$last_clock" "$last_ago" "$RESET")")
 fi
 
 if [[ "${lines_add:-0}" != 0 || "${lines_del:-0}" != 0 ]]; then

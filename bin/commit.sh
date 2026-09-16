@@ -12,21 +12,6 @@ usage() {
   printf 'Usage: %s [-y|--yes]\n' "${0##*/}"
 }
 
-usage_error() {
-  printf '%s\n' "$1" >&2
-  usage >&2
-  exit 2
-}
-
-require_command() {
-  local command_name=$1
-
-  if ! command -v "$command_name" >/dev/null 2>&1; then
-    printf "Required command '%s' was not found.\n" "$command_name" >&2
-    exit 127
-  fi
-}
-
 confirm_commit() {
   local answer
 
@@ -105,9 +90,6 @@ SCHEMA_FILE="$TEMP_DIR/schema.json"
 RESULT_FILE="$TEMP_DIR/result.json"
 PROMPT_FILE="$TEMP_DIR/prompt.txt"
 
-cleanup() {
-  rm -rf -- "$TEMP_DIR"
-}
 trap cleanup EXIT
 
 cat <<'JSON' >"$SCHEMA_FILE"

@@ -1,48 +1,32 @@
 #!/usr/bin/env bash
 
 codex_config_value() {
-  local key=$1
   local config="${CODEX_HOME:-$HOME/.codex}/config.toml"
 
   [[ -r $config ]] || return 0
-  awk -v key="$key" '
-    function end_of_string(line, i, quote,   n, c) {
-      n = length(line)
-      for (i++; i <= n; i++) {
-        c = substr(line, i, 1)
-        if (quote == "\"" && c == "\\") { i++; continue }
-        if (c == quote) return i
-      }
-      return n
-    }
-    function scan(line,   i, n, c, three) {
-      n = length(line)
-      for (i = 1; i <= n; i++) {
-        three = substr(line, i, 3)
-        if (open != "") {
-          if (three == open) { open = ""; i += 2 }
-          continue
-        }
-        c = substr(line, i, 1)
-        if (three == "\"\"\"" || three == "\047\047\047") { open = three; i += 2; continue }
-        if (c == "#") return
-        if (c == "\"" || c == "\047") { i = end_of_string(line, i, c); continue }
-        if (c == "[" || c == "{") depth++
-        else if ((c == "]" || c == "}") && depth > 0) depth--
-      }
-    }
+  python3 -c 'import sys, tomllib; print(tomllib.load(open(sys.argv[1], "rb")).get(sys.argv[2], ""))' \
+    "$config" "$1" 2>/dev/null
+}
 
-    open == "" && depth == 0 && /^[[:space:]]*\[\[?[^]]+\]\]?[[:space:]]*(#.*)?$/ { exit }
-    open == "" && depth == 0 && $0 ~ "^[[:space:]]*[\"\047]?" key "[\"\047]?[[:space:]]*=" {
-      sub(/^[^=]*=[[:space:]]*/, "")
-      if ($0 ~ /^"/) { sub(/^"/, ""); sub(/".*$/, "") }
-      else if ($0 ~ /^\047/) { sub(/^\047/, ""); sub(/\047.*$/, "") }
-      else { sub(/[[:space:]]*#.*$/, ""); sub(/[[:space:]]+$/, "") }
-      print
-      exit
-    }
-    { scan($0) }
-  ' "$config"
+require_command() {
+  local command_name=$1
+
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    printf "Required command '%s' was not found.\n" "$command_name" >&2
+    exit 127
+  fi
+}
+
+# Callers set TEMP_DIR before the trap that runs this.
+cleanup() {
+  rm -rf -- "$TEMP_DIR"
+}
+
+# Callers define usage().
+usage_error() {
+  printf '%s\n' "$1" >&2
+  usage >&2
+  exit 2
 }
 
 codex_model() {
