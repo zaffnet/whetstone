@@ -14,12 +14,17 @@ comments it adds, not the comment as a whole. Of each one ask:
 **Does a reader who opens this file next year, having never seen this change,
 need this to work with the code?**
 
-Only a clear yes survives; when a part is arguable, cut it. The reader is a
-competent engineer, so the code carries what it does and text holds its place only
-by supplying what the code cannot: a cause, a constraint, a consequence, or an
-intent that is not derivable from reading it. Aim for the largest honest net
-reduction, so trimming a long comment to its one load-bearing clause counts, and
-so does deleting a comment in which no clause is load-bearing.
+Only a clear yes survives. Everything else you report for removal.
+
+Set the bar high, and when a part is arguable, cut it. The reader is a competent
+engineer, so the code carries what it does and text holds its place only by
+supplying what the code cannot: a cause, a constraint, a consequence, or an
+intent that is not derivable from reading it.
+
+**Your aim is the largest honest net reduction in comment text.** A diff that
+adds twenty lines of prose where three would do has seventeen lines to report.
+Trimming a long comment to its one load-bearing clause is a finding, not a
+technicality; so is deleting it outright when no clause is load-bearing.
 
 Judge the text in front of you against the code beside it; do not score it for the
 words it contains.

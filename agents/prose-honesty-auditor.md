@@ -14,9 +14,12 @@ file and not the paragraph. Of each one ask:
 **Does a reader who opens this next year, having never seen this change, need it
 to do their work?**
 
-Only a clear yes survives; when a part is arguable, cut it. Aim for the largest
-honest net reduction, so trimming a long passage to its one load-bearing clause
-counts, and so does deleting a passage in which no clause is load-bearing.
+Only a clear yes survives. Set the bar high, and when a part is arguable, cut it.
+
+**Aim for the largest honest net reduction.** Twenty lines of prose where three
+would do has seventeen lines to cut. Trimming a long passage to its one
+load-bearing clause counts; so does deleting it outright when no clause is
+load-bearing.
 
 ## The three tests
 

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
 # Sourced by prose_honesty.sh and code_prose_honesty.sh, which set HONESTY_NAME,
-# HONESTY_BRIEF, HONESTY_GLOBS, and HONESTY_LEAD. Every path out but the last
-# exits 0, which delivers nothing to Claude; only the closing exit 2 reports.
+# HONESTY_BRIEF, HONESTY_GLOBS, HONESTY_SHEBANG_GLOBS, and HONESTY_LEAD.
 
 honesty_give_up() {
   printf '%s: %s\n' "$HONESTY_NAME" "$1" >&2
@@ -42,7 +41,11 @@ done < <(honesty_select)
 diff_text="$(hook_changed_diff "${paths[@]}")"
 
 # Scope is what the diff adds, so a diff that only deletes has nothing to audit.
-grep -qE '^\+([^+]|$)' <<<"$diff_text" || exit 0
+# The '+++' header also matches '^+', so only lines inside a hunk count.
+awk '/^@@/ { hunk = 1; next }
+     /^diff --git / { hunk = 0 }
+     hunk && /^\+/ { found = 1; exit }
+     END { exit !found }' <<<"$diff_text" || exit 0
 
 if (($(wc -l <<<"$diff_text") > 4000)); then
   honesty_give_up 'diff over 4000 lines; not audited'
@@ -74,18 +77,10 @@ report="$(
   jq -r 'if type == "array" then .[-1] else . end
          | if .is_error then error else .result end' <<<"$envelope" 2>/dev/null \
     | sed -e '/^[[:space:]]*```/d' \
-    | jq -r '.findings[] | "  \(.file):\(.line)  \(.why)"' 2>/dev/null
+    | jq -r 'if (.findings | type) == "array" then .findings else error end
+             | .[] | "  \(.file):\(.line)  \(.why)"' 2>/dev/null
 )" || honesty_give_up 'the auditor did not answer with findings; prose was not checked'
 
 [[ -n $report ]] || exit 0
-
-# head -c cuts bytes, so the budget is in bytes too; the 4 covers the newlines
-# printf adds around the lead and the marker.
-marker='  [report truncated; findings above are the first of more]'
-budget=$((16384 - ${#HONESTY_LEAD} - ${#marker} - 4))
-if (($(wc -c <<<"$report") > budget)); then
-  report="$(head -c "$budget" <<<"$report")
-$marker"
-fi
 
 printf '%s\n\n%s\n' "$HONESTY_LEAD" "$report" | hook_emit_rewake
