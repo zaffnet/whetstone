@@ -73,11 +73,8 @@ brew "koekeishiya/formulae/yabai", trusted: true
 
 # Apps
 cask "iterm2"
-# No `cask "cursor"`. Cursor is auto_updates, so brew never upgrades it anyway, and adopting
-# an existing /Applications/Cursor.app means modifying an app Homebrew did not place there,
-# which macOS App Management refuses; the cask then rolls back by removing the app, and the
-# failed script aborts the whole apply before a single dotfile is written. Install Cursor
-# by hand; it keeps itself up to date.
+# No `cask "cursor"`: adopting the existing /Applications/Cursor.app breaks the apply.
+# Install Cursor by hand; it self-updates.
 cask "codex"                   # OpenAI Codex desktop app
 cask "beekeeper-studio"        # SQL client
 cask "dbeaver-community"
