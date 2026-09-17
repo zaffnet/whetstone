@@ -53,7 +53,6 @@
       "name": "whetstone-hooks",
       "source": "./",
       "strict": true,
-      "hooks": "./hooks/hooks.json",
       "description": "ruff on every file change whatever wrote it, a typecheck report at the end of a turn, and a worktree setup hook.",
       "version": "0.1.0",
       "category": "Developer Tools",
