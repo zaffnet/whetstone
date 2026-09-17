@@ -16,5 +16,17 @@
     "writing",
     "ruff",
     "hooks"
-  ]
+  ],
+  "skills": [
+    "./skills"
+  ],
+  "agents": [
+    "./agents/async-safety-reviewer.md",
+    "./agents/deceptive-test-hunter.md",
+    "./agents/consumer-agnostic-client-reviewer.md",
+    "./agents/variant-extensibility-reviewer.md",
+    "./agents/code-honesty-auditor.md",
+    "./agents/prose-honesty-auditor.md"
+  ],
+  "hooks": "./hooks/hooks.json"
 }
