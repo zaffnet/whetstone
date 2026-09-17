@@ -10,5 +10,5 @@ if ! command -v uv >/dev/null; then
     fi
   done
 fi
-exec uv run --no-project --python 3.12 python %q merge-preserved-tables "$1" "$2"
+printf '%%s' "$2" | uv run --no-project --python 3.12 python %q merge-preserved-tables "$1"
 ` $syncMcp) "bash" $static .chezmoi.stdin | trimSuffix "\n" }}

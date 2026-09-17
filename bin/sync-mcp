@@ -397,18 +397,19 @@ def validate_codex(servers: dict[str, ServerSpec]) -> None:
         die(f"Codex still has unmanaged servers: {sorted(extras)}")
 
 
-def main_merge_preserved_tables(static: str, existing: str) -> None:
-    """Write `static` merged with `existing`'s preserved tables to stdout."""
+def main_merge_preserved_tables(static: str) -> None:
+    """Write `static` merged with stdin's preserved tables to stdout."""
+    existing = sys.stdin.read()
     sys.stdout.write(preserve_tables(static, existing))
 
 
 def main() -> None:
     if sys.argv[1:2] == ["merge-preserved-tables"]:
         try:
-            static, existing = sys.argv[2:]
+            (static,) = sys.argv[2:]
         except ValueError:
-            die("usage: sync-mcp merge-preserved-tables <static> <existing>")
-        main_merge_preserved_tables(static, existing)
+            die("usage: sync-mcp merge-preserved-tables <static> <existing-on-stdin>")
+        main_merge_preserved_tables(static)
         return
     servers = load_managed()
     sync_cursor()
