@@ -15,7 +15,7 @@ if [[ ! -x $python ]]; then
   exit 127
 fi
 
-targets=("${@:-.}")
+targets=("$@")
 workers=$("$python" -c "import os; print(min(4, os.cpu_count() or 1))")
 
 status=0
@@ -24,10 +24,10 @@ run() {
   "$@" || status=1
 }
 
-run uv run --no-sync ruff format --check --force-exclude --color always "${targets[@]}"
-run uv run --no-sync ruff check --force-exclude --color always "${targets[@]}"
-run uv run --no-sync mypy --num-workers "$workers" "${targets[@]}"
-run uv run --no-sync basedpyright --threads "$workers" "${targets[@]}"
-run uv run --no-sync pyrefly check "${targets[@]}"
+run uv run --no-sync ruff format --check --force-exclude --color always "${targets[@]+"${targets[@]}"}"
+run uv run --no-sync ruff check --force-exclude --color always "${targets[@]+"${targets[@]}"}"
+run uv run --no-sync mypy --num-workers "$workers" "${targets[@]+"${targets[@]}"}"
+run uv run --no-sync basedpyright --threads "$workers" "${targets[@]+"${targets[@]}"}"
+run uv run --no-sync pyrefly check "${targets[@]+"${targets[@]}"}"
 
 exit "$status"

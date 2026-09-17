@@ -11,7 +11,7 @@ import plistlib
 import subprocess
 import sys
 from pathlib import Path
-from typing import TypeGuard
+from typing import TypeGuard, cast
 
 type JsonValue = str | int | float | bool | list[JsonValue] | dict[str, JsonValue] | None
 
@@ -33,7 +33,7 @@ IGNORED = frozenset(
 
 
 def is_object(value: object) -> TypeGuard[dict[str, JsonValue]]:
-    """JSON and plist keys are always strings."""
+    """JSON and plist keys are always strings; callers guarantee the values too."""
     return isinstance(value, dict)
 
 
@@ -72,12 +72,8 @@ def live_profile() -> dict[str, JsonValue]:
 
 def comparable(value: object) -> JsonValue:
     """Render the value as JSON would, so a plist type is not reported as drift."""
-    rendered = json.loads(json.dumps(value, default=str))
-    if rendered is None or isinstance(rendered, (str, int, float, bool)):
-        return rendered
-    if is_array(rendered) or is_object(rendered):
-        return rendered
-    sys.exit(f"sync-iterm2-profile: {value!r} did not render as JSON")
+    # json.loads returns only JsonValue members; typeshed widens it to Any.
+    return cast("JsonValue", json.loads(json.dumps(value, default=str)))
 
 
 def templated(value: object) -> bool:
@@ -106,12 +102,14 @@ def template_profile() -> tuple[dict[str, JsonValue], dict[str, JsonValue]]:
     return document, profiles[0]
 
 
+class Options(argparse.Namespace):
+    adopt: bool
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    _ = parser.add_argument(
-        "--adopt", action="store_true", help="write the drift into the template"
-    )
-    adopt = bool(getattr(parser.parse_args(), "adopt", False))
+    parser.add_argument("--adopt", action="store_true", help="write the drift into the template")
+    adopt = parser.parse_args(namespace=Options()).adopt
 
     if not PLIST.exists():
         print(f"sync-iterm2-profile: no {PLIST}; nothing to report")
@@ -126,7 +124,7 @@ def main() -> None:
     )
     held = sorted(k for k, v in differs.items() if templated(profile[k]) or machine_specific(v))
     added = sorted(k for k in live if k not in profile)
-    if len(changed) + len(added) + len(held) == 0:
+    if not changed and not added and not held:
         print("sync-iterm2-profile: the profile matches the template")
         return
 
@@ -144,9 +142,10 @@ def main() -> None:
 
     if not adopt:
         differing = len(changed) + len(added) + len(held)
-        advice = "The template's value may be the right one -- check before running"
-        target = "`bin/sync-iterm2-profile --adopt`."
-        print(f"\n{differing} key(s) differ; nothing written.\n{advice} {target}")
+        print(
+            f"\n{differing} key(s) differ; nothing written.\nThe template's value may be"
+            f" the right one -- check before running `bin/sync-iterm2-profile --adopt`."
+        )
         return
 
     if len(changed) == 0:
@@ -154,12 +153,14 @@ def main() -> None:
         return
 
     profile.update({k: live[k] for k in changed})
-    _ = TEMPLATE.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
+    TEMPLATE.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
     print(f"\nadopted {len(changed)} key(s) into {TEMPLATE}")
     if len(added) + len(held) > 0:
         kept = len(added) + len(held)
-        check = "it holds no path or identity from this machine"
-        print(f"left {kept} key(s) above; add one by hand after checking {check}.")
+        print(
+            f"left {kept} key(s) above; add one by hand after checking"
+            f" it holds no path or identity from this machine."
+        )
 
 
 if __name__ == "__main__":
