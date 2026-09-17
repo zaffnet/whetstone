@@ -45,17 +45,13 @@ exclude = ["^\\.venv/", "^node_modules/"]
 [tool.basedpyright]
 include = ["."]
 exclude = [".venv", "node_modules"]
-typeCheckingMode = "all"
+typeCheckingMode = "strict"
 stubPath = "stubs"
-reportMissingImports = "error"
 reportMissingTypeStubs = false
 pythonVersion = "{{ python_version }}"
 
 [tool.pyrefly]
-preset = "all"
-check-unannotated-defs = true
-strict-callable-subtyping = true
-strict-partial-subtyping = true
+preset = "strict"
 project-includes = ["."]
 project-excludes = ["**/.venv/", "**/node_modules/"]
 search-path = ["stubs"]

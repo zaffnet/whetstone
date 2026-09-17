@@ -17,7 +17,6 @@ dev = [
 
 [tool.mypy]
 python_version = "3.12"
-mypy_path = "stubs"
 files = ["bin/sync-mcp", "bin/sync-iterm2-profile"]
 scripts_are_modules = true
 strict = true
@@ -26,21 +25,12 @@ warn_unused_configs = true
 
 [tool.basedpyright]
 include = ["bin/sync-mcp", "bin/sync-iterm2-profile"]
-exclude = [".venv", "node_modules", "template"]
-typeCheckingMode = "all"
-stubPath = "stubs"
-reportMissingImports = "error"
-reportMissingTypeStubs = false
+typeCheckingMode = "strict"
 pythonVersion = "3.12"
 
 [tool.pyrefly]
-preset = "all"
-check-unannotated-defs = true
-strict-callable-subtyping = true
-strict-partial-subtyping = true
+preset = "strict"
 project-includes = ["bin/sync-mcp", "bin/sync-iterm2-profile"]
-project-excludes = ["**/.venv/", "**/node_modules/", "template/**"]
-search-path = ["stubs"]
 python-version = "3.12.0"
 
 [tool.ruff]
@@ -54,7 +44,3 @@ extend-select = ["E266"]
 explicit-preview-rules = true
 preview = true
 ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D203", "D213", "COM812", "FIX", "TD", "TRY003", "CPY001"]
-
-[tool.ruff.lint.per-file-ignores]
-# Stubs may still trip ANN401 on catch-all kwargs; ignore it for .pyi files.
-"*.pyi" = ["ANN401"]
