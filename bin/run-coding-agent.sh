@@ -22,7 +22,7 @@ else
 fi
 
 AGENT="claude" # "codex"
-CLAUDE_MODEL="${CLAUDE_MODEL:-opus[1m]}"
+CLAUDE_MODEL="${CLAUDE_MODEL:-sonnet}"
 CODEX_MODEL="${CODEX_MODEL:-gpt-5.6-sol}"
 EFFORT="high"
 

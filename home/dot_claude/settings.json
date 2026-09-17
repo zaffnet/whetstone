@@ -10,9 +10,9 @@
   "permissions": {
     "defaultMode": "auto"
   },
-  "model": "opus[1m]",
+  "model": "sonnet",
   "modelSettings": {
-    "opus[1m]": {
+    "sonnet": {
       "effortLevel": "high"
     }
   },

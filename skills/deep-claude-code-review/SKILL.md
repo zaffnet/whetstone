@@ -11,7 +11,7 @@ metadata:
 # Deep Claude Code Review
 
 1. Parse the GitHub PR URL from the user message, if any. Reviewers are Claude Code
-   subagents on the current Claude Opus model at the highest effort level available; run at
+   subagents; run at
    least three so agreement means something.
 2. Launch one independent review per reviewer in parallel (host Task/subagent). Each
    reviewer returns findings tagged by one of these severity tags: `act on`, `consider`,
