@@ -91,5 +91,5 @@ that covers under 80% of its own changed lines. Reach the live tests with `-m li
 
 Runtime dependencies live under `[project.dependencies]` in `pyproject.toml`, development tools
 under `[dependency-groups.dev]`. `.pre-commit-config.yaml` shows which of those tools run on a
-commit. Two type checkers run there, mypy and basedpyright, because each catches what the other
-misses; `pyrefly` is for the editor only.
+commit. Three type checkers run there -- mypy, basedpyright, and pyrefly -- because each catches
+what the others miss.

@@ -1,3 +1,4 @@
+# commit-msg installs the conventional-commit check below alongside pre-commit.
 default_install_hook_types: [pre-commit, commit-msg]
 
 repos:
@@ -9,7 +10,11 @@ repos:
       - id: check-yaml
       - id: check-toml
       - id: check-json
+        # .vscode/settings.json is JSONC (comments); the editor owns its format.
+        exclude: ^\.vscode/settings\.json$
       - id: pretty-format-json
+        args: [--autofix]
+        exclude: ^\.vscode/settings\.json$
       - id: detect-private-key
       - id: detect-aws-credentials
         args: [--allow-missing-credentials]
@@ -49,6 +54,15 @@ repos:
         language: pygrep
         types_or: [python, pyi]
 
+      # Tests are *_test.py beside the module (docs/DEVELOPMENT.md). pytest is configured
+      # for that name only, so a test_*.py file would be silently never collected.
+      - id: forbid-test-prefix
+        name: test files are *_test.py, not test_*.py
+        entry: rename to <module>_test.py; pytest collects only *_test.py
+        language: fail
+        files: (^|/)test_[^/]*\.py$
+
+      # Merge and revert subjects that git writes itself are allowed through.
       - id: conventional-commit-subject
         name: conventional commit subject
         entry: '\A(?=[^\n]{1,72}(\n|\Z))((feat|fix|refactor|chore|docs|test|ci|style|perf|build)(\([^()\n]+\))?!?: \S|Merge |Revert ")'
@@ -58,7 +72,7 @@ repos:
 
       - id: mypy
         name: mypy
-        entry: uv run mypy
+        entry: env MYPY_NUM_WORKERS=8 uv run mypy
         language: system
         pass_filenames: false
         always_run: true
@@ -92,10 +106,29 @@ repos:
         pass_filenames: false
         always_run: true
 
-      - id: tests
-        name: tests
+      - id: unit-tests
+        name: unit tests
         entry: >-
-          bash -c 'uv run pytest --cov --cov-report=xml'
+          bash -c 'uv run pytest -m "not integration and not live" --cov --cov-report=xml'
         language: system
         pass_filenames: false
         always_run: true
+
+      # Changed-line coverage against origin/main. Skips with a note when the
+      # remote or branch does not exist yet (fresh project, detached CI checkout).
+      - id: diff-cover
+        name: Python line coverage (changed lines only)
+        # A literal block: a folded (>-) scalar keeps the newlines of indented lines,
+        # which split the diff-cover flags into separate shell commands.
+        entry: |
+          bash -c '
+            git fetch -q origin main 2>/dev/null || true
+            if git rev-parse --verify -q origin/main >/dev/null; then
+              uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under=80 --total-percent-float
+            else
+              echo "diff-cover: origin/main not found, skipping"
+            fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
