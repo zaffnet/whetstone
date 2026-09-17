@@ -1,0 +1,4 @@
+# chezmoi:modify-template
+{{- $static := includeTemplate "codex-config.toml.tmpl" . -}}
+{{- $syncMcp := joinPath .chezmoi.workingTree "bin/sync-mcp" -}}
+{{ output "uv" "run" "--no-project" "--python" "3.12" "python" $syncMcp "merge-preserved-tables" $static .chezmoi.stdin | trimSuffix "\n" }}

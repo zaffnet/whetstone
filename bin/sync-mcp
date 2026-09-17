@@ -314,6 +314,28 @@ def mcp_server_name(header: str | None) -> str | None:
     return header.split(".")[1].strip()
 
 
+# Tables Codex and sync-mcp populate at runtime, absent from the chezmoi template, so
+# `chezmoi apply` must not wipe them or report drift for state it never owned.
+PRESERVED_TABLE_PREFIXES = ("mcp_servers.", "projects.", "marketplaces.")
+
+
+def preserve_tables(static: str, existing: str) -> str:
+    """Append preserved-prefix tables found in `existing` but not in `static`."""
+    static_chunks = split_toml_tables(static)
+    static_headers = {header for header, _ in static_chunks if header is not None}
+    carried = [
+        body
+        for header, body in split_toml_tables(existing)
+        if header is not None
+        and header not in static_headers
+        and header.startswith(PRESERVED_TABLE_PREFIXES)
+    ]
+    if len(carried) == 0:
+        return static
+    text = static.rstrip("\n") + "\n" + "".join(carried)
+    return re.sub(r"\n{3,}", "\n\n", text)
+
+
 def sync_codex(servers: dict[str, ServerSpec]) -> None:
     if not CODEX_TOML.exists():
         die(f"missing {CODEX_TOML}")
@@ -375,7 +397,19 @@ def validate_codex(servers: dict[str, ServerSpec]) -> None:
         die(f"Codex still has unmanaged servers: {sorted(extras)}")
 
 
+def main_merge_preserved_tables(static: str, existing: str) -> None:
+    """Write `static` merged with `existing`'s preserved tables to stdout."""
+    sys.stdout.write(preserve_tables(static, existing))
+
+
 def main() -> None:
+    if sys.argv[1:2] == ["merge-preserved-tables"]:
+        try:
+            static, existing = sys.argv[2:]
+        except ValueError:
+            die("usage: sync-mcp merge-preserved-tables <static> <existing>")
+        main_merge_preserved_tables(static, existing)
+        return
     servers = load_managed()
     sync_cursor()
     removed = sync_claude(servers)

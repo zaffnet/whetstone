@@ -8,6 +8,9 @@ repos:
       - id: check-yaml
       - id: check-json
       - id: check-toml
+        # chezmoi modify_ scripts can't carry a .tmpl suffix (it would template the file
+        # before .chezmoi.stdin exists), so this one is a Go template despite the name.
+        exclude: ^home/dot_codex/modify_private_config\.toml$
       - id: check-added-large-files
         args: [--maxkb=500]
       - id: check-case-conflict
