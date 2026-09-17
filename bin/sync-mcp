@@ -322,13 +322,13 @@ PRESERVED_TABLE_PREFIXES = ("mcp_servers.", "projects.", "marketplaces.")
 def preserve_tables(static: str, existing: str) -> str:
     """Append preserved-prefix tables found in `existing` but not in `static`."""
     static_chunks = split_toml_tables(static)
-    static_headers = {header for header, _ in static_chunks if header is not None}
+    static_headers = {header.strip() for header, _ in static_chunks if header is not None}
     carried = [
         body
         for header, body in split_toml_tables(existing)
         if header is not None
-        and header not in static_headers
-        and header.startswith(PRESERVED_TABLE_PREFIXES)
+        and header.strip() not in static_headers
+        and header.strip().startswith(PRESERVED_TABLE_PREFIXES)
     ]
     if len(carried) == 0:
         return static
