@@ -126,6 +126,18 @@
           },
           {
             "type": "command",
+            "command": "bash \"$HOME/.agents/hooks/code_prose_honesty.sh\"",
+            "asyncRewake": true,
+            "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.agents/hooks/prose_honesty.sh\"",
+            "asyncRewake": true,
+            "timeout": 120
+          },
+          {
+            "type": "command",
             "command": "afplay /System/Library/Sounds/Funk.aiff",
             "async": true
           }

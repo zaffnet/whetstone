@@ -686,6 +686,33 @@
       "Thin Strokes": 0,
       "Title Components": 6,
       "Transparency": 0.0,
+      "Triggers": [
+        {
+          "action": "iTermEnterWorkgroupTrigger",
+          "contentregex": "",
+          "disabled": false,
+          "eventParams": {
+            "jobName": "claude"
+          },
+          "matchType": 113,
+          "parameter": "builtin.claudeCode",
+          "partial": false,
+          "regex": ""
+        },
+        {
+          "action": "iTermExitWorkgroupTrigger",
+          "contentregex": "",
+          "disabled": false,
+          "eventParams": {
+            "jobName": "claude",
+            "leaderOnly": true
+          },
+          "matchType": 114,
+          "parameter": "",
+          "partial": false,
+          "regex": ""
+        }
+      ],
       "Unlimited Scrollback": true,
       "Use Bold Font": true,
       "Use Bright Bold": true,
