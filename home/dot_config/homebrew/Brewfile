@@ -73,6 +73,11 @@ brew "koekeishiya/formulae/yabai", trusted: true
 
 # Apps
 cask "iterm2"
+# No `cask "cursor"`. Cursor is auto_updates, so brew never upgrades it anyway, and adopting
+# an existing /Applications/Cursor.app means modifying an app Homebrew did not place there,
+# which macOS App Management refuses; the cask then rolls back by removing the app, and the
+# failed script aborts the whole apply before a single dotfile is written. Install Cursor
+# by hand; it keeps itself up to date.
 cask "codex"                   # OpenAI Codex desktop app
 cask "beekeeper-studio"        # SQL client
 cask "dbeaver-community"
@@ -82,7 +87,6 @@ cask "maccy"                   # Clipboard manager
 # because of `cask_args adopt: true` above.
 cask "gitkraken"
 cask "whatsapp"
-cask "cursor"
 
 # No cask for Docker Desktop, Google Chrome, Claude, ChatGPT, or GitHub Desktop. Each one
 # needs `sudo` to finish -- moving an app into /Applications, a recursive chmod, replacing a
