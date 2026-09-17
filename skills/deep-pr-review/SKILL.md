@@ -1,6 +1,6 @@
 ---
 name: deep-pr-review
-description: "Multi-agent code review: spawns several independent agents to review a pull request, merge their findings, and post inline comments.
+description: "Multi-agent code review: spawns several independent agents to review a pull request, merge their findings, and post inline comments."
 disable-model-invocation: true
 user-invocable: true
 argument-hint: "[--non-interactive] [<pr-url>]"
