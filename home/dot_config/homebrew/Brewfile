@@ -73,6 +73,8 @@ brew "koekeishiya/formulae/yabai", trusted: true
 
 # Apps
 cask "iterm2"
+# No `cask "cursor"`: adopting the existing /Applications/Cursor.app breaks the apply.
+# Install Cursor by hand; it self-updates.
 cask "codex"                   # OpenAI Codex desktop app
 cask "beekeeper-studio"        # SQL client
 cask "dbeaver-community"
@@ -82,7 +84,6 @@ cask "maccy"                   # Clipboard manager
 # because of `cask_args adopt: true` above.
 cask "gitkraken"
 cask "whatsapp"
-cask "cursor"
 
 # No cask for Docker Desktop, Google Chrome, Claude, ChatGPT, or GitHub Desktop. Each one
 # needs `sudo` to finish -- moving an app into /Applications, a recursive chmod, replacing a

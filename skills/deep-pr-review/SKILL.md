@@ -1,19 +1,18 @@
 ---
 name: deep-pr-review
-description: "Multi-model code review: one independent reviewer per model you can reach (OpenAI, Anthropic, Google, ...), findings merged by agreement. Reviews a GitHub PR URL and posts inline comments after per-comment confirmation, or, with no PR, reviews the current branch or working tree and writes deep-review.local.md. Use only when the user asks for a deep or multi-model review or runs /deep-pr-review."
+description: "Multi-agent code review: spawns several independent agents to review a pull request, merge their findings, and post inline comments."
 disable-model-invocation: true
 user-invocable: true
 argument-hint: "[--non-interactive] [<pr-url>]"
 metadata:
-  version: "2"
+  version: "3"
 ---
 
 # Deep PR Review
 
 1. Parse the GitHub PR URL from the user message, if any. Use the models they named;
-   otherwise pick the strongest model from each provider you can reach (for example one
-   OpenAI, one Anthropic, one Google model) so the reviews are independent.
-2. Launch one independent review per reviewer in parallel (host Task/subagent). Each
+   otherwise pick a few strong models from available providers so the reviews are independent.
+2. Launch one independent review agent per reviewer in parallel (host Task/subagent). Each
    reviewer returns findings tagged by one of these severity tags: `act on`, `consider`,
    `noted`, or `dismissed`.
 3. If two or more reviewers agree on a finding, merge them into a single finding and
@@ -27,8 +26,8 @@ metadata:
 When the user gives no PR URL, review the current branch against `origin/main`
 (`git diff origin/main...HEAD`), or the whole working tree if they ask for that. Run the
 same reviewers and merge the same way, then write the findings to `deep-review.local.md` in
-the repo root (it matches `*.local.*` in `.gitignore`) instead of posting anything. Use the
-same severity tags and the same writing rules; cite `path:line`.
+the repo root instead of posting anything. Use the same severity tags and the same writing rules;
+cite `path:line`.
 
 ## Post
 
@@ -63,4 +62,8 @@ local line numbers.
 Write short human paragraphs. Explain what the line does, what is wrong, and how to fix
 it. Do not use labels like "What this line is", "Why it needs fixing", "How to fix",
 "Severity", or "Act on". Be specific (names, selectors, tests, error strings). Do not
-exaggerate. Keep must-fix items separate from consider items.
+exaggerate. Keep must-fix items separate from consider items. Before posting any comment
+or the overall review, run @"prose-honesty-auditor (agent)" and @"code-honesty-auditor (agent)"
+over it and delete what they suggest. Take all their suggestions. Also, run the following skills on
+the comment or the overall review: /simplify-english, /writing-whip,
+/writing-clearly-and-concisely, and /prose-honesty.

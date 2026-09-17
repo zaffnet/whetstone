@@ -1,0 +1,14 @@
+# chezmoi:modify-template
+{{- $static := includeTemplate "codex-config.toml.tmpl" . -}}
+{{- $syncMcp := joinPath .chezmoi.workingTree "bin/sync-mcp" -}}
+{{ output "bash" "-c" (printf `
+if ! command -v uv >/dev/null; then
+  for brew_bin in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [[ -x $brew_bin ]]; then
+      eval "$("$brew_bin" shellenv)"
+      break
+    fi
+  done
+fi
+printf '%%s' "$2" | uv run --no-project --python 3.12 python %q merge-preserved-tables "$1"
+` $syncMcp) "bash" $static .chezmoi.stdin | trimSuffix "\n" }}
