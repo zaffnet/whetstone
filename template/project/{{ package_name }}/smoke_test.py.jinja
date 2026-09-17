@@ -10,4 +10,4 @@ def test_version_matches_pyproject() -> None:
     pyproject_path = Path(__file__).parents[1] / "pyproject.toml"
     pyproject = tomllib.loads(pyproject_path.read_text())
     assert __version__ == pyproject["project"]["version"]
-    assert re.fullmatch(r"\d+\.\d+\.\d+", __version__)
+    assert re.fullmatch(r"\d+\.\d+\.\d+", __version__) is not None

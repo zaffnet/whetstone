@@ -150,7 +150,8 @@ Report the result of each:
 ## Git
 
 Small PRs, one logical change each. Conventional commits, imperative mood, first line of
-72 characters or fewer. Never push to `main`: push a branch, open the PR.
+72 characters or fewer. Never push to `main`: push a branch, open the PR. PR body lines
+must not be longer than 100 characters.
 
 ## Skills
 

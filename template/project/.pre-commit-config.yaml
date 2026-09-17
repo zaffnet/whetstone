@@ -33,8 +33,6 @@ repos:
     rev: v0.49.1
     hooks:
       - id: markdownlint
-        # Agent instructions are prose for models, not documents.
-        exclude: ^\.claude/
 
   - repo: local
     hooks:
@@ -83,6 +81,13 @@ repos:
       - id: basedpyright
         name: basedpyright
         entry: uv run basedpyright
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: pyrefly
+        name: pyrefly
+        entry: uv run pyrefly check
         language: system
         pass_filenames: false
         always_run: true

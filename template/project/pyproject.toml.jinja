@@ -37,6 +37,7 @@ omit = ["**/*_test.py", "**/_test_helpers.py"]
 python_version = "{{ python_version }}"
 mypy_path = "stubs"
 files = ["."]
+strict = true
 pretty = true
 warn_unused_configs = true
 exclude = ["^\\.venv/", "^node_modules/"]
@@ -48,6 +49,13 @@ typeCheckingMode = "strict"
 stubPath = "stubs"
 reportMissingTypeStubs = false
 pythonVersion = "{{ python_version }}"
+
+[tool.pyrefly]
+preset = "strict"
+project-includes = ["."]
+project-excludes = ["**/.venv/", "**/node_modules/"]
+search-path = ["stubs"]
+python-version = "{{ python_version }}.0"
 
 [tool.ruff]
 target-version = "py{{ python_version | replace('.', '') }}"

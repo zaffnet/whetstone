@@ -11,7 +11,9 @@ import plistlib
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TypeGuard, cast
+
+type JsonValue = str | int | float | bool | list[JsonValue] | dict[str, JsonValue] | None
 
 REPO = Path(__file__).resolve().parent.parent
 PROFILES = REPO / "home" / "Library" / "Application Support" / "iTerm2" / "DynamicProfiles"
@@ -30,7 +32,16 @@ IGNORED = frozenset(
 )
 
 
-def live_profile() -> dict[str, Any]:
+def is_object(value: object) -> TypeGuard[dict[str, JsonValue]]:
+    """JSON and plist keys are always strings; callers guarantee the values too."""
+    return isinstance(value, dict)
+
+
+def is_array(value: object) -> TypeGuard[list[JsonValue]]:
+    return isinstance(value, list)
+
+
+def live_profile() -> dict[str, JsonValue]:
     """Return the GUID's entry from iTerm2's preferences.
 
     Raises:
@@ -48,38 +59,63 @@ def live_profile() -> dict[str, Any]:
         parsed = plistlib.loads(read.stdout)
     except plistlib.InvalidFileException as exc:
         sys.exit(f"sync-iterm2-profile: {PLIST} did not parse ({exc})")
-    for bookmark in parsed.get("New Bookmarks", []):
-        if bookmark.get("Guid") == GUID:
+    if not is_object(parsed):
+        sys.exit(f"sync-iterm2-profile: {PLIST} did not parse to a dictionary")
+    bookmarks = parsed.get("New Bookmarks")
+    if not is_array(bookmarks):
+        sys.exit(f"sync-iterm2-profile: {PLIST} holds no New Bookmarks array")
+    for bookmark in bookmarks:
+        if is_object(bookmark) and bookmark.get("Guid") == GUID:
             return bookmark
     sys.exit(f"sync-iterm2-profile: no profile with Guid {GUID} in {PLIST}")
 
 
-def comparable(value: Any) -> Any:  # noqa: ANN401 -- arbitrary plist value
+def comparable(value: object) -> JsonValue:
     """Render the value as JSON would, so a plist type is not reported as drift."""
-    return json.loads(json.dumps(value, default=str))
+    # json.loads returns only JsonValue members; typeshed widens it to Any.
+    return cast("JsonValue", json.loads(json.dumps(value, default=str)))
 
 
-def templated(value: Any) -> bool:  # noqa: ANN401 -- arbitrary template value
+def templated(value: object) -> bool:
     """Report whether the template's value is a chezmoi action rather than a literal."""
     return isinstance(value, str) and "{{" in value
 
 
-def machine_specific(value: Any) -> bool:  # noqa: ANN401 -- arbitrary plist value
+def machine_specific(value: object) -> bool:
     """Report whether the value carries this machine's home directory."""
     return str(Path.home()) in json.dumps(value, default=str)
+
+
+def template_profile() -> tuple[dict[str, JsonValue], dict[str, JsonValue]]:
+    """Return the template document and its first profile.
+
+    Raises:
+        SystemExit: if the template does not hold a Profiles array of objects.
+
+    """
+    document = json.loads(TEMPLATE.read_text())
+    if not is_object(document):
+        sys.exit(f"sync-iterm2-profile: {TEMPLATE} did not parse to a dictionary")
+    profiles = document.get("Profiles")
+    if not is_array(profiles) or len(profiles) == 0 or not is_object(profiles[0]):
+        sys.exit(f"sync-iterm2-profile: {TEMPLATE} holds no Profiles array")
+    return document, profiles[0]
+
+
+class Options(argparse.Namespace):
+    adopt: bool
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--adopt", action="store_true", help="write the drift into the template")
-    adopt = parser.parse_args().adopt
+    adopt = parser.parse_args(namespace=Options()).adopt
 
     if not PLIST.exists():
         print(f"sync-iterm2-profile: no {PLIST}; nothing to report")
         return
 
-    template = json.loads(TEMPLATE.read_text())
-    profile = template["Profiles"][0]
+    document, profile = template_profile()
     live = {k: comparable(v) for k, v in live_profile().items() if k not in IGNORED}
 
     differs = {k: v for k, v in live.items() if k in profile and profile[k] != v}
@@ -105,24 +141,25 @@ def main() -> None:
         print(f"  {key}: kept {profile[key]!r} ({why})")
 
     if not adopt:
+        differing = len(changed) + len(added) + len(held)
         print(
-            f"\n{len(changed) + len(added) + len(held)} key(s) differ; nothing written.\n"
-            "The template's value may be the right one -- check before running "
-            "`bin/sync-iterm2-profile --adopt`.",
+            f"\n{differing} key(s) differ; nothing written.\nThe template's value may be"
+            f" the right one -- check before running `bin/sync-iterm2-profile --adopt`."
         )
         return
 
-    if not changed:
+    if len(changed) == 0:
         print(f"\nnothing adopted: no key of the {len(added) + len(held)} differing is adoptable")
         return
 
     profile.update({k: live[k] for k in changed})
-    TEMPLATE.write_text(json.dumps(template, indent=2, sort_keys=True) + "\n")
+    TEMPLATE.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n")
     print(f"\nadopted {len(changed)} key(s) into {TEMPLATE}")
-    if added or held:
+    if len(added) + len(held) > 0:
+        kept = len(added) + len(held)
         print(
-            f"left {len(added) + len(held)} key(s) above; add one by hand after checking "
-            "it holds no path or identity from this machine.",
+            f"left {kept} key(s) above; add one by hand after checking"
+            f" it holds no path or identity from this machine."
         )
 
 

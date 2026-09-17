@@ -70,7 +70,7 @@ report.
 
 Report one finding per line as `file:line  why`:
 
-```
+```text
 docs/design.md:12  Cut "This section explains" -- the heading already says it.
 ```
 

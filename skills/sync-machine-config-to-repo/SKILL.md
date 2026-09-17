@@ -150,7 +150,7 @@ reaches nothing until `just release vX.Y.Z` ships and the project owner runs
 
 Work-flavoured items default to a `.tmpl` guarded on `$work`, value kept out of the repo:
 
-```
+```gotmpl
 {{- $work := get . "work" | default (dict) -}}
 {{ if hasKey $work "some_key" }}...{{ end }}
 ```

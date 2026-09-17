@@ -92,7 +92,7 @@ believing the next report.
 
 Report one finding per line as `file:line  why`:
 
-```
+```text
 pkg/loader.py:12  Cut "handles the request" -- the function name says it.
 ```
 

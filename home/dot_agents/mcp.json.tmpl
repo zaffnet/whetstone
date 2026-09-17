@@ -1,3 +1,4 @@
+{{- /* bin/sync-mcp refuses any mcpServers entry with a key outside type, url, command, args, env, headers. */ -}}
 {{- $work := get . "work" | default (dict) -}}
 {
   "mcpServers": {

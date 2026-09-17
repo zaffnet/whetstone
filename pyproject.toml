@@ -7,16 +7,40 @@ dependencies = []
 
 [dependency-groups]
 dev = [
+    "basedpyright>=1.39",
     "copier>=9.18.2",
+    "mypy>=2.3",
     "pre-commit>=4.6.1",
+    "pyrefly>=1.2",
     "ruff>=0.16.7",
 ]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["bin/sync-mcp", "bin/sync-iterm2-profile"]
+scripts_are_modules = true
+strict = true
+pretty = true
+warn_unused_configs = true
+
+[tool.basedpyright]
+include = ["bin/sync-mcp", "bin/sync-iterm2-profile"]
+typeCheckingMode = "strict"
+pythonVersion = "3.12"
+
+[tool.pyrefly]
+preset = "strict"
+project-includes = ["bin/sync-mcp", "bin/sync-iterm2-profile"]
+python-version = "3.12.0"
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-extend-exclude = ["template/project", "skills"]
+extend-include = ["bin/sync-mcp", "bin/sync-iterm2-profile"]
 
 [tool.ruff.lint]
 select = ["ALL"]
+extend-select = ["E266"]
+explicit-preview-rules = true
+preview = true
 ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D203", "D213", "COM812", "FIX", "TD", "TRY003", "CPY001"]
