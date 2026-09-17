@@ -21,6 +21,27 @@ jobs:
       - run: uv sync --all-groups
       - run: uv run pre-commit run --all-files --show-diff-on-failure
 
+  template-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          enable-cache: true
+      - run: >-
+          uvx copier copy . /tmp/generated
+          --data project_name=generated --data description=generated
+          --data python_version=3.12 --data github_owner=generated
+          --defaults --trust
+      - run: git init -b main -q && git add -A
+        working-directory: /tmp/generated
+      - run: uv sync --all-groups
+        working-directory: /tmp/generated
+      - run: >-
+          GIT_CONFIG_NOSYSTEM=1 uv run pre-commit run --all-files
+          --show-diff-on-failure
+        working-directory: /tmp/generated
+
   plugin-manifests:
     runs-on: ubuntu-latest
     steps:
