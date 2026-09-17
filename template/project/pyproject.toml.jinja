@@ -51,6 +51,16 @@ reportMissingImports = "error"
 reportMissingTypeStubs = false
 pythonVersion = "{{ python_version }}"
 
+[tool.pyrefly]
+preset = "all"
+check-unannotated-defs = true
+strict-callable-subtyping = true
+strict-partial-subtyping = true
+project-includes = ["."]
+project-excludes = ["**/.venv/", "**/node_modules/"]
+search-path = ["stubs"]
+python-version = "{{ python_version }}.0"
+
 [tool.ruff]
 target-version = "py{{ python_version | replace('.', '') }}"
 line-length = 88

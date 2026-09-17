@@ -16,7 +16,19 @@ import tempfile
 import tomllib
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import NoReturn
+from typing import NoReturn, NotRequired, TypedDict, TypeGuard
+
+
+class ServerSpec(TypedDict):
+    """A single entry of the mcpServers object in ~/.agents/mcp.json."""
+
+    type: NotRequired[str]
+    url: NotRequired[str]
+    command: NotRequired[str]
+    args: NotRequired[list[str]]
+    env: NotRequired[dict[str, str]]
+    headers: NotRequired[dict[str, str]]
+
 
 HOME = Path.home()
 AGENTS_MCP = HOME / ".agents" / "mcp.json"
@@ -49,43 +61,87 @@ def die(message: str) -> NoReturn:
     raise SystemExit(1)
 
 
-def load_managed() -> dict[str, dict]:
+def is_object(value: object) -> TypeGuard[dict[str, object]]:
+    """JSON and TOML keys are always strings."""
+    return isinstance(value, dict)
+
+
+def as_str(value: object, label: str) -> str:
+    if not isinstance(value, str):
+        die(f"{label} must be a string")
+    return value
+
+
+def is_array(value: object) -> TypeGuard[list[object]]:
+    return isinstance(value, list)
+
+
+def as_str_list(value: object, label: str) -> list[str]:
+    if not is_array(value):
+        die(f"{label} must be an array")
+    return [as_str(item, f"{label} entries") for item in value]
+
+
+def as_str_map(value: object, label: str) -> dict[str, str]:
+    if not is_object(value):
+        die(f"{label} must be an object")
+    return {key: as_str(item, f"{label}.{key}") for key, item in value.items()}
+
+
+def as_placeholder_headers(value: object, name: str) -> dict[str, str]:
+    """Raise SystemExit if a header is mistyped or carries a literal secret."""
+    headers = as_str_map(value, f"{name}.headers")
+    for header, item in headers.items():
+        if ENV_PLACEHOLDER.match(item) is None and BEARER_PLACEHOLDER.match(item) is None:
+            placeholder = f"{name}.headers.{header} must be ${{VAR}} or Bearer ${{VAR}}"
+            die(f"{placeholder}; refusing a literal secret")
+    return headers
+
+
+def as_placeholder_env(value: object, name: str) -> dict[str, str]:
+    """Raise SystemExit if an env entry is mistyped or carries a literal secret."""
+    env = as_str_map(value, f"{name}.env")
+    for key, item in env.items():
+        if ENV_PLACEHOLDER.match(item) is None and not is_plain_env_key(key):
+            die(f"{name}.env.{key} must be ${{VAR}}; refusing a literal secret")
+    return env
+
+
+def as_server_spec(value: object, name: str) -> ServerSpec:
+    """Raise SystemExit if the entry is mistyped or holds a literal secret."""
+    if not is_object(value):
+        die(f"{name} must be an object")
+    spec: ServerSpec = {}
+    if "type" in value:
+        spec["type"] = as_str(value["type"], f"{name}.type")
+    if "url" in value:
+        spec["url"] = as_str(value["url"], f"{name}.url")
+    if "command" in value:
+        spec["command"] = as_str(value["command"], f"{name}.command")
+    if "args" in value:
+        spec["args"] = as_str_list(value["args"], f"{name}.args")
+    if "headers" in value:
+        spec["headers"] = as_placeholder_headers(value["headers"], name)
+    if "env" in value:
+        spec["env"] = as_placeholder_env(value["env"], name)
+    # A key ServerSpec does not declare would vanish silently when this spec is written.
+    unknown = set(value) - set(ServerSpec.__annotations__)
+    if len(unknown) > 0:
+        die(f"{name} has keys this script would drop: {sorted(unknown)}")
+    return spec
+
+
+def load_managed() -> dict[str, ServerSpec]:
     try:
         payload = json.loads(AGENTS_MCP.read_text())
     except (OSError, json.JSONDecodeError) as exc:
         die(f"cannot read {AGENTS_MCP}: {exc}")
+    if not is_object(payload):
+        die(f"{AGENTS_MCP} must contain an object")
     servers = payload.get("mcpServers")
-    if not isinstance(servers, dict) or not servers:
+    if not is_object(servers) or len(servers) == 0:
         die(f"{AGENTS_MCP} must contain a non-empty mcpServers object")
-    for name, spec in servers.items():
-        if not isinstance(spec, dict):
-            die(f"{name} must be an object")
-        refuse_literal_secrets(name, spec)
-    return servers
-
-
-def refuse_literal_secrets(name: str, spec: dict) -> None:
-    headers = spec.get("headers") or {}
-    if not isinstance(headers, dict):
-        die(f"{name}.headers must be an object")
-    for header, value in headers.items():
-        if not isinstance(value, str):
-            die(f"{name}.headers.{header} must be a string")
-        if ENV_PLACEHOLDER.match(value) or BEARER_PLACEHOLDER.match(value):
-            continue
-        die(
-            f"{name}.headers.{header} must be ${{VAR}} or Bearer ${{VAR}}; "
-            "refusing a literal secret"
-        )
-    env = spec.get("env") or {}
-    if not isinstance(env, dict):
-        die(f"{name}.env must be an object")
-    for key, value in env.items():
-        if not isinstance(value, str):
-            die(f"{name}.env.{key} must be a string")
-        if ENV_PLACEHOLDER.match(value) or is_plain_env_key(key):
-            continue
-        die(f"{name}.env.{key} must be ${{VAR}}; refusing a literal secret")
+    return {name: as_server_spec(spec, name) for name, spec in servers.items()}
 
 
 def is_plain_env_key(key: str) -> bool:
@@ -106,7 +162,7 @@ def backup(path: Path) -> None:
     if not path.exists() or path.is_symlink():
         return
     stamp = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%S.%fZ")
-    shutil.copy2(path, path.with_name(f"{path.name}{BACKUP_SUFFIX}{stamp}"))
+    _ = shutil.copy2(path, path.with_name(f"{path.name}{BACKUP_SUFFIX}{stamp}"))
     kept = sorted(path.parent.glob(f"{path.name}.bak-before-agents-sync*"))
     for stale in kept[:-BACKUP_KEEP]:
         stale.unlink()
@@ -124,7 +180,7 @@ def sync_cursor() -> None:
     CURSOR_MCP.symlink_to(AGENTS_MCP)
 
 
-def sync_claude(servers: dict[str, dict]) -> int:
+def sync_claude(servers: dict[str, ServerSpec]) -> int:
     """Replace Claude user-scope servers and empty every project's local scope.
 
     Returns the number of local-scope server entries removed.
@@ -136,32 +192,54 @@ def sync_claude(servers: dict[str, dict]) -> int:
         data = json.loads(CLAUDE_JSON.read_text())
     except json.JSONDecodeError as exc:
         die(f"cannot parse {CLAUDE_JSON}: {exc}")
+    if not is_object(data):
+        die(f"{CLAUDE_JSON} must contain an object")
     data["mcpServers"] = servers
     removed = 0
-    for project in (data.get("projects") or {}).values():
-        local = project.pop("mcpServers", None)
-        if local:
-            removed += len(local)
+    projects = data.get("projects")
+    if is_object(projects):
+        for project in projects.values():
+            if not is_object(project):
+                continue
+            local = project.pop("mcpServers", None)
+            if is_object(local):
+                removed += len(local)
     fd, tmp = tempfile.mkstemp(prefix="claude.json.", dir=CLAUDE_JSON.parent)
     try:
         with os.fdopen(fd, "w") as handle:
             json.dump(data, handle, indent=2, ensure_ascii=False)
-            handle.write("\n")
-        Path(tmp).replace(CLAUDE_JSON)
+            _ = handle.write("\n")
+        _ = Path(tmp).replace(CLAUDE_JSON)
     except Exception:
         Path(tmp).unlink(missing_ok=True)
         raise
-    written = json.loads(CLAUDE_JSON.read_text())
-    if set(written["mcpServers"]) != set(servers):
-        die("Claude mcpServers keys do not match ~/.agents/mcp.json")
-    leftover = [
-        path
-        for path, project in (written.get("projects") or {}).items()
-        if project.get("mcpServers")
-    ]
-    if leftover:
-        die(f"Claude local-scope servers survived in: {leftover}")
+    validate_claude(servers)
     return removed
+
+
+def validate_claude(servers: dict[str, ServerSpec]) -> None:
+    """Re-read the written file and confirm it holds exactly the managed servers.
+
+    Raises:
+        SystemExit: if the user scope does not match, or a local scope survived.
+
+    """
+    written = json.loads(CLAUDE_JSON.read_text())
+    if not is_object(written):
+        die(f"{CLAUDE_JSON} must contain an object")
+    written_servers = written.get("mcpServers")
+    if not is_object(written_servers) or set(written_servers) != set(servers):
+        die("Claude mcpServers keys do not match ~/.agents/mcp.json")
+    written_projects = written.get("projects")
+    leftover: list[str] = []
+    if is_object(written_projects):
+        leftover = [
+            path
+            for path, project in written_projects.items()
+            if is_object(project) and is_object(project.get("mcpServers"))
+        ]
+    if len(leftover) > 0:
+        die(f"Claude local-scope servers survived in: {leftover}")
 
 
 def toml_string(value: str) -> str:
@@ -170,41 +248,44 @@ def toml_string(value: str) -> str:
 
 
 def env_var_name(value: str) -> str:
-    match = BEARER_PLACEHOLDER.match(value) or ENV_PLACEHOLDER.match(value)
+    match = BEARER_PLACEHOLDER.match(value)
+    if match is None:
+        match = ENV_PLACEHOLDER.match(value)
     if match is None:
         die(f"expected ${{VAR}} placeholder, got {value!r}")
     return match.group(1)
 
 
-def server_to_toml(name: str, spec: dict) -> str:
+def server_to_toml(name: str, spec: ServerSpec) -> str:
     lines = [f"[mcp_servers.{name}]"]
-    headers = spec.get("headers") or {}
-    if "url" in spec:
-        lines.append(f"url = {toml_string(spec['url'])}")
+    headers = spec.get("headers", {})
+    url = spec.get("url")
+    if url is not None:
+        lines.append(f"url = {toml_string(url)}")
         authorization = headers.get("Authorization")
-        if authorization:
+        if authorization is not None:
             lines.append(f"bearer_token_env_var = {toml_string(env_var_name(authorization))}")
         extra = {key: value for key, value in headers.items() if key != "Authorization"}
-        if extra:
+        if len(extra) > 0:
             lines.append("")
             lines.append(f"[mcp_servers.{name}.env_http_headers]")
             for key, value in extra.items():
                 lines.append(f"{key} = {toml_string(env_var_name(value))}")
-    else:
-        command = spec.get("command")
-        if not command:
-            die(f"{name} needs command or url")
-        lines.append(f"command = {toml_string(command)}")
-        args = spec.get("args") or []
-        if args:
-            rendered = ", ".join(toml_string(arg) for arg in args)
-            lines.append(f"args = [{rendered}]")
-        env = spec.get("env") or {}
-        if env:
-            lines.append("")
-            lines.append(f"[mcp_servers.{name}.env]")
-            for key, value in env.items():
-                lines.append(f"{key} = {toml_string(str(value))}")
+        return "\n".join(lines) + "\n"
+    command = spec.get("command")
+    if command is None or len(command) == 0:
+        die(f"{name} needs command or url")
+    lines.append(f"command = {toml_string(command)}")
+    args = spec.get("args", [])
+    if len(args) > 0:
+        rendered = ", ".join(toml_string(arg) for arg in args)
+        lines.append(f"args = [{rendered}]")
+    env = spec.get("env", {})
+    if len(env) > 0:
+        lines.append("")
+        lines.append(f"[mcp_servers.{name}.env]")
+        for key, value in env.items():
+            lines.append(f"{key} = {toml_string(value)}")
     return "\n".join(lines) + "\n"
 
 
@@ -214,7 +295,7 @@ def split_toml_tables(text: str) -> list[tuple[str | None, str]]:
     current_lines: list[str] = []
     for line in text.splitlines(keepends=True):
         match = TABLE_HEADER.match(line.rstrip("\n"))
-        if match:
+        if match is not None:
             chunks.append((current_header, "".join(current_lines)))
             current_header = match.group(1)
             current_lines = [line]
@@ -233,7 +314,7 @@ def mcp_server_name(header: str | None) -> str | None:
     return header.split(".")[1].strip()
 
 
-def sync_codex(servers: dict[str, dict]) -> None:
+def sync_codex(servers: dict[str, ServerSpec]) -> None:
     if not CODEX_TOML.exists():
         die(f"missing {CODEX_TOML}")
     backup(CODEX_TOML)
@@ -261,35 +342,36 @@ def sync_codex(servers: dict[str, dict]) -> None:
     if not text.endswith("\n"):
         text += "\n"
     try:
-        tomllib.loads(text)
+        _ = tomllib.loads(text)
     except tomllib.TOMLDecodeError as exc:
         die(f"refusing to write {CODEX_TOML}: generated text is not valid TOML: {exc}")
     fd, tmp = tempfile.mkstemp(prefix="config.toml.", dir=CODEX_TOML.parent)
     try:
         with os.fdopen(fd, "w") as handle:
-            handle.write(text)
-        Path(tmp).replace(CODEX_TOML)
+            _ = handle.write(text)
+        _ = Path(tmp).replace(CODEX_TOML)
     except Exception:
         Path(tmp).unlink(missing_ok=True)
         raise
     validate_codex(servers)
 
 
-def validate_codex(servers: dict[str, dict]) -> None:
+def validate_codex(servers: dict[str, ServerSpec]) -> None:
     parsed = tomllib.loads(CODEX_TOML.read_text())
-    found = parsed.get("mcp_servers") or {}
+    table = parsed.get("mcp_servers")
+    found: dict[str, object] = table if is_object(table) else {}
     missing_private = CODEX_PRIVATE - set(found)
-    if missing_private:
+    if len(missing_private) > 0:
         # Codex writes these itself on first launch; absent is normal on a fresh machine.
         print(  # noqa: T201  -- CLI diagnostics
             f"sync-mcp: Codex private servers not present yet: {sorted(missing_private)}",
             file=sys.stderr,
         )
     missing_managed = set(servers) - set(found)
-    if missing_managed:
+    if len(missing_managed) > 0:
         die(f"Codex missing managed servers: {sorted(missing_managed)}")
     extras = set(found) - set(servers) - CODEX_PRIVATE
-    if extras:
+    if len(extras) > 0:
         die(f"Codex still has unmanaged servers: {sorted(extras)}")
 
 
