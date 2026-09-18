@@ -1,5 +1,7 @@
 {
   "respectGitignore": false,
+  "cleanupPeriodDays": 5,
+  "desktopSessionCleanupPeriodDays": 5,
   "skillListingMaxDescChars": 2048,
   "skillListingBudgetFraction": 0.05,
   "attribution": {
@@ -11,11 +13,6 @@
     "defaultMode": "auto"
   },
   "model": "sonnet",
-  "modelSettings": {
-    "sonnet": {
-      "effortLevel": "high"
-    }
-  },
   "hooks": {
     "PreToolUse": [
       {
@@ -121,8 +118,8 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.agents/hooks/typecheck.sh\"",
-            "asyncRewake": true,
-            "timeout": 600
+            "timeout": 600,
+            "asyncRewake": true
           },
           {
             "type": "command",
@@ -204,6 +201,9 @@
   "worktree": {
     "baseRef": "fresh"
   },
+  "enableArtifact": false,
+  "enableWorkflows": false,
+  "workflowKeywordTriggerEnabled": false,
   "respondToBashCommands": true,
   "allowAllClaudeAiMcps": true,
   "statusLine": {
@@ -223,7 +223,9 @@
     "typescript-lsp@claude-plugins-official": false,
     "claude-md-management@claude-plugins-official": false,
     "code-review@claude-code-plugins": false,
-    "whetstone-hooks@whetstone": true
+    "whetstone-hooks@whetstone": true,
+    "whetstone-skills@whetstone": true,
+    "whetstone-reviewers@whetstone": true
   },
   "extraKnownMarketplaces": {
     "chrome-devtools-plugins": {
@@ -247,12 +249,22 @@
   },
   "outputStyle": "Concise",
   "spinnerTipsEnabled": true,
+  "spellcheck": {
+    "enabled": true,
+    "language": "en_US"
+  },
   "alwaysThinkingEnabled": false,
   "effortLevel": "high",
-  "plansDirectory": "./.claude/plans",
+  "modelSettings": {
+    "sonnet": {
+      "effortLevel": "high"
+    }
+  },
+  "awaySummaryEnabled": true,
   "showClearContextOnPlanAccept": true,
   "askUserQuestionTimeout": "never",
   "dialogExpiry": "never",
+  "plansDirectory": "./.claude/plans",
   "tui": "fullscreen",
   "voice": {
     "enabled": false,
@@ -263,6 +275,7 @@
   "skipDangerousModePermissionPrompt": false,
   "theme": "custom:solarized-light",
   "editorMode": "normal",
+  "verbose": false,
   "preferredNotifChannel": "auto",
   "switchModelsOnFlag": false,
   "terminalProgressBarEnabled": true,
@@ -272,21 +285,10 @@
   "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
+  "useAutoModeDuringPlan": true,
   "voiceEnabled": false,
   "autoUpdate": true,
   "useAutoModeDuringPlanAccept": true,
-  "cleanupPeriodDays": 5,
-  "desktopSessionCleanupPeriodDays": 5,
-  "enableArtifact": false,
-  "enableWorkflows": false,
-  "workflowKeywordTriggerEnabled": false,
-  "spellcheck": {
-    "enabled": true,
-    "language": "en_US"
-  },
-  "awaySummaryEnabled": true,
-  "verbose": false,
-  "useAutoModeDuringPlan": true,
   "externalEditorContext": true,
   "permissionExplainerEnabled": false,
   "diffTool": "terminal"
