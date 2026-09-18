@@ -15,7 +15,7 @@
         "./skills"
       ],
       "description": "writing-whip, multi-model PR review, plain-English rewriting, and more.",
-      "version": "0.1.0",
+      "version": "0.7.0",
       "category": "Developer Tools",
       "keywords": [
         "python",
@@ -38,7 +38,7 @@
         "./agents/prose-honesty-auditor.md"
       ],
       "description": "Reviewer subagents: async safety, deceptive tests, consumer-agnostic clients, variant extensibility, and the two honesty auditors.",
-      "version": "0.1.0",
+      "version": "0.7.0",
       "category": "Developer Tools",
       "keywords": [
         "code-review",
@@ -54,7 +54,7 @@
       "source": "./",
       "strict": true,
       "description": "ruff on every file change whatever wrote it, a typecheck report at the end of a turn, and a worktree setup hook.",
-      "version": "0.1.0",
+      "version": "0.7.0",
       "category": "Developer Tools",
       "keywords": [
         "ruff",

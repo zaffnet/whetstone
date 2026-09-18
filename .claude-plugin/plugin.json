@@ -1,6 +1,6 @@
 {
   "name": "whetstone",
-  "version": "0.1.0",
+  "version": "0.7.0",
   "description": "Skills, reviewer subagents, and hooks for Python work with Claude Code.",
   "author": {
     "name": "Zafar Mahmood",
