@@ -63,7 +63,8 @@ repos:
             clean-architecture|
             clean-code|
             designing-data-intensive-applications|
-            domain-driven-design
+            domain-driven-design|
+            implementing-domain-driven-design
           )/
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
