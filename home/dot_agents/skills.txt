@@ -12,3 +12,4 @@ github/gh-stack gh-stack
 vercel-labs/skills find-skills
 obra/the-elements-of-style writing-clearly-and-concisely
 anthropics/skills discernment-nudge
+ai-evals-course/evals-skills evals-start eval-audit error-discovery generate-synthetic-data write-judge-prompt validate-evaluator evaluate-rag build-review-interface
