@@ -12,11 +12,16 @@
 # Codex for the same reason as typescript-lsp.
 # code-review is off because the built-in /code-review covers it and the plugin had no
 # recorded usage.
+# evals@ai-evals-course is on in Claude Code only, and deliberately duplicates the same
+# eight skills already listed in ../skills.txt (ai-evals-course/evals-skills): the plugin
+# namespace was added on top of the skills.txt entry, not instead of it. Do not remove
+# either as an apparent accident.
 
 claude_code:
   enabled:
     - github@claude-plugins-official
     - pyright-lsp@claude-plugins-official
+    - evals@ai-evals-course
   disabled:
     - chrome-devtools-mcp@claude-plugins-official
     - playwright@claude-plugins-official
