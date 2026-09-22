@@ -41,7 +41,7 @@ repos:
         exclude: ^home/dot_p10k\.zsh$
 
   - repo: https://github.com/scop/pre-commit-shfmt
-    rev: v3.13.1-1
+    rev: v3.14.1-1
     hooks:
       - id: shfmt
         args: [--indent=2, --case-indent, --binary-next-line, --write]
@@ -68,7 +68,7 @@ repos:
           )/
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.7
+    rev: v0.16.8
     hooks:
       - id: ruff-check
         args: [--fix]
