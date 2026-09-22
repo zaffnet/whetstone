@@ -225,7 +225,8 @@
     "code-review@claude-code-plugins": false,
     "whetstone-hooks@whetstone": true,
     "whetstone-skills@whetstone": true,
-    "whetstone-reviewers@whetstone": true
+    "whetstone-reviewers@whetstone": true,
+    "evals@ai-evals-course": true
   },
   "extraKnownMarketplaces": {
     "chrome-devtools-plugins": {
@@ -244,6 +245,12 @@
       "source": {
         "source": "github",
         "repo": "aws/agent-toolkit-for-aws"
+      }
+    },
+    "ai-evals-course": {
+      "source": {
+        "source": "github",
+        "repo": "ai-evals-course/evals-skills"
       }
     }
   },

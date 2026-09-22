@@ -55,6 +55,17 @@ repos:
     rev: v0.49.1
     hooks:
       - id: markdownlint
+        # Vendored verbatim from ciembor/agent-rules-books; reformatting would break the
+        # diff-against-upstream property that verbatim vendoring is for.
+        exclude: |
+          (?x)^skills/(
+            a-philosophy-of-software-design|
+            clean-architecture|
+            clean-code|
+            designing-data-intensive-applications|
+            domain-driven-design|
+            implementing-domain-driven-design
+          )/
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.7
