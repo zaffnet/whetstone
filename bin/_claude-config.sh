@@ -35,7 +35,6 @@ prompt_bound_file() {
   local limit=$2
   local marker=$3
   local budget=$((limit - ${#marker} - 1))
-  local bounded_file
   local utf8_file
 
   utf8_file=$(mktemp)
@@ -51,11 +50,9 @@ prompt_bound_file() {
     return
   fi
 
-  bounded_file=$(mktemp)
-  head -c "$budget" "$utf8_file" >"$bounded_file"
-  cat "$bounded_file"
+  head -c "$budget" "$utf8_file"
   printf '\n%s' "$marker"
-  rm "$bounded_file" "$utf8_file"
+  rm "$utf8_file"
 }
 
 prompt_cap_file() {

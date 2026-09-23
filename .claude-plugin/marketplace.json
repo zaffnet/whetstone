@@ -53,7 +53,7 @@
       "name": "whetstone-hooks",
       "source": "./",
       "strict": true,
-      "description": "ruff on every file change whatever wrote it, a typecheck report at the end of a turn, and a worktree setup hook.",
+      "description": "ruff on every file change whatever wrote it, and a worktree setup hook.",
       "version": "0.7.0",
       "category": "Developer Tools",
       "keywords": [

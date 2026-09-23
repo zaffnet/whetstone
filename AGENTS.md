@@ -31,7 +31,7 @@ code, comments, docs, PR size, and tooling alike. If a change adds lines, be abl
 
 - Write the minimum that solves the problem.
 - Every changed line traces to the request. If it does not, it is a separate change.
-- Mention dead code you find. Confirm is is no longer needed and delete it.
+- Mention dead code you find. Confirm it is no longer needed and delete it.
 - Remove names this change made unused, including ones you added that turned out unused.
 - Scope is a contract. Do not quietly widen or narrow it; if it must change, say so.
 - Parking a decision as a "follow-up" is usually evasion. Decide it or name who will.
