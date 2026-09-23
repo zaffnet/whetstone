@@ -14,6 +14,9 @@ sections where they carry information. One-line helpers skip Args/Returns. Type 
 
 If you assume something, say what you assumed.
 
+Write the minimum that solves the problem. Keep diffs surgical: every changed line traces to the request. Remove names
+this change made unused.
+
 Fix the root cause. Do not leave `# type: ignore`, bare `except: pass`, or unexplained `# noqa`.
 
 Do not add tests that only assert a constant or a fact ruff, mypy, or basedpyright already prove. No template docstrings
