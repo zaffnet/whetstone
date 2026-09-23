@@ -21,45 +21,12 @@ else
   rm -f AGENTS.override.md
 fi
 
-AGENT="claude" # "codex"
-CLAUDE_MODEL="${CLAUDE_MODEL:-sonnet}"
-CODEX_MODEL="${CODEX_MODEL:-gpt-5.6-sol}"
+CLAUDE_MODEL="${CLAUDE_MODEL:-opus}"
 EFFORT="high"
 
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    claude | --claude)
-      AGENT="claude"
-      ;;
-    codex | --codex)
-      AGENT="codex"
-      ;;
-    --low)
-      EFFORT="low"
-      ;;
-    --medium)
-      EFFORT="medium"
-      ;;
-    --high)
-      EFFORT="high"
-      ;;
-    --xhigh)
-      EFFORT="xhigh"
-      ;;
-    --opus)
-      AGENT="claude"
-      CLAUDE_MODEL="opus[1m]"
-      ;;
-    --sonnet)
-      AGENT="claude"
-      CLAUDE_MODEL="sonnet"
-      ;;
-    *)
-      break
-      ;;
-  esac
+if [[ ${1:-} == claude || ${1:-} == --claude ]]; then
   shift
-done
+fi
 
 ADD_DIRS=()
 for repo in ${REFERENCE_REPOS_LIST[@]+"${REFERENCE_REPOS_LIST[@]}"}; do
@@ -67,28 +34,14 @@ for repo in ${REFERENCE_REPOS_LIST[@]+"${REFERENCE_REPOS_LIST[@]}"}; do
   ADD_DIRS+=(--add-dir "$SRC_DIR/$repo")
 done
 
-if [ "$AGENT" = "claude" ]; then
-  MODEL="$CLAUDE_MODEL"
-else
-  MODEL="$CODEX_MODEL"
-fi
-
-echo "AGENT: $AGENT"
-echo "MODEL: $MODEL"
+echo "AGENT: claude"
+echo "MODEL: $CLAUDE_MODEL"
 echo "EFFORT: $EFFORT"
 echo "--------------------------------"
 echo ""
 
-if [ "$AGENT" = "claude" ]; then
-  exec claude \
-    --effort "$EFFORT" \
-    --model "$CLAUDE_MODEL" \
-    ${ADD_DIRS[@]+"${ADD_DIRS[@]}"} \
-    "$@"
-else
-  exec codex \
-    --config model="$MODEL" \
-    --config model_reasoning_effort="$EFFORT" \
-    ${ADD_DIRS[@]+"${ADD_DIRS[@]}"} \
-    "$@"
-fi
+exec claude \
+  --effort "$EFFORT" \
+  --model "$CLAUDE_MODEL" \
+  ${ADD_DIRS[@]+"${ADD_DIRS[@]}"} \
+  "$@"

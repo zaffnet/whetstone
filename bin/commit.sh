@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# shellcheck source-path=SCRIPTDIR source=_codex-config.sh
-source "${BASH_SOURCE[0]%/*}/_codex-config.sh"
+# shellcheck source-path=SCRIPTDIR source=_claude-config.sh
+source "${BASH_SOURCE[0]%/*}/_claude-config.sh"
 
-CODEX_MODEL=$(codex_model)
+CLAUDE_MODEL=$(claude_model)
 ASSUME_YES=false
-readonly CODEX_MODEL
+readonly CLAUDE_MODEL
 
 usage() {
   printf 'Usage: %s [-y|--yes]\n' "${0##*/}"
@@ -56,7 +56,7 @@ readonly ASSUME_YES
 
 require_command git
 require_command jq
-require_command codex
+require_command claude
 
 set +e
 git diff --cached --quiet
@@ -74,15 +74,6 @@ case "$staged_diff_status" in
     exit "$staged_diff_status"
     ;;
 esac
-
-PROVIDER_ARGS=()
-CODEX_BASE_URL=$(codex_base_url)
-if [[ -n "$CODEX_BASE_URL" ]]; then
-  PROVIDER_ARGS=(
-    --config 'model_provider="proxy"'
-    --config "model_providers.proxy={name=\"Proxy\",base_url=\"$CODEX_BASE_URL\",env_key=\"OPENAI_API_KEY\",wire_api=\"responses\",supports_websockets=false}"
-  )
-fi
 
 TEMP_DIR=$(mktemp -d)
 readonly TEMP_DIR
@@ -170,40 +161,11 @@ PROMPT
   printf '\n\ngit diff --cached --stat:\n'
   git diff --cached --stat
   printf '\n\ngit diff --cached -W:\n'
-  codex_bound_diff "$(git diff --cached -W)"
+  prompt_bound_diff "$(git diff --cached -W)"
   printf '\n'
 } >"$PROMPT_FILE"
 
-if ! codex exec \
-  --ephemeral \
-  --ignore-user-config \
-  --ignore-rules \
-  --skip-git-repo-check \
-  --disable hooks \
-  --disable plugins \
-  --disable memories \
-  --disable skill_search \
-  --disable multi_agent \
-  --disable browser_use \
-  --disable computer_use \
-  --config 'web_search="disabled"' \
-  --disable image_generation \
-  --disable tool_suggest \
-  --disable workspace_dependencies \
-  --disable shell_tool \
-  --disable unified_exec \
-  --cd "$TEMP_DIR" \
-  --sandbox read-only \
-  --model "$CODEX_MODEL" \
-  --config 'model_reasoning_effort="high"' \
-  --config 'model_reasoning_summary="none"' \
-  --config 'model_verbosity="low"' \
-  --config 'service_tier="fast"' \
-  ${PROVIDER_ARGS[@]+"${PROVIDER_ARGS[@]}"} \
-  --output-schema "$SCHEMA_FILE" \
-  --output-last-message "$RESULT_FILE" \
-  - >/dev/null 2>"$TEMP_DIR/codex.stderr" <"$PROMPT_FILE"; then
-  cat "$TEMP_DIR/codex.stderr" >&2
+if ! claude_structured_output "$SCHEMA_FILE" "$PROMPT_FILE" "$RESULT_FILE" high; then
   exit 1
 fi
 

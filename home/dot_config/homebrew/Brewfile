@@ -33,6 +33,9 @@ brew "shfmt"
 brew "actionlint"              # GitHub Actions workflow linter
 brew "bats-core"               # Bash test runner
 
+# Testing
+brew "bats-core"
+
 # Languages and runtimes
 brew "uv"                      # Python packaging; also manages Python versions
 brew "go"
@@ -58,6 +61,7 @@ brew "harper"                  # Grammar checker (harper-ls, harper-cli)
 # Cloud
 brew "azure-cli"
 
+<<<<<<< Updated upstream
 # Window management
 # yabai needs two steps this file cannot do: partially disabling SIP and installing the
 # scripting addition, then `yabai --start-service`. Until both happen the binary is
@@ -70,6 +74,12 @@ brew "azure-cli"
 # formula above.
 tap "koekeishiya/formulae"
 brew "koekeishiya/formulae/yabai", trusted: true
+||||||| Stash base
+=======
+# Terminal output formatting
+tap "charmbracelet/tap"
+brew "charmbracelet/tap/freeze", trusted: true # Render code/terminal output to images
+>>>>>>> Stashed changes
 
 # Apps
 cask "iterm2"
@@ -104,9 +114,19 @@ uv "pyrefly"
 uv "ruff"
 uv "playwright"
 uv "it2"                       # iTerm2 CLI
+<<<<<<< Updated upstream
 uv "graphifyy"                 # graphify: codebase knowledge graph (command is `graphify`)
 uv "black"                     # Formats the odd repo that pins black rather than ruff
+||||||| Stash base
+=======
+uv "black"
+>>>>>>> Stashed changes
 
 npm "corepack"
 npm "mermaid-filter"
+<<<<<<< Updated upstream
 npm "aws-cdk"                  # cdk CLI
+||||||| Stash base
+=======
+npm "aws-cdk"
+>>>>>>> Stashed changes

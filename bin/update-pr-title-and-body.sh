@@ -25,13 +25,13 @@ JSON
 )
 readonly SCHEMA
 
-# shellcheck source-path=SCRIPTDIR source=_codex-config.sh
-source "${BASH_SOURCE[0]%/*}/_codex-config.sh"
+# shellcheck source-path=SCRIPTDIR source=_claude-config.sh
+source "${BASH_SOURCE[0]%/*}/_claude-config.sh"
 
-CODEX_MODEL=$(codex_model)
+CLAUDE_MODEL=$(claude_model)
 ASSUME_YES=false
 PR_NUMBER=""
-readonly CODEX_MODEL
+readonly CLAUDE_MODEL
 
 usage() {
   printf 'Usage: %s PR_NUMBER [-y|--yes]\n' "${0##*/}"
@@ -81,7 +81,7 @@ fi
 require_command gh
 require_command git
 require_command jq
-require_command codex
+require_command claude
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
 readonly REPO_ROOT
@@ -103,15 +103,6 @@ printf '%s\n' "$SCHEMA" >"$SCHEMA_FILE"
 trap cleanup EXIT
 
 readonly ASSUME_YES PR_NUMBER
-
-PROVIDER_ARGS=()
-CODEX_BASE_URL=$(codex_base_url)
-if [[ -n "$CODEX_BASE_URL" ]]; then
-  PROVIDER_ARGS=(
-    --config 'model_provider="proxy"'
-    --config "model_providers.proxy={name=\"Proxy\",base_url=\"$CODEX_BASE_URL\",env_key=\"OPENAI_API_KEY\",wire_api=\"responses\",supports_websockets=false}"
-  )
-fi
 
 wait_gathered() {
   local pid=$1
@@ -272,7 +263,7 @@ gh pr view ${PR_NUMBER} --json title,body,baseRefName,headRefName,commits:
 PROMPT
   cat "$PR_VIEW_FILE"
   printf '\n\ngh pr diff %s:\n' "$PR_NUMBER"
-  codex_bound_diff_from_file "$PR_DIFF_FILE"
+  prompt_bound_diff_from_file "$PR_DIFF_FILE"
   printf '\n\ngit status -sb:\n'
   cat "$GIT_STATUS_FILE"
   printf '\n\ngit log --oneline -n 10:\n'
@@ -280,38 +271,9 @@ PROMPT
   printf '\n\ngit diff --stat %s:\n' "$DIFF_RANGE"
   cat "$GIT_DIFF_STAT_FILE"
 } >"$PROMPT_FILE"
-codex_cap_file "$PROMPT_FILE"
+prompt_cap_file "$PROMPT_FILE"
 
-if ! codex exec \
-  --ephemeral \
-  --ignore-user-config \
-  --ignore-rules \
-  --skip-git-repo-check \
-  --disable hooks \
-  --disable plugins \
-  --disable memories \
-  --disable skill_search \
-  --disable multi_agent \
-  --disable browser_use \
-  --disable computer_use \
-  --config 'web_search="disabled"' \
-  --disable image_generation \
-  --disable tool_suggest \
-  --disable workspace_dependencies \
-  --disable shell_tool \
-  --disable unified_exec \
-  --cd "$TEMP_DIR" \
-  --sandbox read-only \
-  --model "$CODEX_MODEL" \
-  --config 'model_reasoning_effort="medium"' \
-  --config 'model_reasoning_summary="none"' \
-  --config 'model_verbosity="low"' \
-  --config 'service_tier="fast"' \
-  ${PROVIDER_ARGS[@]+"${PROVIDER_ARGS[@]}"} \
-  --output-schema "$SCHEMA_FILE" \
-  --output-last-message "$RESULT_FILE" \
-  - <"$PROMPT_FILE" >/dev/null 2>"$TEMP_DIR/codex.stderr"; then
-  cat "$TEMP_DIR/codex.stderr" >&2
+if ! claude_structured_output "$SCHEMA_FILE" "$PROMPT_FILE" "$RESULT_FILE" medium; then
   exit 1
 fi
 
