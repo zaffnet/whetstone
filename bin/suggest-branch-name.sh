@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# shellcheck source-path=SCRIPTDIR source=_codex-config.sh
-source "${BASH_SOURCE[0]%/*}/_codex-config.sh"
+# shellcheck source-path=SCRIPTDIR source=_claude-config.sh
+source "${BASH_SOURCE[0]%/*}/_claude-config.sh"
 
-CODEX_MODEL=$(codex_model)
+CLAUDE_MODEL=$(claude_model)
 EFFORT="medium"
-readonly CODEX_MODEL EFFORT
+readonly CLAUDE_MODEL EFFORT
 
 require_command git
 require_command jq
-require_command codex
+require_command claude
 
 if [[ -z "$(git status --porcelain)" ]]; then
   printf '%s\n' 'No changes to name a branch from.' >&2
@@ -57,16 +57,7 @@ SCHEMA="$(
 )"
 readonly SCHEMA
 
-PROVIDER_ARGS=()
-CODEX_BASE_URL=$(codex_base_url)
-if [[ -n "$CODEX_BASE_URL" ]]; then
-  PROVIDER_ARGS=(
-    --config 'model_provider="proxy"'
-    --config "model_providers.proxy={name=\"Proxy\",base_url=\"$CODEX_BASE_URL\",env_key=\"OPENAI_API_KEY\",wire_api=\"responses\",supports_websockets=false}"
-  )
-fi
-
-DIFF="$(codex_bound_diff "$(git diff HEAD)")"
+DIFF="$(prompt_bound_diff "$(git diff HEAD)")"
 readonly DIFF
 
 PROMPT=$(
@@ -103,21 +94,7 @@ printf '%s\n' "$PROMPT" >"$PROMPT_FILE"
 
 trap cleanup EXIT
 
-if ! codex exec \
-  --ephemeral \
-  --ignore-user-config \
-  --skip-git-repo-check \
-  --disable hooks \
-  --disable plugins \
-  --cd "$TEMP_DIR" \
-  --sandbox read-only \
-  --model "$CODEX_MODEL" \
-  --config "model_reasoning_effort=\"$EFFORT\"" \
-  ${PROVIDER_ARGS[@]+"${PROVIDER_ARGS[@]}"} \
-  --output-schema "$SCHEMA_FILE" \
-  --output-last-message "$RESULT_FILE" \
-  - >/dev/null 2>"$TEMP_DIR/codex.stderr" <"$PROMPT_FILE"; then
-  cat "$TEMP_DIR/codex.stderr" >&2
+if ! claude_structured_output "$SCHEMA_FILE" "$PROMPT_FILE" "$RESULT_FILE" "$EFFORT"; then
   exit 1
 fi
 

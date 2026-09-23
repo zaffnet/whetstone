@@ -2,63 +2,51 @@
 
 ## Writing prose (documentation, comments, etc.)
 
-Load the `writing-whip` skill before writing prose, and `prose-honesty` before writing
-comments, docstrings, docs, or a PR body.
+Load the `writing-whip` and `prose-honesty` skills before writing comments, docstrings, docs, or a PR body.
 
 ## Code style
 
-Python follows [PEP 8](https://peps.python.org/pep-0008/) for judgment calls. Ruff
-(pre-commit) owns naming, formatting, and imports.
+Python follows [PEP 8](https://peps.python.org/pep-0008/) for judgment calls. Ruff (pre-commit) owns naming, formatting,
+and imports.
 
-Keep the docstrings on public modules, classes, and functions short. Use
-@"code-honesty-auditor (agent)" to audit any docstrings or comments you have written in
-any code.
+Docstrings on public modules, classes, and functions: a one-line summary, then `Args:`, `Returns:`, and `Raises:`
+sections where they carry information. One-line helpers skip Args/Returns. Type hints on function signatures.
 
-Write the minimum that solves the problem. Keep diffs surgical: every changed line traces
-to the request. Mention unrelated dead code; make a case for them to delete, and when permission is
-granted, delete them. Do it routinely and religiously. Remove names that have become unused.
+If you assume something, say what you assumed.
 
-Fix the root cause. Do not leave `# type: ignore`, bare `except: pass`, or unexplained
-`# noqa`. When a type error comes from a dependency, add real stubs -- `types-<pkg>` or a
-`stubs/` entry -- rather than annotating the call site as `Any`. Reserve `Any` for values
-that are genuinely dynamic.
+Write the minimum that solves the problem. Keep diffs surgical: every changed line traces to the request. Remove names
+this change made unused.
 
-Imports go at the top of the module, never inside a function body, a type annotation, or
-an interface field. A real circular dependency is the one exception; name it next to the
-import.
+Fix the root cause. Do not leave `# type: ignore`, bare `except: pass`, or unexplained `# noqa`.
 
-Do not add tests that only assert a constant or a fact ruff, mypy, or basedpyright already
-prove. No section-separator comments. No template docstrings that restate the function
-name.
+Do not add tests that only assert a constant or a fact ruff, mypy, or basedpyright already prove. No template docstrings
+that restate the function name.
 
 ## Code taste
 
-Aim for the largest honest net negative diff. Reduction is the deliverable, not a side effect
-of one. This applies to code, comments, docs, PR size, and tooling alike. If a change adds
-lines, be able to say what those lines buy.
+Aim for the largest honest net negative diff. Reduction is the deliverable, not a side effect of one. This applies to
+code, comments, docs, PR size, and tooling alike. If a change adds lines, be able to say what those lines buy.
 
 ### Scope and diffs
 
 - Write the minimum that solves the problem.
 - Every changed line traces to the request. If it does not, it is a separate change.
-- Mention any dead code you find. Confirm it is no longer needed and delete it.
+- Mention dead code you find. Confirm it is no longer needed and delete it.
 - Remove names this change made unused, including ones you added that turned out unused.
 - Scope is a contract. Do not quietly widen or narrow it; if it must change, say so.
 - Parking a decision as a "follow-up" is usually evasion. Decide it or name who will.
 
 ### Comments and docstrings
 
-The bar: does a reader who opens this next year, having never seen the change, need it? Judge
-each clause, not the file. If keeping it is arguable, cut it. Survivors state a cause, a
-constraint, or a consequence the code cannot state itself.
+The bar: does a reader who opens this next year, having never seen the change, need it? Judge each clause, not the file.
+If keeping it is arguable, cut it. Survivors state a cause, a constraint, or a consequence the code cannot state itself.
 
 - No changelog narration. The reader has the file, not the diff.
 - No banner comments, no section separators, no emoji.
 - No TODO without either the work or an issue reference.
 - Where a linter requires a docstring, shrink it rather than delete it.
 - Never document behaviour no test exercises.
-- Consistency with the surrounding file beats a marginal improvement. When the call is close,
-  leave it.
+- Consistency with the surrounding file beats a marginal improvement. When the call is close, leave it.
 
 ### Naming
 
@@ -70,14 +58,13 @@ constraint, or a consequence the code cannot state itself.
 
 ### Structure and typing
 
-- Imports at module top. A circular dependency is the only reason to move one inside.
-  Avoid circular dependencies.
+- Imports at module top. A circular dependency is the only reason to move one inside. Avoid circular dependencies.
 - Early returns over nested conditionals. Keep functions short.
 - Write a real type or stub rather than `Any`.
 - No suppressions, and no laundering one suppression into another form. Fix the root cause.
 - Modern generics and `X | None`, not the legacy spellings.
-- Model variants as a discriminated union and match exhaustively, closing with `assert_never`,
-  so adding a variant is a compile error at each site that must change and nowhere else.
+- Model variants as a discriminated union and match exhaustively, closing with `assert_never`, so adding a variant is a
+  compile error at each site that must change and nowhere else.
 - A library never knows its caller: no consumer-shaped parameters, no imports pointing up.
 - Data does not live inside the script that generates from it.
 - Mark generated files as generated so review lands on the generator.
@@ -85,18 +72,17 @@ constraint, or a consequence the code cannot state itself.
 ### Errors and logging
 
 - A custom exception hierarchy per boundary, raised at that boundary.
-- At a library boundary, sever the chain: raise the library's own error without the
-  internal cause.
+- At a library boundary, sever the chain: raise the library's own error without the internal cause.
 - Libraries log through the standard library's logging only, and configure nothing.
 - Defensive checks on trusted internal paths are slop. Validate at the edge, then trust it.
 
 ### Tests
 
-- Every test runs against the real thing. "This cannot be tested live" is nearly always a
-  claim about the attempt, not about the world; change the request, the credentials, or the
-  config and try again. A mock-only test needs a written reason.
-- Fake data is either obviously synthetic or copied verbatim from a real response. Never
-  invent data and describe it as real.
+- Every test runs against the real thing. "This cannot be tested live" is nearly always a claim about the attempt, not
+  about the world; change the request, the credentials, or the config and try again. A mock-only test needs a written
+  reason.
+- Fake data is either obviously synthetic or copied verbatim from a real response. Never invent data and describe it as
+  real.
 - A mock that agrees with your own misreading proves nothing.
 - Mutation-test the test: break the code and confirm it fails.
 - Partial verification reads exactly like proof. Say which part you checked.
@@ -123,14 +109,16 @@ constraint, or a consequence the code cannot state itself.
 - Design docs stay out of implementation detail.
 - One fact has one owner. Everywhere else cross-references it.
 - Sentence case headings, straight quotes, no em dashes, no arrow glyphs.
-- For work that needs judgment, use judgment. A brittle deterministic script that approximates
-  a judgment call is worse than making the call.
+- For work that needs judgment, use judgment. A brittle deterministic script that approximates a judgment call is worse
+  than making the call.
 
 ## Writing style
 
 - Write for humans, not agents.
-- If the code, the doc, or the user already named it, use that exact word. Do not
-  paraphrase a technical term, and do not coin a near-synonym or near-homophone of one.
+- If the code, the doc, or the user already named it, use that exact word. Do not paraphrase a technical term, and do
+  not coin a near-synonym or near-homophone of one.
+
+Never strip ANSI with regex after the fact.
 
 ## Stacked pull requests
 
@@ -138,21 +126,36 @@ Run `gh stack list` to see the stack. Use `/gh-stack` to work with GitHub Stack.
 
 ## Handing off
 
-Report the result of each:
+Run & report the result of each:
 
 1. `uv run pre-commit run --all-files` passes.
 2. `run-typecheck.sh` passes. It's available on PATH.
-3. Run @"prose-honesty-auditor (agent)" and @"code-honesty-auditor (agent)" over every
-   file the session touched, and delete what they name. Take all their suggestions.
-4. Run the following skills on every file the session touched: /simplify-english,
-   /writing-whip, /writing-clearly-and-concisely, and /prose-honesty.
+
+If asked explicitly by the user, run the following skills on every file the session touched. SKIP IF THE USER DID NOT
+REQUEST IT:
+
+1. Run @"prose-honesty-auditor (agent)" and @"code-honesty-auditor (agent)" over every file the session touched, and
+   delete what they name. Take all their suggestions.
+2. Run the following skills on every file the session touched: /simplify-english, /writing-whip, and /prose-honesty.
+
+When asked to apply: cherry-picking which parts of each skill to apply and skipping the rest because you judged the
+document "already clean" (or for any other reason) is strictly forbidden. That's not what is being asked. Apply all
+three skills fully, no exceptions, in sequence. Show the results in the form of a table to the user, each row for one of
+the checks (agents and skills) on each file touched by the session. So, if the session touched N files, the table should
+have 5 \* N rows in total: (two for agents and three for skills) x N files. Among other columns, the table should have
+the agent / skill name, the file path, summary of the output from the agent / skill run and the changes you made to the
+file based on the output.
 
 ## Git
 
-Small PRs, one logical change each. Conventional commits, imperative mood, first line of
-72 characters or fewer. Never push to `main`: push a branch, open the PR. PR body lines
-must not be longer than 100 characters.
+Small PRs, one logical change each. Conventional commits, imperative mood, first line of 72 characters or fewer. Never
+push to `main`: push a branch, open the PR. PR body lines must not be longer than 100 characters.
 
 ## Skills
 
 Check `~/.agents/skills` at the start of a task and load the ones that match.
+
+# graphify
+
+- **graphify** (`~/.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify` When the user
+  types `/graphify`, use the installed graphify skill or instructions before doing anything else.
