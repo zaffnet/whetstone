@@ -7,12 +7,12 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-  "basedpyright>=1.39",
-  "copier>=9.18.2",
-  "mypy>=2.3",
-  "pre-commit>=4.6.1",
-  "pyrefly>=1.2",
-  "ruff>=0.16.7",
+  "basedpyright>=1.40.2",
+  "copier>=9.19.1",
+  "mypy>=2.4.0",
+  "pre-commit>=4.7.0",
+  "pyrefly>=1.4.0",
+  "ruff>=0.17.1",
 ]
 
 [tool.mypy]
